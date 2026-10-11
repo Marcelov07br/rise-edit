@@ -47,7 +47,7 @@ class MotionAnalyzer(private val context: Context) {
                 time += 42
             }
             samples.add(MotionSample(clip.sourceDurationMs, pose, segment))
-            check(unreliable < samples.size * 0.5) { "Rastreamento insuficiente: pouca textura, cortes ou movimento rápido." }
+            if (unreliable >= samples.size * 0.5) throw br.com.riseedit.core.MediaFault.StabilizationNoTexture
             progress(1f)
             return MotionAnalysis(width, height, samples, unreliable)
         } finally { previous?.release(); retriever.release() }

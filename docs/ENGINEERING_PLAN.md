@@ -16,6 +16,15 @@ O plano descreve proxy como caminho universal. Media3 também depende de MediaCo
 
 Existe API pública `maxSupportedInstances` desde API 23; ela é uma indicação, não uma garantia. O teste de instâncias complementa essa indicação. Android AVCProfileMain = 2 e AVCProfileHigh10 = 16; perfil sozinho não determina necessariamente a profundidade real do bitstream. P010 de CodecCapabilities é API 33. [Capacidades](https://developer.android.com/reference/android/media/MediaCodecInfo.CodecCapabilities), [perfis](https://developer.android.com/reference/android/media/MediaCodecInfo.CodecProfileLevel).
 
+## P1 — prévia separada
+
+- `preview/PreviewEngine` possui um único player ativo. Rápida usa ExoPlayer sem composição GL; Fiel usa CompositionPlayer com preparação adiada em 200 ms, controle de decoders, guarda de erro e watchdog de 3 s durante reprodução. Falha volta à Rápida mantendo cursor e intenção de reprodução.
+- `PreviewTimeline` conserva posição global, cortes e duração de slots ausentes; `FastPreview` troca um clipe indisponível por silêncio na mesma posição, permitindo acessar os demais. Velocidade usa a curva existente; Fiel e export continuam com a composição completa.
+- `PreviewPanel` aplica transformação, estabilização e cor aproximadas no TextureView da Rápida. Fiel usa SurfaceView, exigência da API experimental atual. Camadas, texto e áudio extra são vistos na Fiel; a limitação aparece na interface.
+- A Rápida prefere proxy existente, mas não inventa decodificação em 480p: o ExoPlayer decodifica a fonte efetiva. Não criamos um novo proxy de todas as fontes compatíveis somente para impor 480p. A estabilização reutiliza a análise já salva e a comparação original.
+- Importação/análise/export liberam os recursos do preview; cancelamento aguarda a limpeza antes de preparar novamente. O lifecycle pausa pelo proprietário do player para evitar retomar reprodução em segundo plano.
+- Export com overlays verifica orçamento de decoders e fornece ação se excedido. Não implementa composição sequencial/bake de camadas nesta entrega.
+
 ## Evidência
 
 Comandos e resultados executados em VALIDATION.md. Corpus pequeno e reproduzível em MEDIA_FIXTURES.md. APV não tem fixture nem validação física. Não há garantia de reproduzir todos os formatos em todos os aparelhos.

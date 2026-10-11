@@ -46,7 +46,7 @@ fun TimelinePanel(vm: EditorViewModel,state: EditorState,trackAreaHeight: Dp=270
                         Canvas(Modifier.fillMaxWidth().height(28.dp).pointerInput(p.durationMs,zoom) {
                             detectTapGestures { vm.seek((it.x/density/zoom*1000).toLong()) }
                         }.pointerInput(p.durationMs,zoom) {
-                            detectHorizontalDragGestures(onDragStart={vm.player.setScrubbingModeEnabled(true)},onDragEnd={vm.player.setScrubbingModeEnabled(false)},onDragCancel={vm.player.setScrubbingModeEnabled(false)}) { change,_ ->change.consume();vm.seek((change.position.x/density/zoom*1000).toLong()) }
+                            detectHorizontalDragGestures(onDragStart={vm.scrubbing(true)},onDragEnd={vm.scrubbing(false)},onDragCancel={vm.scrubbing(false)}) { change,_ ->change.consume();vm.seek((change.position.x/density/zoom*1000).toLong()) }
                         }.pointerInput(Unit) { detectTransformGestures { _,_,scale,_ -> if(abs(scale-1)>0.005f) zoom=(zoom*scale).coerceIn(15f,180f) } }) {
                             val step=if(zoom>80) 1 else if(zoom>30) 2 else 5
                             val paint=android.graphics.Paint().apply {color=android.graphics.Color.LTGRAY;textSize=9*density;isAntiAlias=true}

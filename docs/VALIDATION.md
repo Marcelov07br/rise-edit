@@ -1,10 +1,12 @@
 # Validação — Rise Edit 0.2.0
 
-## Engenharia sobre v0.3.0 — P0 em validação
+## Engenharia sobre v0.3.0 — P0 aprovado; P1 em validação
 
-`tools/build-windows.ps1`: assembleDebug/lintDebug/compilação core aprovados; 22 testes JVM executados e aprovados antes da adição do teste de rotação. Instrumentação dos novos formatos ainda não executada. Próxima execução deve incluir 23 testes JVM e os testes Android novos, mantendo os anteriores sem edição.
+`tools/build-windows.ps1`: assembleDebug/lintDebug e 23 testes JVM aprovados. `:app:compileDebugAndroidTestKotlin` e `:app:assembleRelease` aprovados. GitHub Actions run 38177601938, commit 7bd85bd: build e android-runtime aprovados, oito testes Android sem falha nem skip; os testes anteriores permanecem sem edição.
 
-Corpus: 11 arquivos sintéticos, 237.230 bytes, decodificados no FFmpeg sem erros. Isso confirma os arquivos de teste, não o suporte Android. Há AVC/HEVC 8 e 10-bit, AVC 4:2:2, MKV, VP9, AV1, HDR, AAC, MP3, Opus e PCM. APV não foi gerado nem validado. Detalhes e comandos em MEDIA_FIXTURES.md; limitações de conversão em ENGINEERING_PLAN.md.
+P0: 11 arquivos sintéticos, 237.230 bytes, decodificados no FFmpeg sem erros. No Android API 35, H.264, HEVC 8-bit/MKV, VP9/WebM e AV1/MKV foram convertidos para H.264 e realmente reproduzidos pelo ExoPlayer. AVC 10-bit, AVC 4:2:2, HEVC 10-bit e HEVC HDR sem decoder foram recusados com falhas tipadas; metadados corretos foram verificados. MP3, Opus e PCM tiveram decoder reconhecido. APV não foi gerado nem validado. P1 adiciona um vídeo 720p, totalizando 12 arquivos e 581.761 bytes. Detalhes em MEDIA_FIXTURES.md; limitações em ENGINEERING_PLAN.md.
+
+APK baseline assinado: 146.335.665 bytes; certificado SHA-256 30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec.
 
 Os resultados da v0.2 abaixo são históricos e não aprovam automaticamente esta alteração.
 

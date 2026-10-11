@@ -7,9 +7,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.*
 import androidx.media3.transformer.*
-import androidx.media3.effect.MultipleInputVideoGraph
 import br.com.riseedit.core.*
 import br.com.riseedit.media.*
+import br.com.riseedit.preview.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,14 +21,21 @@ data class EditorState(
     val busy: String? = null, val progress: Float = 0f,
     val message: String? = null, val analyzed: Set<String> = emptySet(),
     val canUndo: Boolean = false, val canRedo: Boolean = false, val selection: String? = null,
-    val comparing: Boolean = false, val muted: Boolean = false
+    val comparing: Boolean = false, val muted: Boolean = false,
+    val previewQuality: PreviewQuality = PreviewQuality.Fast, val previewRequested: PreviewQuality = PreviewQuality.Fast, val previewGeneration: Int = 0,
+    val previewFault: MediaFault? = null
 )
 
 class EditorViewModel(application: Application) : AndroidViewModel(application) {
     private val store = ProjectStore(application)
     private val mutable = MutableStateFlow(EditorState())
     val state = mutable.asStateFlow()
-    val player = CompositionPlayer.Builder(application).setVideoGraphFactory(MultipleInputVideoGraph.Factory()).build()
+    private val preview = PreviewEngine(application, viewModelScope, ::previewChanged, ::message)
+    val player: Player get() = preview.player
+    fun motionAnalysis(uri: String) = analyses[uri]
+    val previewClip get() = preview.activeClip
+    val previewSourceMs get() = preview.activeSourceMs
+    private fun previewChanged() { mutable.value = state.value.copy(previewQuality = preview.quality, previewRequested = preview.requestedQuality, previewGeneration = state.value.previewGeneration+1) }
     private val analyses = mutableMapOf<String, MotionAnalysis>()
     private val undo = ArrayDeque<Project>(); private val redo = ArrayDeque<Project>()
     private var operation: Job? = null
@@ -38,7 +45,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private val mediaFaults = mutableMapOf<String, MediaFault>()
     private fun mediaProgress(progress: Float, phase: String) { mutable.value = state.value.copy(progress = progress, busy = phase) }
     private fun report(error: Exception) = message((error as? MediaFault)?.displayMessage() ?: "Não foi possível ler este arquivo. Selecione uma cópia compatível e tente novamente.")
-    private suspend fun finishOperation() { if (operation === currentCoroutineContext()[Job]) mutable.value = state.value.copy(busy = null) }
+    private suspend fun finishOperation() { if (operation === currentCoroutineContext()[Job]) { mutable.value = state.value.copy(busy = null); rebuild() } }
     private suspend fun trimProxyCache() {
         val history = (undo + redo).flatMap { it.clips + it.overlays.map { o -> o.clip } }.mapNotNull { it.proxyUri }
         val keep = withContext(Dispatchers.IO) { store.list().flatMap { it.clips + it.overlays.map { o -> o.clip } }.mapNotNull { it.proxyUri }.toSet() } + history
@@ -50,28 +57,25 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     catch(e: Exception) { mediaFaults[clip.id] = e as? MediaFault ?: MediaFault.ImportFailed(cause=e); clip }
 
     init {
-        player.addListener(object : Player.Listener {
-            override fun onPlayerError(error: PlaybackException) { message("Falha na prévia: ${error.localizedMessage}") }
-        })
         viewModelScope.launch {
             while (isActive) {
-                mutable.value = mutable.value.copy(positionMs = player.currentPosition.coerceAtLeast(0), playing = player.isPlaying)
-                delay(100)
+                preview.updatePlayback()
+                if (state.value.busy == null) mutable.value = mutable.value.copy(positionMs = preview.positionMs, playing = player.isPlaying, previewQuality = preview.quality, previewFault = preview.fault)
+                delay(33)
             }
         }
     }
     fun message(text: String?) { mutable.value = mutable.value.copy(message = text) }
     private fun rebuild() {
-        player.pause()
         try {
-            if (state.value.project.clips.isEmpty()) player.stop()
-            else {
-                val project = if (state.value.comparing) state.value.project.copy(clips = state.value.project.clips.map { it.copy(stabilization = it.stabilization.copy(enabled = false)) }) else state.value.project
-                player.setComposition(VideoEngine.composition(project, analyses, preview = true)); player.prepare()
-                player.seekTo(state.value.positionMs.coerceIn(0, state.value.project.durationMs))
-            }
+            val project = if (state.value.comparing) state.value.project.copy(clips = state.value.project.clips.map { it.copy(stabilization = it.stabilization.copy(enabled = false)) }) else state.value.project
+            preview.update(project, analyses, mediaFaults, state.value.positionMs, state.value.previewRequested)
         } catch (e: Exception) { message("Prévia indisponível: ${e.localizedMessage}") }
     }
+    fun previewQuality(quality: PreviewQuality) { mutable.value = state.value.copy(previewRequested = quality); rebuild() }
+    fun scrubbing(enabled: Boolean) = preview.scrubbing(enabled)
+    fun suspendPreview() = preview.pauseForProcessing()
+    fun pausePreview() = preview.pause()
     private fun edit(candidate: Project) {
         if (state.value.busy != null || candidate == state.value.project) return
         val project = candidate.copy(modifiedAt = System.currentTimeMillis())
@@ -84,7 +88,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun redo() = history(redo, undo)
     fun open(project: Project) {
         if (state.value.busy != null) return
-        player.pause(); undo.clear(); redo.clear(); analyses.clear(); mediaFaults.clear()
+        preview.pauseForProcessing(); undo.clear(); redo.clear(); analyses.clear(); mediaFaults.clear()
         mutable.value = EditorState(project = project, busy = "Abrindo projeto…")
         operation = viewModelScope.launch {
             try {
@@ -97,11 +101,11 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
                 mediaFaults.values.firstOrNull()?.let { message(it.displayMessage()) }
                 trimProxyCache()
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { mutable.value = state.value.copy(busy = null); report(e) }
+            catch (e: Exception) { mutable.value = state.value.copy(busy = null); report(e); rebuild() }
         }
     }
     fun compare() { mutable.value = state.value.copy(comparing = !state.value.comparing); rebuild() }
-    fun mute() { player.volume = if (player.volume == 0f) 1f else 0f; mutable.value = state.value.copy(muted = player.volume == 0f) }
+    fun mute() { val muted = !state.value.muted; preview.setMuted(muted); mutable.value = state.value.copy(muted = muted) }
     fun projectSettings(ratio: Float, export: ExportSettings) = edit(state.value.project.copy(aspectRatio = ratio, export = export))
     fun clipSettings(clip: Clip) { val s = state.value; if (s.project.clips.getOrNull(s.selected)?.id == clip.id) edit(s.project.replace(s.selected, clip)) }
     fun selectLayer(id: String) { mutable.value = state.value.copy(selection = id) }
@@ -122,6 +126,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private fun importLayers(uris: List<Uri>, track: Int, video: Boolean) {
         if (uris.isEmpty() || state.value.busy != null || state.value.project.clips.isEmpty()) return
         mutable.value = state.value.copy(busy = "Importando mídia…")
+        preview.pauseForProcessing()
         operation = viewModelScope.launch {
             try {
                 val kind = if (video) MediaKind.OVERLAY else MediaKind.AUDIO
@@ -146,6 +151,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun import(uris: List<Uri>) {
         if (uris.isEmpty() || state.value.busy != null) return
         mutable.value = state.value.copy(busy = "Importando vídeos…", progress = 0f)
+        preview.pauseForProcessing()
         operation = viewModelScope.launch {
             try {
                 val clips = importMedia(uris, MediaKind.MAIN_VIDEO)
@@ -175,8 +181,8 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         mutable.value = state.value.copy(selected = index, selection = null)
         seek(state.value.project.clips.take(index).sumOf { it.durationMs })
     }
-    fun seek(ms: Long) { val bounded = ms.coerceIn(0,state.value.project.durationMs); player.seekTo(bounded); mutable.value = state.value.copy(positionMs = bounded) }
-    fun togglePlay() { if (player.isPlaying) player.pause() else { if (player.playbackState == Player.STATE_ENDED) player.seekTo(0); player.play() } }
+    fun seek(ms: Long) { val bounded = ms.coerceIn(0,state.value.project.durationMs); preview.seek(bounded); mutable.value = state.value.copy(positionMs = bounded, previewFault = preview.fault) }
+    fun togglePlay() = preview.togglePlay()
     fun trim(start: Long, end: Long) {
         val s = state.value; val clip = s.project.clips.getOrNull(s.selected) ?: return
         runCatching { edit(s.project.replace(s.selected, clip.trim(start, end))) }.onFailure { message("O corte precisa ter duração maior que zero.") }
@@ -197,7 +203,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun analyze() {
         val s = state.value; val clip = s.project.clips.getOrNull(s.selected) ?: return
         if (s.busy != null) return
-        player.pause(); mutable.value = s.copy(busy = "Analisando movimento…", progress = 0f)
+        preview.pauseForProcessing(); mutable.value = s.copy(busy = "Analisando movimento…", progress = 0f)
         operation = viewModelScope.launch {
             try {
                 val analysis = withContext(Dispatchers.Default) {
@@ -209,7 +215,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
                 settings(clip.stabilization.copy(enabled = true))
                 message("Análise pronta. ${analysis.unreliableFrames} amostras sem rastreamento; confira a prévia.")
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { message("Análise falhou: ${e.localizedMessage}") }
+            catch (e: Exception) { message((e as? MediaFault)?.displayMessage() ?: "Análise falhou: ${e.localizedMessage}") }
             finally { finishOperation() }
         }
     }
@@ -219,7 +225,26 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         mediaFaults.entries.firstOrNull { it.key in currentIds }?.value?.let { message(it.displayMessage()); return }
         val p = state.value.project
         if ((p.clips.map { it.uri } + p.audio.map { it.uri } + p.overlays.map { it.clip.uri }).any { it == destination.toString() }) { message("Escolha um novo arquivo para preservar o original."); return }
-        player.pause(); mutable.value = state.value.copy(busy = "Exportando MP4 ${p.export.height}p…", progress = 0f)
+        preview.pauseForProcessing(); mutable.value = state.value.copy(busy = "Verificando exportação…", progress = 0f)
+        operation = viewModelScope.launch {
+            try {
+                val required = 1+p.overlays.count { it.offsetMs < p.durationMs }
+                if (required > 1) {
+                    val available = DeviceCapability.profile(getApplication()).maxDecoders
+                    if (required > available) {
+                        android.util.Log.w("RiseExport", "Decoder budget exceeded: $required > $available")
+                        message("Este aparelho não tem recursos suficientes para ${required-1} overlay(s). Remova uma camada de vídeo e tente exportar novamente.")
+                        return@launch
+                    }
+                }
+                startExport(destination,p)
+            } catch(e: CancellationException) { throw e }
+            catch(e: Exception) { message("Não foi possível preparar a exportação. Tente novamente em 720p.") }
+            finally { if (transformer == null) finishOperation() }
+        }
+    }
+    private fun startExport(destination: Uri, p: Project) {
+        preview.pause(); mutable.value = state.value.copy(busy = "Exportando MP4 ${p.export.height}p…", progress = 0f)
         val file = File(getApplication<Application>().cacheDir, "export-${System.nanoTime()}.mp4")
         exportFile = file; exportDestination = destination
         try {
@@ -239,12 +264,12 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
                                 }
                                 exportDestination = null; message("Vídeo exportado. Os arquivos originais foram preservados.")
                             } catch (e: Exception) { message("Não foi possível salvar o vídeo: ${e.localizedMessage}") }
-                            finally { file.delete(); exportFile = null; mutable.value = state.value.copy(busy = null) }
+                            finally { file.delete(); exportFile = null; finishOperation() }
                         }
                     }
                     override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
                         transformer = null; file.delete(); exportFile = null
-                        mutable.value = state.value.copy(busy = null); message("Exportação falhou: ${exportException.localizedMessage}")
+                        mutable.value = state.value.copy(busy = null); message("Exportação falhou: ${exportException.localizedMessage}"); rebuild()
                     }
                 }).build()
             transformer = engine
@@ -258,6 +283,12 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             }
         } catch (e: Exception) { transformer = null; file.delete(); exportFile = null; mutable.value = state.value.copy(busy = null); message("Exportação indisponível: ${e.localizedMessage}") }
     }
-    fun cancel() { val job=operation; operation=null; job?.cancel(); transformer?.cancel(); transformer = null; exportFile?.delete(); exportFile = null; mutable.value = state.value.copy(busy = null); message("Operação cancelada.") }
-    override fun onCleared() { transformer?.cancel(); player.release(); exportFile?.delete() }
+    fun cancel() {
+        val job = operation; operation = null; job?.cancel(); transformer?.cancel(); transformer = null
+        exportFile?.delete(); exportFile = null; mutable.value = state.value.copy(busy = "Cancelando…")
+        operation = viewModelScope.launch {
+            job?.join(); finishOperation(); message("Operação cancelada.")
+        }
+    }
+    override fun onCleared() { transformer?.cancel(); preview.release(); exportFile?.delete() }
 }
