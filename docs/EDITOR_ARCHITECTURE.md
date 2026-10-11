@@ -1,5 +1,9 @@
 # Rise Edit 0.2 — especificação e implementação
 
+## Contenção da entrega
+
+A interface de velocidade/rampa foi adiada para a próxima evolução. O modelo e os testes matemáticos ficam preservados, mas a UI desta versão não oferece essa operação. Media3 1.9 possui uma falha conhecida ao combinar `setSpeed` com remoção de áudio ([issue 3006](https://github.com/androidx/media/issues/3006)); overlays usam timestamps nativos e clipes sem alteração de velocidade não criam processadores de retiming. A prioridade da entrega é projetos, cortes, áudio, texto, estabilização e exportação utilizáveis.
+
 ## Estrutura
 
 O app continua nativo: Kotlin, Compose, Media3 1.9 e OpenCV 4.10. `MainActivity` coordena a navegação Home/Editor e as configurações de atualização. `HomeScreen` usa uma grade adaptativa de projetos. `EditorScreen` contém preview, controles, timeline e painéis. `TimelinePanel` representa tempo em uma escala comum; `ToolPanels` altera os dados do projeto, sem manipular fontes. `EditorViewModel` guarda histórico e reconstrói a composição após cada edição confirmada.

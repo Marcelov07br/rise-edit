@@ -35,9 +35,6 @@ import kotlin.math.*
             }
             Row {TextButton(onClick={vm.move(-1)},enabled=enabled && state.selected>0) {Text("← Mover")};TextButton(onClick={vm.move(1)},enabled=enabled && state.selected<p.clips.lastIndex) {Text("Mover →")}}
             Text("A faixa principal fecha os espaços automaticamente ao cortar ou excluir.",style=MaterialTheme.typography.bodySmall)
-            val current=clip.speedAt(clip.startMs)
-            ChoiceRow(listOf(0.5,0.75,1.0,1.5,2.0,4.0),current,{vm.clipSettings(clip.copy(speedPoints=listOf(SpeedPoint(clip.startMs,it))))}) {"${it}×"}
-            OutlinedButton(onClick={val rates=listOf(1.0,0.75,0.5,0.75,1.0,1.5,2.0,1.0);vm.clipSettings(clip.copy(speedPoints=rates.mapIndexed {i,v->SpeedPoint(clip.startMs+clip.sourceLengthMs*i/8,v)}))},enabled=enabled) {Text("Rampa de velocidade · pulso")}
             ChoiceRow(listOf(0L,250L,500L),clip.fadeMs,{vm.clipSettings(clip.copy(fadeMs=it))}) {if(it==0L) "Corte seco" else "Fade ${it}ms"}
         }
         "Estabilizar" -> {

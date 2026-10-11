@@ -61,8 +61,9 @@ object VideoEngine {
             effects.addAll(listOf(ClipTransform(clip,offset), Brightness(clip.adjustments.brightness), Contrast(clip.adjustments.contrast),
                 HslAdjustment.Builder().adjustSaturation(clip.adjustments.saturation * 100).build(), ClipColor(clip,offset)))
             offset += clip.durationMs
-            EditedMediaItem.Builder(media).setDurationUs(clip.sourceDurationMs * 1000).setSpeed(ClipSpeed(clip))
-                .setEffects(Effects(listOf(AudioEnvelope(clip.volume,clip.durationMs,clip.fadeMs)), effects)).build()
+            val builder = EditedMediaItem.Builder(media).setDurationUs(clip.sourceDurationMs * 1000)
+            if (clip.speedPoints.isNotEmpty()) builder.setSpeed(ClipSpeed(clip))
+            builder.setEffects(Effects(listOf(AudioEnvelope(clip.volume,clip.durationMs,clip.fadeMs)), effects)).build()
         }
         val sequences = mutableListOf(EditedMediaItemSequence.withAudioAndVideoFrom(items))
         val overlays = project.overlays.filter { it.offsetMs < project.durationMs }
@@ -73,7 +74,9 @@ object VideoEngine {
             val available = project.durationMs - o.offsetMs
             val end = c.sourceAt(min(c.durationMs,available))
             val media = MediaItem.Builder().setUri(c.uri).setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(c.startMs).setEndPositionMs(end).build()).build()
-            sequence.addItem(EditedMediaItem.Builder(media).setDurationUs(c.sourceDurationMs*1000).setRemoveAudio(true).setSpeed(ClipSpeed(c)).build())
+            // Media3 1.9 setSpeed waits for an audio processor even when audio is removed (#3006).
+            // Overlay speed is not exposed in this release; leave its native timestamps intact.
+            sequence.addItem(EditedMediaItem.Builder(media).setDurationUs(c.sourceDurationMs*1000).setRemoveAudio(true).build())
             val tail = project.durationMs - o.offsetMs - min(c.durationMs,available)
             if (tail > 0) sequence.addItem(videoGap(tail,project.export.fps))
             sequences.add(sequence.build())
