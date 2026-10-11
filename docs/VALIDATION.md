@@ -20,3 +20,9 @@ Importação SAF, cancelamento, HDR e desempenho prolongado ainda precisam de ve
 Secrets de assinatura configurados no GitHub Actions; chave e senhas fora do Git. Releases v* publicam rise-edit.apk e SHA-256 automaticamente. Repositório público: busca sem token; credencial opcional para acesso privado. Android pede confirmação na instalação.
 
 Windows: tools/build-windows.ps1 -Release executa build/lint e os mesmos testes JUnit diretamente para evitar a falha de codificação do executor Gradle em caminhos acentuados. Android CI: tools/android-runtime.sh preserva o resultado dos testes e coleta capturas, inclusive em falhas. Arquitetura e contenção em EDITOR_ARCHITECTURE.md.
+
+## Verificação final após contenção
+
+Run Android checks 38169012832: build e android-runtime concluídos com sucesso; 13 testes JVM e os três testes instrumentados aprovados na mesma execução. O tratamento específico do ANR do launcher permitiu validar o fluxo Home/Editor sem mascarar falhas do aplicativo.
+
+Run Publish Android update 38169045912: concluído com sucesso. APK efetivamente publicado da v0.2.0 baixado e verificado: versionCode 3; SHA-256 82a6b6482b043866a5bc69eaeebb71d4cfef114741a9f6fc05a8c13b9feb8902; certificado SHA-256 30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec. A mesma chave foi preservada.
