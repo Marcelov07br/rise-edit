@@ -17,12 +17,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import br.com.riseedit.core.*
 import kotlin.math.*
 
 @Composable
-fun TimelinePanel(vm: EditorViewModel,state: EditorState) {
+fun TimelinePanel(vm: EditorViewModel,state: EditorState,trackAreaHeight: Dp=270.dp) {
     var zoom by remember { mutableFloatStateOf(55f) }
     var snap by remember { mutableStateOf(true) }
     val p=state.project; val density=LocalDensity.current.density
@@ -35,7 +36,7 @@ fun TimelinePanel(vm: EditorViewModel,state: EditorState) {
             TextButton(onClick={zoom=(zoom*1.4f).coerceAtMost(180f)}) {Text("+")}
         }
         val vertical=rememberScrollState()
-        Row(Modifier.fillMaxWidth().height(270.dp)) {
+        Row(Modifier.fillMaxWidth().height(trackAreaHeight)) {
             Column(Modifier.width(62.dp).verticalScroll(vertical)) {
                 Text("",Modifier.height(28.dp)); listOf("Vídeo","Overlay 1","Overlay 2","Texto","Áudio 1","Áudio 2","Áudio 3").forEach { Text(it,Modifier.height(52.dp).padding(top=14.dp),style=MaterialTheme.typography.labelSmall) }
             }

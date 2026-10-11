@@ -21,7 +21,6 @@ import kotlin.math.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun ToolPanel(tool: String,vm: EditorViewModel,state: EditorState,chooseAudioTrack: (Int)->Unit,chooseOverlayTrack: (Int)->Unit,addAudio: ()->Unit,addOverlay: ()->Unit) {
     val p=state.project;val clip=p.clips.getOrNull(state.selected) ?: return;val enabled=state.busy==null
-    Text(tool,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
     when(tool) {
         "Corte" -> {
             Text(clip.name,style=MaterialTheme.typography.bodySmall)

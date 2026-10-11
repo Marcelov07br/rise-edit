@@ -8,6 +8,19 @@ A interface de velocidade/rampa foi adiada para a próxima evolução. O modelo 
 
 O app continua nativo: Kotlin, Compose, Media3 1.9 e OpenCV 4.10. `MainActivity` coordena a navegação Home/Editor e as configurações de atualização. `HomeScreen` usa uma grade adaptativa de projetos. `EditorScreen` contém preview, controles, timeline e painéis. `TimelinePanel` representa tempo em uma escala comum; `ToolPanels` altera os dados do projeto, sem manipular fontes. `EditorViewModel` guarda histórico e reconstrói a composição após cada edição confirmada.
 
+## Layout do editor (evolução 0.3, fase 1)
+
+O editor deixou de ser uma coluna que rola e passou a ter regiões fixas, de cima para baixo: barra de título (voltar, nome, configurações, exportar), prévia (ocupa a altura restante e alterna reprodução ao toque), barra de transporte, timeline sempre visível e, na base, a barra de ferramentas ou o painel da ferramenta aberta.
+
+- `EditorScreen`: apenas monta as regiões e guarda a ferramenta ativa. Aviso de mensagens aparece sobre a prévia e some sozinho após 6 s.
+- `PreviewPanel`, `TransportBar`, `BottomToolbar`, `ToolSheet` e `ExportDialog`: um arquivo por componente.
+- `BottomToolbar`: botões grandes que rolam na horizontal. **Estabilização Rise** é o primeiro e tem destaque. Dividir e Excluir agem na hora (excluir remove a camada selecionada, ou o clipe se não houver camada); as demais ferramentas abrem o `ToolSheet`.
+- `ToolSheet`: substitui a barra enquanto uma ferramenta está aberta (botão "Concluir"). A timeline encolhe de 190 dp para 110 dp nas faixas e continua visível; o painel rola dentro de no máximo 42% da altura.
+- `TimelinePanel` recebeu o parâmetro `trackAreaHeight`. O controle deslizante de posição foi removido: a régua da timeline (toque e arraste) e o toque na prévia o substituem. Arrastar o cursor diretamente na área de faixas fica para a fase 2.
+- `MediaImporter` (com `MediaKind`) concentra a leitura de metadados e a permissão persistente dos documentos escolhidos, antes duplicada em dois pontos do `EditorViewModel`. Exportação e análise de movimento continuam no ViewModel e serão separadas em fases seguintes.
+
+Os textos "Projetos", "Importar vídeos" e "Estabilização Rise" são usados pelos testes instrumentados e devem ser mantidos.
+
 `core/Project.kt` define clipes, pontos de velocidade em coordenadas absolutas da fonte, três faixas de áudio, duas camadas de overlay, textos, keyframes e exportação. `core/Timeline.kt` faz snapping e interpolação. A faixa principal é sequencial e fecha espaços automaticamente; camadas adicionais têm posição absoluta na composição. Cortes na faixa principal não deslocam automaticamente áudio e textos.
 
 `VideoEngine` monta sequências Media3 com gaps, mistura áudio e compõe vídeos sobrepostos. O preview usa `MultipleInputVideoGraph` e saída 480p; a exportação usa a mesma construção com resolução e bitrate escolhidos. Isso reduz o custo de renderização da prévia, mas não cria proxies de arquivos. A decodificação continua dependendo do aparelho.

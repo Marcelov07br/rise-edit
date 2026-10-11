@@ -3,104 +3,182 @@ package br.com.riseedit
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.media3.ui.PlayerView
-import br.com.riseedit.core.*
+import kotlinx.coroutines.delay
 
+/**
+ * Editor layout, top to bottom: title bar, preview (takes the remaining height), transport bar, a timeline that
+ * is always visible, and either the tool toolbar or the sheet of the tool being edited. Nothing scrolls the page:
+ * the timeline and the tool sheet scroll internally.
+ */
 @Composable
-fun EditorScreen(vm: EditorViewModel,state: EditorState,onBack: ()->Unit,onSettings: ()->Unit) {
-    var tool by remember {mutableStateOf("Corte")}
-    var full by remember {mutableStateOf(false)}
-    var exportDialog by remember {mutableStateOf(false)}
-    var audioTrack by remember {mutableIntStateOf(0)}
-    var overlayTrack by remember {mutableIntStateOf(0)}
-    val import=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {vm.import(it)}
-    val audio=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {vm.importAudio(it,audioTrack)}
-    val overlay=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {vm.importOverlay(it,overlayTrack)}
-    val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("video/mp4")) {it?.let(vm::export)}
-    val enabled=state.busy==null
-    LaunchedEffect(state.selection) {state.selection?.let {id ->
-        tool=when {state.project.audio.any {it.id==id}->"Áudio";state.project.texts.any {it.id==id}->"Texto";state.project.overlays.any {it.id==id}->"Overlay";else->tool}
-    }}
-    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically) {
-            TextButton(onClick=onBack,enabled=enabled) {Text("‹ Projetos")}
-            Text(state.project.name,Modifier.weight(1f),maxLines=1,overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.Bold)
-            Button(onClick={exportDialog=true},enabled=enabled && state.project.clips.isNotEmpty()) {Text("Exportar")}
+fun EditorScreen(vm: EditorViewModel, state: EditorState, onBack: () -> Unit, onSettings: () -> Unit) {
+    var tool by rememberSaveable { mutableStateOf<String?>(null) }
+    var full by remember { mutableStateOf(false) }
+    var exportDialog by remember { mutableStateOf(false) }
+    var audioTrack by remember { mutableIntStateOf(0) }
+    var overlayTrack by remember { mutableIntStateOf(0) }
+    val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { vm.import(it) }
+    val audio = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { vm.importAudio(it, audioTrack) }
+    val overlay = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { vm.importOverlay(it, overlayTrack) }
+    val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("video/mp4")) { it?.let(vm::export) }
+    val enabled = state.busy == null
+    val hasClips = state.project.clips.isNotEmpty()
+
+    LaunchedEffect(state.selection) {
+        state.selection?.let { id ->
+            tool = when {
+                state.project.audio.any { it.id == id } -> "Áudio"
+                state.project.texts.any { it.id == id } -> "Texto"
+                state.project.overlays.any { it.id == id } -> "Overlay"
+                else -> tool
+            }
         }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-            if(!full) Preview(vm,state,Modifier.fillMaxWidth().height(230.dp))
-            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-                Text(time(state.positionMs)+" / "+time(state.project.durationMs),style=MaterialTheme.typography.labelMedium,modifier=Modifier.weight(1f))
-                TextButton(onClick=vm::mute) {Text(if(state.muted) "Som off" else "Som on")}
-                FilledTonalButton(onClick=vm::togglePlay,enabled=enabled && state.project.clips.isNotEmpty()) {Text(if(state.playing) "Ⅱ" else "▶")}
-                TextButton(onClick={full=true}) {Text("⛶")}
-            }
-            if(state.project.clips.isNotEmpty()) Slider(state.positionMs.toFloat().coerceIn(0f,state.project.durationMs.toFloat()),onValueChange={vm.player.setScrubbingModeEnabled(true);vm.seek(it.toLong())},onValueChangeFinished={vm.player.setScrubbingModeEnabled(false)},valueRange=0f..state.project.durationMs.toFloat(),enabled=enabled)
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                OutlinedButton(onClick={import.launch(arrayOf("video/*"))},enabled=enabled) {Text("+ Vídeo")}
-                OutlinedButton(onClick={tool="Áudio";audio.launch(arrayOf("audio/*"))},enabled=enabled && state.project.clips.isNotEmpty()) {Text("+ Áudio")}
-                OutlinedButton(onClick={overlay.launch(arrayOf("video/*"))},enabled=enabled && state.project.clips.isNotEmpty()) {Text("+ Overlay")}
-                TextButton(onClick=vm::undo,enabled=enabled && state.canUndo) {Text("↶ Desfazer")}
-                TextButton(onClick=vm::redo,enabled=enabled && state.canRedo) {Text("↷ Refazer")}
-            }
-            if(state.project.clips.isEmpty()) Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp)) {
-                Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                    Text("Vamos criar seu vídeo",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
-                    Text("Escolha seus vídeos. Depois corte, adicione música e estabilize as cenas.")
-                    Button(onClick={import.launch(arrayOf("video/*"))},enabled=enabled,modifier=Modifier.fillMaxWidth().height(56.dp)) {Text("Importar vídeos")}
+    }
+    LaunchedEffect(state.message) {
+        if (state.message != null) { delay(6000); vm.message(null) }
+    }
+    LaunchedEffect(hasClips) { if (!hasClips) tool = null }
+
+    BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+        val sheetMax = maxHeight * 0.42f
+        Column(Modifier.fillMaxSize()) {
+            EditorTopBar(
+                name = state.project.name,
+                enabled = enabled,
+                canExport = enabled && hasClips,
+                onBack = onBack,
+                onSettings = onSettings,
+                onExport = { exportDialog = true }
+            )
+            if (!hasClips) {
+                Column(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp), verticalArrangement = Arrangement.Center) {
+                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+                        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("Vamos criar seu vídeo", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text("Escolha seus vídeos. Depois corte, adicione música e estabilize as cenas.")
+                            Button(onClick = { import.launch(arrayOf("video/*")) }, enabled = enabled, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Importar vídeos") }
+                        }
+                    }
                 }
             } else {
-                FilledTonalButton(onClick={tool="Estabilizar"},modifier=Modifier.fillMaxWidth().height(52.dp),colors=ButtonDefaults.filledTonalButtonColors(containerColor=RiseGreen.copy(alpha=0.16f),contentColor=RiseGreen)) {Text("✦ Estabilização Rise",fontWeight=FontWeight.Bold)}
-                TimelinePanel(vm,state)
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    listOf("Corte","Estabilizar","Texto","Áudio","Overlay","Cor","Movimento","Formato").forEach {name ->FilterChip(tool==name,{tool=name},label={Text(name)},modifier=Modifier.heightIn(min=48.dp))}
+                if (full) Box(Modifier.weight(1f))
+                else PreviewPanel(vm, state, Modifier.weight(1f).fillMaxWidth().heightIn(min = 120.dp).padding(horizontal = 12.dp))
+                TransportBar(vm, state, enabled, onFullscreen = { full = true })
+                Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+                    TimelinePanel(vm, state, trackAreaHeight = if (tool == null) 190.dp else 110.dp)
                 }
-                Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp)) {
-                    Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {ToolPanel(tool,vm,state,chooseAudioTrack={audioTrack=it},chooseOverlayTrack={overlayTrack=it},addAudio={audio.launch(arrayOf("audio/*"))},addOverlay={overlay.launch(arrayOf("video/*"))})}
+                val current = tool
+                if (current == null) {
+                    BottomToolbar(
+                        enabled = enabled,
+                        layerSelected = state.selection != null,
+                        onImport = { import.launch(arrayOf("video/*")) },
+                        onTool = { tool = it },
+                        onSplit = { vm.split() },
+                        onDelete = { if (state.selection != null) vm.removeLayer() else vm.remove() }
+                    )
+                } else {
+                    ToolSheet(title = toolTitle(current), maxContentHeight = sheetMax, onClose = { tool = null }) {
+                        ToolPanel(
+                            current, vm, state,
+                            chooseAudioTrack = { audioTrack = it },
+                            chooseOverlayTrack = { overlayTrack = it },
+                            addAudio = { audio.launch(arrayOf("audio/*")) },
+                            addOverlay = { overlay.launch(arrayOf("video/*")) }
+                        )
+                    }
                 }
             }
-            state.message?.let {Surface(color=MaterialTheme.colorScheme.secondaryContainer,shape=RoundedCornerShape(12.dp)) {Row(Modifier.padding(10.dp),verticalAlignment=Alignment.CenterVertically) {Text(it,Modifier.weight(1f),style=MaterialTheme.typography.bodySmall);TextButton(onClick={vm.message(null)}) {Text("OK")}}} }
-            TextButton(onClick=onSettings) {Text("Configurações e atualizações")}
-            Spacer(Modifier.height(16.dp))
+        }
+        state.message?.let { text ->
+            Surface(
+                Modifier.align(Alignment.TopCenter).padding(top = 60.dp, start = 12.dp, end = 12.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = RoundedCornerShape(12.dp),
+                tonalElevation = 6.dp
+            ) {
+                Row(Modifier.padding(start = 12.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(text, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { vm.message(null) }) { Text("OK") }
+                }
+            }
         }
     }
-    if(state.busy!=null) Dialog(onDismissRequest={},properties=DialogProperties(dismissOnBackPress=false,dismissOnClickOutside=false)) {
-        Card {Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {Text(state.busy,style=MaterialTheme.typography.titleMedium);LinearProgressIndicator(progress={state.progress},modifier=Modifier.fillMaxWidth());Text("${(state.progress*100).toInt()}%");OutlinedButton(onClick=vm::cancel) {Text("Cancelar")}}}
+
+    if (state.busy != null) Dialog(onDismissRequest = {}, properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)) {
+        Card {
+            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(state.busy, style = MaterialTheme.typography.titleMedium)
+                LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
+                Text("${(state.progress * 100).toInt()}%")
+                OutlinedButton(onClick = vm::cancel) { Text("Cancelar") }
+            }
+        }
     }
-    if(full) Dialog(onDismissRequest={full=false},properties=DialogProperties(usePlatformDefaultWidth=false)) {
-        Surface(Modifier.fillMaxSize(),color=Color.Black) {Column(Modifier.safeDrawingPadding()) {TextButton(onClick={full=false}) {Text("Fechar tela cheia")};Preview(vm,state,Modifier.weight(1f).fillMaxWidth());Button(onClick=vm::togglePlay,modifier=Modifier.align(Alignment.CenterHorizontally)) {Text(if(state.playing) "Pausar" else "Reproduzir")}}}
+    if (full) Dialog(onDismissRequest = { full = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(Modifier.fillMaxSize(), color = Color.Black) {
+            Column(Modifier.safeDrawingPadding()) {
+                TextButton(onClick = { full = false }) { Text("Fechar tela cheia") }
+                PreviewPanel(vm, state, Modifier.weight(1f).fillMaxWidth())
+                Button(onClick = vm::togglePlay, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(if (state.playing) "Pausar" else "Reproduzir") }
+            }
+        }
     }
-    if(exportDialog) ExportDialog(state.project.export,onClose={exportDialog=false},onExport={settings ->vm.projectSettings(state.project.aspectRatio,settings);exportDialog=false;export.launch(state.project.name.replace(Regex("[^\\p{L}\\p{N} _-]"),"")+".mp4")})
+    if (exportDialog) ExportDialog(
+        state.project.export,
+        onClose = { exportDialog = false },
+        onExport = { settings ->
+            vm.projectSettings(state.project.aspectRatio, settings)
+            exportDialog = false
+            export.launch(state.project.name.replace(Regex("[^\\p{L}\\p{N} _-]"), "") + ".mp4")
+        }
+    )
 }
 
-@Composable private fun Preview(vm: EditorViewModel,state: EditorState,modifier: Modifier) {
-    Box(modifier.background(Color.Black,RoundedCornerShape(16.dp)),contentAlignment=Alignment.Center) {
-        if(state.project.clips.isEmpty()) Text("PRÉVIA",color=Color.Gray)
-        else AndroidView(factory={context ->PlayerView(context).apply {player=vm.player;useController=false;setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)}},modifier=Modifier.fillMaxSize(),onRelease={it.player=null})
-        if(state.comparing) Surface(Modifier.align(Alignment.TopStart).padding(8.dp),color=Color.Black.copy(alpha=0.7f),shape=RoundedCornerShape(6.dp)) {Text("Original · sem estabilização",Modifier.padding(6.dp),style=MaterialTheme.typography.labelSmall)}
+@Composable
+private fun EditorTopBar(name: String, enabled: Boolean, canExport: Boolean, onBack: () -> Unit, onSettings: () -> Unit, onExport: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        TextButton(onClick = onBack, enabled = enabled) { Text("‹ Projetos") }
+        Text(name, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold)
+        TextButton(onClick = onSettings, modifier = Modifier.semantics { contentDescription = "Configurações e atualizações" }) { Text("⚙") }
+        Button(onClick = onExport, enabled = canExport) { Text("Exportar") }
     }
-}
-
-@Composable private fun ExportDialog(initial: ExportSettings,onClose: ()->Unit,onExport: (ExportSettings)->Unit) {
-    var value by remember {mutableStateOf(initial)}
-    AlertDialog(onDismissRequest=onClose,title={Text("Exportar vídeo")},text={Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
-        Text("Resolução");ChoiceRow(listOf(480,720,1080),value.height,{value=value.copy(height=it)}) {"${it}p"}
-        Text("Limite de quadros por segundo");ChoiceRow(listOf(24,30,60),value.fps,{value=value.copy(fps=it)}) {"$it fps"}
-        Text("Qualidade");ChoiceRow(listOf(4,8,16),value.bitrate/1_000_000,{value=value.copy(bitrate=it*1_000_000)}) {when(it){4->"Leve";8->"Boa";else->"Alta"}}
-        Text("MP4 · H.264 / AAC. O vídeo é salvo em um arquivo novo. A taxa de quadros não aumenta acima da fonte.",style=MaterialTheme.typography.bodySmall)
-    }},confirmButton={Button(onClick={onExport(value)}) {Text("Escolher destino")}},dismissButton={TextButton(onClick=onClose) {Text("Cancelar")}})
 }
