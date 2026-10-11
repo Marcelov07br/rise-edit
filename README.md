@@ -1,16 +1,18 @@
 # Rise Edit
 
-Editor Android nativo, em Kotlin e Jetpack Compose. MVP 0.1.1: importação de vídeos, reprodução da timeline, aparagem, divisão, reordenação, remoção, desfazer/refazer, estabilização global experimental e exportação MP4.
+Editor Android nativo, em Kotlin e Jetpack Compose. Versão 0.2.0: importação de vídeos, reprodução da timeline, aparagem, divisão, reordenação, remoção, desfazer/refazer, estabilização global experimental e exportação MP4.
+
+Arquitetura, recursos e limites da evolução: [docs/EDITOR_ARCHITECTURE.md](docs/EDITOR_ARCHITECTURE.md).
 
 ## Usar
 
 1. Instale o APK **release assinado**, não o APK debug da integração contínua.
-2. Toque em **Importar** e selecione vídeos pelo seletor de documentos do Android.
+2. Crie ou abra um projeto na Home, toque em **+ Vídeo** e selecione vídeos pelo seletor de documentos do Android.
 3. Selecione um clipe na timeline. Ajuste o intervalo e aplique o corte; para dividir, posicione o cursor dentro do clipe.
 4. Opcionalmente, toque em **Analisar e estabilizar**. Depois escolha suavização ou tentativa de câmera fixa, intensidade, suavidade e limite de zoom.
-5. Toque em **Exportar 720p** e escolha um arquivo novo. Os originais nunca são editados.
+5. Toque em **Exportar** e escolha um arquivo novo. Os originais nunca são editados.
 
-O projeto é salvo automaticamente no armazenamento privado do aparelho. Permissões de leitura dos vídeos são persistidas. Mover ou apagar o vídeo original, revogar acesso ou desinstalar o app pode impedir a recuperação do projeto. Há um projeto local por instalação nesta primeira versão; desfazer/refazer vale durante a sessão.
+O projeto é salvo automaticamente no armazenamento privado do aparelho. Permissões de leitura dos vídeos são persistidas. Mover ou apagar o vídeo original, revogar acesso ou desinstalar o app pode impedir a recuperação do projeto. A Home gerencia vários projetos com busca, favoritos e ações de renomear, duplicar e excluir. Desfazer/refazer vale durante a sessão.
 
 ## Atualizações pelo GitHub
 
@@ -18,7 +20,7 @@ Em **Configurações**, habilite a busca ao abrir e conecte o GitHub com um toke
 
 O app consulta a última release estável, compara versões numéricas, baixa `rise-edit.apk`, valida o SHA-256 informado pelo GitHub e confirma package name, versionCode crescente e o mesmo certificado de assinatura. Downloads usam HTTPS e não encaminham a credencial ao host de arquivos. Um botão abre o instalador do Android; o usuário precisa autorizar essa origem e confirmar a instalação. Não há instalação silenciosa nem serviço de verificação em segundo plano: a busca automática acontece ao abrir ou retornar ao app, com intervalo mínimo de seis horas na mesma sessão. A busca manual fica disponível a qualquer momento. O repositório privado exige essa conexão por aparelho.
 
-Para publicar as próximas versões, aumente **versionCode** e **versionName** em `app/build.gradle.kts`, faça commit e envie uma tag correspondente, por exemplo `v0.1.2`. `.github/workflows/release.yml` testa, compila com a mesma chave e publica o APK e checksum na release correspondente, inclusive quando criada pela interface do GitHub. Tags e releases são o canal de atualização; commits isolados não são APKs instaláveis.
+Para publicar as próximas versões, aumente **versionCode** e **versionName** em `app/build.gradle.kts`, faça commit e envie uma tag correspondente, por exemplo `v0.2.0`. `.github/workflows/release.yml` testa, compila com a mesma chave e publica o APK e checksum na release correspondente, inclusive quando criada pela interface do GitHub. Tags e releases são o canal de atualização; commits isolados não são APKs instaláveis.
 
 A chave local de distribuição fica em `.signing/`, ignorada pelo Git. **Preserve essa pasta em backup privado**: perder a chave impede atualizar instalações existentes. Os secrets de assinatura foram configurados no GitHub Actions em 11/10/2026: `RISE_SIGNING_KEYSTORE_B64`, `RISE_KEYSTORE_PASSWORD` e `RISE_KEY_PASSWORD` com a chave inicial. Eles nunca devem entrar em arquivos versionados. O fluxo falha sem esses secrets, em vez de gerar outra assinatura.
 
@@ -37,11 +39,11 @@ O wrapper Gradle 8.11.1 está incluído. `local.properties` deve apontar para se
 
 ## Estabilização: o que está implementado
 
-OpenCV 4.10 rastreia pontos com Lucas–Kanade e estima uma transformação parcial afim com RANSAC, em quadros reduzidos de até 320 pixels e aproximadamente 12 amostras/s. Escala estimada é usada somente para rejeitar mudanças grandes; a correção aplicada é rígida, por deslocamento e rotação. A trajetória acumulada é salva separadamente; mudar controles ou dividir o mesmo arquivo reutiliza a análise. Falhas de rastreamento iniciam outro segmento para evitar suavização entre cortes.
+OpenCV 4.10 rastreia pontos com Lucas–Kanade e estima uma transformação parcial afim com RANSAC, em quadros reduzidos de até 640 pixels e aproximadamente 24 amostras/s. Escala estimada é usada somente para rejeitar mudanças grandes; a correção aplicada é rígida, por deslocamento e rotação. A trajetória acumulada é salva separadamente; mudar controles ou dividir o mesmo arquivo reutiliza a análise. Falhas de rastreamento iniciam outro segmento para evitar suavização entre cortes.
 
 Media3 1.9 aplica um efeito de matriz próprio na prévia e na exportação. A suavização usa uma janela temporal; a tentativa de câmera fixa referencia o início de cada segmento do trecho. O zoom uniforme necessário é limitado a 1–1,25×; se a correção exceder esse limite, sua amplitude diminui. Não há deformação local, malha, remoção de rolling shutter ou análise por regiões nesta versão.
 
-Limites: análise de fontes de até 2 minutos; amostragem pode perder tremores de alta frequência, movimentos rápidos ou quadros com pouca textura. Pessoas/objetos grandes em movimento podem dominar a estimativa. Não há garantia de câmera fixa. Exportação H.264/AAC com altura de 720 pixels, SDR; codec, formato, HDR e mistura de orientações precisam de validação nos aparelhos alvo. O processamento deve continuar com o app aberto nesta primeira versão.
+Limites: análise de fontes de até 2 minutos; amostragem pode perder tremores de alta frequência, movimentos rápidos ou quadros com pouca textura. Pessoas/objetos grandes em movimento podem dominar a estimativa. Não há garantia de câmera fixa. Exportação H.264/AAC com altura de 480, 720 ou 1080 pixels, SDR; codec, formato, HDR e mistura de orientações precisam de validação nos aparelhos alvo. O processamento deve continuar com o app aberto nesta primeira versão.
 
 ## Estrutura
 

@@ -29,7 +29,10 @@ class VideoPipelineTest {
         store.saveAnalysis(clip.uri, analysis)
         assertEquals(analysis, store.loadAnalysis(clip.uri))
         val stabilized = clip.copy(stabilization = Stabilization(enabled = true, strength = 1.0, maxZoom = 1.15))
-        val project = Project(listOf(stabilized)).split(0, 1000)
+        val project = Project(listOf(stabilized)).split(0, 1000).copy(
+            audio = listOf(AudioClip(uri = clip.uri, name = "Music", sourceDurationMs = 3000, offsetMs = 300, endMs = 1500, track = 2, volume = 0.25f)),
+            texts = listOf(TextLayer(text = "RISE", startMs = 100, endMs = 1800)),
+            overlays = listOf(VideoOverlay(clip = clip.copy(startMs = 500, endMs = 1500), offsetMs = 500, track = 1)))
         store.save(project); assertEquals(project, store.load())
         val destination = File(context.cacheDir, "pipeline-result.mp4").apply { delete() }
         val done = CountDownLatch(1)
@@ -61,5 +64,21 @@ class VideoPipelineTest {
         val manager = UpdateManager(context)
         manager.saveToken("synthetic-test-value")
         assertTrue(manager.hasToken); manager.forgetToken(); assertFalse(manager.hasToken)
+    }
+    @Test fun projectLibraryRoundTripAndIsolation() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = ProjectStore(context)
+        val clip = Clip(uri = "content://test/clip", name = "Clip", sourceDurationMs = 10000, startMs = 2000, endMs = 8000,
+            speedPoints = listOf(SpeedPoint(2000,0.5),SpeedPoint(4000,2.0)), adjustments = Adjustments(0.1f,0.2f,0.3f,-0.2f),
+            keyframes = listOf(TransformKeyframe(2000,x=0.2f,scale=1.2f,opacity=0.5f)))
+        val p = Project(listOf(clip),name="Persistence test",favorite=true,aspectRatio=9f/16f,export=ExportSettings(1080,24,16_000_000),
+            audio=listOf(AudioClip(uri="content://test/audio",name="Audio",sourceDurationMs=5000,track=2)),
+            texts=listOf(TextLayer(text="Title")),overlays=listOf(VideoOverlay(clip=clip,track=1)))
+        val duplicate=p.copy(id=java.util.UUID.randomUUID().toString(),name="Copy")
+        try {
+            store.save(p);store.save(duplicate)
+            assertEquals(p,store.load(p.id));assertEquals(duplicate,store.load(duplicate.id))
+            store.delete(duplicate.id);assertEquals(p,store.load(p.id));assertTrue(store.list().any {it.id==p.id})
+        } finally {store.delete(p.id);store.delete(duplicate.id)}
     }
 }

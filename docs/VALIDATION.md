@@ -4,9 +4,9 @@ Data: 11/10/2026. Ambiente: Windows, JDK 17.0.16, Gradle 8.11.1, SDK Android 35.
 
 ## Evidências
 
-- APK release gerado com chave própria RSA 3072, persistida localmente fora do Git. Package: `br.com.riseedit`; versionName: `0.1.1`; versionCode: `2`.
+- APK release gerado com chave própria RSA 3072, persistida localmente fora do Git. Package: `br.com.riseedit`; versionName: `0.2.0`; versionCode: `3`.
 - Lint release passou sem erros. Há avisos de dependências e targetSdk mais antigos que os disponíveis. As versões estão fixadas; a entrega não pressupõe validação dos SDKs mais recentes.
-- Oito testes JVM passaram usando JUnit 4.13.2: coordenadas dos cortes, conservação de duração ao dividir, rejeição de divisão vazia, inversão de deslocamento/rotação, limite de zoom, suavização/interpolação, isolamento de segmentos e política de atualização/digests.
+- Treze testes JVM passaram usando JUnit 4.13.2: coordenadas dos cortes, conservação de duração ao dividir, rejeição de divisão vazia, inversão de deslocamento/rotação, limite de zoom, suavização/interpolação, isolamento de segmentos e política de atualização/digests.
 - Compilação do APK debug e do APK de instrumentação concluída. O teste `VideoPipelineTest` usa uma fonte sintética de 3 segundos com áudio, analisa movimento, persiste a trajetória, divide um trecho de 2 segundos e verifica a saída MP4 720p com áudio e original preservado.
 - Execução instrumentada ainda **pendente**: o emulador Pixel_7/Android 16 não respondeu ao ADB ao buscar propriedades, resultando em `Unknown API Level` e `No compatible devices`. Isso é uma falha de infraestrutura, não um teste funcional aprovado. Não houve validação visual da interface ou medição de melhora em vídeos reais.
 - A atualização real entre duas versões ainda **pendente**: requer uma release posterior e credencial privada de leitura configurada no aparelho. A comparação de versões/digests está testada; download, certificado e instalador foram implementados, mas não testados em uma atualização real.
@@ -30,3 +30,10 @@ Validar em um aparelho físico: importação por SAF, persistência após fechar
 ## Distribuição
 
 O repositório é privado. O build de release automático exige os três secrets de assinatura descritos no README; a chave de distribuição não está versionada. Os três secrets foram configurados em 11/10/2026 com a mesma chave da primeira release. Os checks no GitHub Actions (testes JVM, APK debug e lint) passaram. O APK debug do workflow de checks não deve ser usado no canal de autoatualização.
+
+
+## Evolução 0.2.0
+
+Build release e lint passaram, assim como 13 testes JVM. A v0.1.1 gerada pelo GitHub Actions foi baixada e verificada: certificado idêntico à primeira release, versionCode 2 e SHA-256 correspondente ao asset publicado. Isso valida o deploy assinado; a instalação entre versões no aparelho continua pendente.
+
+Os testes instrumentados foram ampliados para biblioteca de projetos, navegação Home/Editor e exportação com áudio, texto e vídeo sobreposto. A execução ainda depende de um dispositivo acessível pelo ADB. Veja EDITOR_ARCHITECTURE.md para os recursos e limites reais.

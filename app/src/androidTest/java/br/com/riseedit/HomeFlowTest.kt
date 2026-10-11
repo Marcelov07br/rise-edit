@@ -1,0 +1,41 @@
+package br.com.riseedit
+
+import android.content.Intent
+import android.view.accessibility.AccessibilityNodeInfo
+import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.*
+import org.junit.Test
+import br.com.riseedit.core.*
+import java.io.File
+import android.net.Uri
+
+class HomeFlowTest {
+    @Test fun newProjectReachesImportScreen() {
+        val i=InstrumentationRegistry.getInstrumentation()
+        val context=i.targetContext
+        val source=File(context.cacheDir,"home-ui-source.mp4")
+        i.context.assets.open("shaky.mp4").use {input ->source.outputStream().use {input.copyTo(it)}}
+        val clip=Clip(uri=Uri.fromFile(source).toString(),name="Cena principal",sourceDurationMs=3000)
+        val demo=Project(listOf(clip),name="Projeto de teste",texts=listOf(TextLayer(text="Minha história",endMs=2500)),
+            audio=listOf(AudioClip(uri=clip.uri,name="Trilha",sourceDurationMs=3000,volume=0.2f)),
+            overlays=listOf(VideoOverlay(clip=clip.copy(endMs=1500),offsetMs=500)))
+        ProjectStore(context).save(demo)
+        context.startActivity(context.packageManager.getLaunchIntentForPackage(context.packageName)!!.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        fun find(node: AccessibilityNodeInfo?,text: String): AccessibilityNodeInfo? {
+            if(node==null) return null
+            if(node.text?.toString()?.contains(text)==true) return node
+            for(index in 0 until node.childCount) find(node.getChild(index),text)?.let {return it}
+            return null
+        }
+        fun waitFor(text: String): AccessibilityNodeInfo {
+            val deadline=System.currentTimeMillis()+10000
+            while(System.currentTimeMillis()<deadline) {find(i.uiAutomation.rootInActiveWindow,text)?.let {return it};Thread.sleep(100)}
+            throw AssertionError("Missing UI: $text")
+        }
+        fun click(text: String) {var node: AccessibilityNodeInfo?=waitFor(text);while(node!=null && !node.isClickable) node=node.parent;assertNotNull(node);assertTrue(node!!.performAction(AccessibilityNodeInfo.ACTION_CLICK))}
+        fun screenshot(name: String) {val bitmap=i.uiAutomation.takeScreenshot();assertNotNull(bitmap);context.openFileOutput(name,0).use {bitmap!!.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}}
+        waitFor("RISE EDIT");screenshot("home-test.png");click("Novo Projeto");click("Criar e importar");waitFor("Importar vídeos");waitFor("Projetos")
+        screenshot("editor-empty-test.png");click("Projetos");click("Projeto de teste");waitFor("Estabilização Rise")
+        Thread.sleep(2000);screenshot("editor-timeline-test.png");click("Projetos")
+    }
+}
