@@ -27,15 +27,21 @@ class HomeFlowTest {
             for(index in 0 until node.childCount) find(node.getChild(index),text)?.let {return it}
             return null
         }
-        fun waitFor(text: String): AccessibilityNodeInfo {
+        fun scrollable(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+            if(node==null) return null
+            if(node.isScrollable && node.actionList.any {it.id==AccessibilityNodeInfo.ACTION_SCROLL_FORWARD}) return node
+            for(index in 0 until node.childCount) scrollable(node.getChild(index))?.let {return it}
+            return null
+        }
+        fun waitFor(text: String,scroll: Boolean=false): AccessibilityNodeInfo {
             val deadline=System.currentTimeMillis()+10000
-            while(System.currentTimeMillis()<deadline) {find(i.uiAutomation.rootInActiveWindow,text)?.let {return it};Thread.sleep(100)}
+            while(System.currentTimeMillis()<deadline) {find(i.uiAutomation.rootInActiveWindow,text)?.let {return it};if(scroll) scrollable(i.uiAutomation.rootInActiveWindow)?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);Thread.sleep(200)}
             throw AssertionError("Missing UI: $text")
         }
-        fun click(text: String) {var node: AccessibilityNodeInfo?=waitFor(text);while(node!=null && !node.isClickable) node=node.parent;assertNotNull(node);assertTrue(node!!.performAction(AccessibilityNodeInfo.ACTION_CLICK))}
+        fun click(text: String,scroll: Boolean=false) {var node: AccessibilityNodeInfo?=waitFor(text,scroll);while(node!=null && !node.isClickable) node=node.parent;assertNotNull(node);assertTrue(node!!.performAction(AccessibilityNodeInfo.ACTION_CLICK))}
         fun screenshot(name: String) {val bitmap=i.uiAutomation.takeScreenshot();assertNotNull(bitmap);context.openFileOutput(name,0).use {bitmap!!.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}}
         waitFor("RISE EDIT");screenshot("home-test.png");click("Novo Projeto");click("Criar e importar");waitFor("Importar vídeos");waitFor("Projetos")
-        screenshot("editor-empty-test.png");click("Projetos");click("Projeto de teste");waitFor("Estabilização Rise")
+        screenshot("editor-empty-test.png");click("Projetos");click("Projeto de teste",scroll=true);waitFor("Estabilização Rise")
         Thread.sleep(2000);screenshot("editor-timeline-test.png");click("Projetos")
     }
 }

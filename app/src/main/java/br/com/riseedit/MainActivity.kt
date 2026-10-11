@@ -31,14 +31,24 @@ class MainActivity : ComponentActivity() {
                 val state by editor.state.collectAsStateWithLifecycle()
                 val update by updates.state.collectAsStateWithLifecycle()
                 val projects by library.projects.collectAsStateWithLifecycle()
+                val libraryLoading by library.loading.collectAsStateWithLifecycle()
                 val libraryError by library.message.collectAsStateWithLifecycle()
-                var editing by rememberSaveable { mutableStateOf(false) }
+                var activeId by rememberSaveable { mutableStateOf<String?>(null) }
+                val editing=activeId!=null
                 var settings by remember { mutableStateOf(false) }
-                fun home() { if (state.busy == null) { editor.player.stop(); editing=false; library.refresh() } }
+                fun home() { if (state.busy == null) { editor.player.stop(); activeId=null; library.refresh() } }
+                LaunchedEffect(activeId,projects,libraryLoading) {
+                    val id=activeId
+                    if(id!=null && !libraryLoading && state.project.id!=id) {
+                        val project=projects.firstOrNull {it.id==id}
+                        if(project!=null) editor.open(project) else activeId=null
+                    }
+                }
                 BackHandler(enabled=editing && state.busy == null) { home() }
                 Surface(Modifier.fillMaxSize()) {
-                    if (editing) EditorScreen(editor,state,onBack={ home() },onSettings={ settings=true })
-                    else HomeScreen(projects,libraryError,library,onOpen={ editor.open(it); editing=true },onSettings={ settings=true },hasUpdate=update.release != null)
+                    if (editing && state.project.id==activeId) EditorScreen(editor,state,onBack={ home() },onSettings={ settings=true })
+                    else if(editing) Box(Modifier.fillMaxSize(),contentAlignment=androidx.compose.ui.Alignment.Center) {CircularProgressIndicator()}
+                    else HomeScreen(projects,libraryError,library,onOpen={ editor.open(it); activeId=it.id },onSettings={ settings=true },hasUpdate=update.release != null)
                 }
                 if (settings) UpdateSettings(updates,update,state.busy == null,install={ updates.installationIntent()?.let { intent ->
                     runCatching { startActivity(intent) }.onFailure { editor.message("Não foi possível abrir o instalador.") }

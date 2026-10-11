@@ -4,6 +4,7 @@ package br.com.riseedit
 import android.graphics.Matrix
 import androidx.media3.common.MediaItem
 import androidx.media3.common.C
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.Effect
 import androidx.media3.common.OverlaySettings
 import androidx.media3.common.VideoCompositorSettings
@@ -42,6 +43,9 @@ class StabilizationEffect(
 }
 
 object VideoEngine {
+    private fun videoGap(durationMs: Long, fps: Int) = EditedMediaItem.Builder(MediaItem.Builder()
+        .setUri("android.resource://br.com.riseedit/${R.raw.transparent}").setMimeType(MimeTypes.IMAGE_PNG).setImageDurationMs(durationMs).build())
+        .setDurationUs(durationMs*1000).setFrameRate(fps).setRemoveAudio(true).build()
     fun composition(project: Project, analyses: Map<String, MotionAnalysis>, preview: Boolean = false): Composition {
         require(project.clips.isNotEmpty())
         var offset = 0L
@@ -65,13 +69,13 @@ object VideoEngine {
         overlays.forEach { o ->
             val c = o.clip
             val sequence = EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_VIDEO))
-            if (o.offsetMs > 0) sequence.addGap(o.offsetMs * 1000)
+            if (o.offsetMs > 0) sequence.addItem(videoGap(o.offsetMs,project.export.fps))
             val available = project.durationMs - o.offsetMs
             val end = c.sourceAt(min(c.durationMs,available))
             val media = MediaItem.Builder().setUri(c.uri).setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(c.startMs).setEndPositionMs(end).build()).build()
             sequence.addItem(EditedMediaItem.Builder(media).setDurationUs(c.sourceDurationMs*1000).setRemoveAudio(true).setSpeed(ClipSpeed(c)).build())
             val tail = project.durationMs - o.offsetMs - min(c.durationMs,available)
-            if (tail > 0) sequence.addGap(tail*1000)
+            if (tail > 0) sequence.addItem(videoGap(tail,project.export.fps))
             sequences.add(sequence.build())
         }
         project.audio.filter { it.offsetMs < project.durationMs }.forEach { a ->

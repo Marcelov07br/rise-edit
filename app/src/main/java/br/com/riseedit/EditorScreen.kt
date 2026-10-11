@@ -32,6 +32,9 @@ fun EditorScreen(vm: EditorViewModel,state: EditorState,onBack: ()->Unit,onSetti
     val overlay=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {vm.importOverlay(it,overlayTrack)}
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("video/mp4")) {it?.let(vm::export)}
     val enabled=state.busy==null
+    LaunchedEffect(state.selection) {state.selection?.let {id ->
+        tool=when {state.project.audio.any {it.id==id}->"Áudio";state.project.texts.any {it.id==id}->"Texto";state.project.overlays.any {it.id==id}->"Overlay";else->tool}
+    }}
     Column(Modifier.fillMaxSize().safeDrawingPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically) {
             TextButton(onClick=onBack,enabled=enabled) {Text("‹ Projetos")}

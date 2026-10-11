@@ -45,12 +45,7 @@ jobs:
           profile: pixel_7
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: |
-            ./gradlew :app:connectedDebugAndroidTest --no-daemon
-            mkdir -p artifacts
-            adb exec-out run-as br.com.riseedit cat files/home-test.png > artifacts/home-test.png
-            adb exec-out run-as br.com.riseedit cat files/editor-empty-test.png > artifacts/editor-empty-test.png
-            adb exec-out run-as br.com.riseedit cat files/editor-timeline-test.png > artifacts/editor-timeline-test.png
+          script: bash tools/android-runtime.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
