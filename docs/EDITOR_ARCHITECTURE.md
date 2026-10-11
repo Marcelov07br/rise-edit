@@ -12,7 +12,7 @@ O app continua nativo: Kotlin, Compose, Media3 1.9 e OpenCV 4.10. `MainActivity`
 
 `VideoEngine` monta sequências Media3 com gaps, mistura áudio e compõe vídeos sobrepostos. O preview usa `MultipleInputVideoGraph` e saída 480p; a exportação usa a mesma construção com resolução e bitrate escolhidos. Isso reduz o custo de renderização da prévia, mas não cria proxies de arquivos. A decodificação continua dependendo do aparelho.
 
-`EditingEffects` aplica velocidade, transformações interpoladas, cor, fade através de preto, envelope de áudio e textos temporizados. A rampa inicial é um preset em oito etapas, e não uma curva contínua editável. Transições não sobrepõem clipes: o fade mantém a duração da timeline. FPS é um limite de descarte; fontes de 24 fps não ganham novos quadros para chegar a 60 fps.
+`EditingEffects` aplica velocidade, transformações interpoladas, cor, fade através de preto, envelope de áudio e textos temporizados. A interface de velocidade/rampa fica adiada nesta entrega contida. Transições não sobrepõem clipes: o fade mantém a duração da timeline. FPS é um limite de descarte; fontes de 24 fps não ganham novos quadros para chegar a 60 fps.
 
 ## Biblioteca e migração
 
@@ -35,7 +35,7 @@ O limite de zoom reduz a amplitude da correção quando necessário. Não há ma
 - Home: criação, busca, recentes/favoritos, thumbnail real, data, duração, abrir, renomear, duplicar e excluir com confirmação.
 - Timeline: principal, dois overlays, textos, três faixas de áudio, thumbnails extraídos da fonte e waveforms RMS reais amostrados em 64 posições. Falhas de decodificação não são substituídas por ondas decorativas.
 - Tempo: slider de scrubbing, régua com cursor, zoom por controles e pinça na régua; segurar/arrastar move blocos. Ímã aproxima camadas de limites dos clipes. A faixa principal é reordenada, sem criar buracos.
-- Clipe: trim, split, reorder, remover, velocidade 0,5–4×, preset de rampa, fade, volume, cor, enquadramento e keyframes de posição/escala/rotação/opacidade.
+- Clipe: trim, split, reorder, remover, fade, volume, cor, enquadramento e keyframes de posição/escala/rotação/opacidade.
 - Camadas: importar música/voz, volume/fade/trim; textos e legendas manuais com cor/tamanho/posição/animação de fade; picture-in-picture com posição/escala/opacidade/trim.
 - Exportação: MP4 H.264/AAC, 480p/720p/1080p, limite 24/30/60 fps, qualidade 4/8/16 Mbps, progresso e cancelamento. Toda a edição exige o app aberto durante processamento.
 

@@ -45,7 +45,18 @@ class HomeFlowTest {
         }
         fun waitFor(text: String,scroll: Boolean=false): AccessibilityNodeInfo {
             val deadline=System.currentTimeMillis()+10000
-            while(System.currentTimeMillis()<deadline) {find(i.uiAutomation.rootInActiveWindow,text)?.let {return it};if(scroll) scrollable(i.uiAutomation.rootInActiveWindow)?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);Thread.sleep(200)}
+            while(System.currentTimeMillis()<deadline) {
+                val root=i.uiAutomation.rootInActiveWindow
+                // Recover only the emulator launcher ANR; never dismiss a Rise Edit error.
+                if(find(root,"Pixel Launcher isn't responding")!=null) {
+                    var close=find(root,"Close app")
+                    while(close!=null && !close.isClickable) close=close.parent
+                    close?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                }
+                find(root,text)?.let {return it}
+                if(scroll) scrollable(root)?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                Thread.sleep(200)
+            }
             screenshot("home-failure-test.png")
             throw AssertionError("Missing UI: $text; ${dump(i.uiAutomation.rootInActiveWindow)}")
         }

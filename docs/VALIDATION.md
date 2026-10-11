@@ -1,39 +1,22 @@
-# Validação da entrega inicial
+# Validação — Rise Edit 0.2.0
 
-Data: 11/10/2026. Ambiente: Windows, JDK 17.0.16, Gradle 8.11.1, SDK Android 35. Aplicativo mínimo Android 8.1 (API 27).
+Data: 11/10/2026. Android nativo Kotlin/Compose, Media3 1.9, OpenCV 4.10. Android mínimo 8.1.
 
-## Evidências
+- APK release assinado: br.com.riseedit, versionName 0.2.0, versionCode 3. Mesmo certificado das versões 0.1.0 e 0.1.1.
+- Build release, lint sem erros e 13 testes JVM aprovados no Windows/JDK 17; os checks equivalentes passaram no GitHub Actions.
+- Android 15/API 35 no GitHub Actions: persistência completa e isolamento de projetos aprovados. Home/criação/reabertura aprovadas, com capturas reais inspecionadas.
+- Exportação instrumentada aprovada em três cenários: vídeo aparado/dividido/estabilizado; vídeo com áudio e texto; composição completa com vídeo sobreposto. Cada cenário verificou duração de aproximadamente 2s, MP4 720p com áudio, quadro decodificável e fonte original preservada. Análise de movimento e armazenamento da trajetória também passaram.
+- Evidência da exportação: run 38168573087, commit e053c352ba89df26e36baea14eb677a098c8a091. Os três exports passaram; o job completo ficou vermelho porque o Pixel Launcher do emulador apresentou ANR antes do teste da Home. A Home passou nos runs anteriores, incluindo 38168355526. O teste agora trata apenas esse ANR específico da infraestrutura, sem ocultar erros do Rise Edit.
+- Corrigidos na investigação: configuração de compositor indevida em exportação com um único vídeo; deadlock de setSpeed com áudio removido no Media3 1.9; PNG inválido dos intervalos de overlay. Velocidade/rampas foram retiradas da UI para conter o escopo.
 
-- APK release gerado com chave própria RSA 3072, persistida localmente fora do Git. Package: `br.com.riseedit`; versionName: `0.2.0`; versionCode: `3`.
-- Lint release passou sem erros. Há avisos de dependências e targetSdk mais antigos que os disponíveis. As versões estão fixadas; a entrega não pressupõe validação dos SDKs mais recentes.
-- Treze testes JVM passaram usando JUnit 4.13.2: coordenadas dos cortes, conservação de duração ao dividir, rejeição de divisão vazia, inversão de deslocamento/rotação, limite de zoom, suavização/interpolação, isolamento de segmentos e política de atualização/digests.
-- Compilação do APK debug e do APK de instrumentação concluída. O teste `VideoPipelineTest` usa uma fonte sintética de 3 segundos com áudio, analisa movimento, persiste a trajetória, divide um trecho de 2 segundos e verifica a saída MP4 720p com áudio e original preservado.
-- Execução instrumentada ainda **pendente**: o emulador Pixel_7/Android 16 não respondeu ao ADB ao buscar propriedades, resultando em `Unknown API Level` e `No compatible devices`. Isso é uma falha de infraestrutura, não um teste funcional aprovado. Não houve validação visual da interface ou medição de melhora em vídeos reais.
-- A atualização real entre duas versões ainda **pendente**: requer uma release posterior e credencial privada de leitura configurada no aparelho. A comparação de versões/digests está testada; download, certificado e instalador foram implementados, mas não testados em uma atualização real.
+## Limites
 
-## Particularidades locais do Windows
+A estabilização estima translação e rotação globais. Não contém malha Warp, correção por regiões, perspectiva ou rolling shutter. Qualidade em gravações reais precisa de avaliação; o teste sintético demonstra execução, não equivalência ao Warp Stabilizer.
 
-O diretório temporário virtualizado provocou `Unable to establish loopback connection` no Java. Usar `-Djdk.net.unixdomain.tmpdir=` apontando para o caminho curto 8.3 de `.tmp/` permitiu o build. O executor Gradle de testes encontrou um problema adicional de codificação de caminhos acentuados em seu arquivo de argumentos. Os mesmos testes compilados foram executados diretamente por JUnit; `tools/build-windows.ps1` reproduz esse procedimento. Nenhum teste foi omitido para fabricar resultado positivo.
+Importação SAF, cancelamento, HDR e desempenho prolongado ainda precisam de verificação em aparelho físico. A instalação de uma atualização real com retenção dos projetos permanece pendente. O deploy assinado da v0.1.1 foi baixado e seu certificado/digest foram verificados. A v0.2.0 usa a mesma chave.
 
-Comandos de build efetivamente usados:
+## Distribuição e reprodução
 
-```text
-gradle :app:assembleRelease :app:lintRelease :core:compileTestKotlin --no-daemon
-java -cp <classes-main;classes-test;junit;hamcrest;kotlin> org.junit.runner.JUnitCore br.com.riseedit.core.EditingTest br.com.riseedit.core.UpdatePolicyTest
-gradle :app:connectedDebugAndroidTest --no-daemon
-```
+Secrets de assinatura configurados no GitHub Actions; chave e senhas fora do Git. Releases v* publicam rise-edit.apk e SHA-256 automaticamente. Repositório público: busca sem token; credencial opcional para acesso privado. Android pede confirmação na instalação.
 
-## Antes de uso regular
-
-Validar em um aparelho físico: importação por SAF, persistência após fechar/reabrir, vídeo vertical/horizontal, fontes sem áudio, HDR, cortes próximos de keyframes, exportação e cancelamento. Medir estabilização em cenas reais; verificar perda de rastreamento, bordas e parallax. Confirmar atualização `versionCode 1 → 2` com mesma assinatura e retenção do projeto. Região e malha não estão implementadas.
-
-## Distribuição
-
-O repositório é privado. O build de release automático exige os três secrets de assinatura descritos no README; a chave de distribuição não está versionada. Os três secrets foram configurados em 11/10/2026 com a mesma chave da primeira release. Os checks no GitHub Actions (testes JVM, APK debug e lint) passaram. O APK debug do workflow de checks não deve ser usado no canal de autoatualização.
-
-
-## Evolução 0.2.0
-
-Build release e lint passaram, assim como 13 testes JVM. A v0.1.1 gerada pelo GitHub Actions foi baixada e verificada: certificado idêntico à primeira release, versionCode 2 e SHA-256 correspondente ao asset publicado. Isso valida o deploy assinado; a instalação entre versões no aparelho continua pendente.
-
-Os testes instrumentados foram ampliados para biblioteca de projetos, navegação Home/Editor e exportação com áudio, texto e vídeo sobreposto. A execução ainda depende de um dispositivo acessível pelo ADB. Veja EDITOR_ARCHITECTURE.md para os recursos e limites reais.
+Windows: tools/build-windows.ps1 -Release executa build/lint e os mesmos testes JUnit diretamente para evitar a falha de codificação do executor Gradle em caminhos acentuados. Android CI: tools/android-runtime.sh preserva o resultado dos testes e coleta capturas, inclusive em falhas. Arquitetura e contenção em EDITOR_ARCHITECTURE.md.
