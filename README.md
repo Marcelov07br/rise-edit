@@ -1,6 +1,6 @@
 # Rise Edit
 
-Editor Android nativo, em Kotlin e Jetpack Compose. MVP 0.1.0: importação de vídeos, reprodução da timeline, aparagem, divisão, reordenação, remoção, desfazer/refazer, estabilização global experimental e exportação MP4.
+Editor Android nativo, em Kotlin e Jetpack Compose. MVP 0.1.1: importação de vídeos, reprodução da timeline, aparagem, divisão, reordenação, remoção, desfazer/refazer, estabilização global experimental e exportação MP4.
 
 ## Usar
 
@@ -16,11 +16,11 @@ O projeto é salvo automaticamente no armazenamento privado do aparelho. Permiss
 
 Em **Configurações**, habilite a busca ao abrir e conecte o GitHub com um token *fine-grained* limitado a `Marcelov07br/rise-edit`, permissão **Contents: Read-only**. Não use um token de administração nem coloque tokens no código. O token é cifrado com AES-GCM e chave não exportável do Android Keystore; backup do app está desativado.
 
-O app consulta a última release estável, compara versões numéricas, baixa `rise-edit.apk`, valida o SHA-256 informado pelo GitHub e confirma package name, versionCode crescente e o mesmo certificado de assinatura. Downloads usam HTTPS e não encaminham a credencial ao host de arquivos. Um botão abre o instalador do Android; o usuário precisa autorizar essa origem e confirmar a instalação. Não há instalação silenciosa nem serviço de verificação em segundo plano: a busca automática acontece ao iniciar o app. O repositório privado exige essa conexão por aparelho.
+O app consulta a última release estável, compara versões numéricas, baixa `rise-edit.apk`, valida o SHA-256 informado pelo GitHub e confirma package name, versionCode crescente e o mesmo certificado de assinatura. Downloads usam HTTPS e não encaminham a credencial ao host de arquivos. Um botão abre o instalador do Android; o usuário precisa autorizar essa origem e confirmar a instalação. Não há instalação silenciosa nem serviço de verificação em segundo plano: a busca automática acontece ao abrir ou retornar ao app, com intervalo mínimo de seis horas na mesma sessão. A busca manual fica disponível a qualquer momento. O repositório privado exige essa conexão por aparelho.
 
-Para publicar as próximas versões, aumente **versionCode** e **versionName** em `app/build.gradle.kts`, faça commit e envie uma tag correspondente, por exemplo `v0.1.1`. `.github/workflows/release.yml` testa, compila com a mesma chave e cria uma release com o APK e checksum. Tags e releases são o canal de atualização; commits isolados não são APKs instaláveis.
+Para publicar as próximas versões, aumente **versionCode** e **versionName** em `app/build.gradle.kts`, faça commit e envie uma tag correspondente, por exemplo `v0.1.2`. `.github/workflows/release.yml` testa, compila com a mesma chave e publica o APK e checksum na release correspondente, inclusive quando criada pela interface do GitHub. Tags e releases são o canal de atualização; commits isolados não são APKs instaláveis.
 
-A chave local de distribuição fica em `.signing/`, ignorada pelo Git. **Preserve essa pasta em backup privado**: perder a chave impede atualizar instalações existentes. Configure no GitHub Actions os secrets `RISE_SIGNING_KEYSTORE_B64`, `RISE_KEYSTORE_PASSWORD` e `RISE_KEY_PASSWORD` com a chave inicial. Eles nunca devem entrar em arquivos versionados. O fluxo falha sem esses secrets, em vez de gerar outra assinatura.
+A chave local de distribuição fica em `.signing/`, ignorada pelo Git. **Preserve essa pasta em backup privado**: perder a chave impede atualizar instalações existentes. Os secrets de assinatura foram configurados no GitHub Actions em 11/10/2026: `RISE_SIGNING_KEYSTORE_B64`, `RISE_KEYSTORE_PASSWORD` e `RISE_KEY_PASSWORD` com a chave inicial. Eles nunca devem entrar em arquivos versionados. O fluxo falha sem esses secrets, em vez de gerar outra assinatura.
 
 ## Compilar
 

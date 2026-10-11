@@ -4,7 +4,7 @@ Data: 11/10/2026. Ambiente: Windows, JDK 17.0.16, Gradle 8.11.1, SDK Android 35.
 
 ## Evidências
 
-- APK release gerado com chave própria RSA 3072, persistida localmente fora do Git. Package: `br.com.riseedit`; versionName: `0.1.0`; versionCode: `1`.
+- APK release gerado com chave própria RSA 3072, persistida localmente fora do Git. Package: `br.com.riseedit`; versionName: `0.1.1`; versionCode: `2`.
 - Lint release passou sem erros. Há avisos de dependências e targetSdk mais antigos que os disponíveis. As versões estão fixadas; a entrega não pressupõe validação dos SDKs mais recentes.
 - Oito testes JVM passaram usando JUnit 4.13.2: coordenadas dos cortes, conservação de duração ao dividir, rejeição de divisão vazia, inversão de deslocamento/rotação, limite de zoom, suavização/interpolação, isolamento de segmentos e política de atualização/digests.
 - Compilação do APK debug e do APK de instrumentação concluída. O teste `VideoPipelineTest` usa uma fonte sintética de 3 segundos com áudio, analisa movimento, persiste a trajetória, divide um trecho de 2 segundos e verifica a saída MP4 720p com áudio e original preservado.
@@ -29,4 +29,4 @@ Validar em um aparelho físico: importação por SAF, persistência após fechar
 
 ## Distribuição
 
-O repositório é privado. O build de release automático exige os três secrets de assinatura descritos no README; a chave de distribuição não está versionada. A configuração de secrets deve ser feita uma vez antes de publicar tags futuras. O APK debug do workflow de checks não deve ser usado no canal de autoatualização.
+O repositório é privado. O build de release automático exige os três secrets de assinatura descritos no README; a chave de distribuição não está versionada. Os três secrets foram configurados em 11/10/2026 com a mesma chave da primeira release. Os checks no GitHub Actions (testes JVM, APK debug e lint) passaram. O APK debug do workflow de checks não deve ser usado no canal de autoatualização.

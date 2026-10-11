@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    override fun onStart() { super.onStart(); updates.onOpen() }
     override fun onStop() { editor.player.pause(); super.onStop() }
 }
 
@@ -177,7 +178,7 @@ private fun UpdateSettings(vm: UpdateViewModel, state: UpdateState, canInstall: 
     AlertDialog(onDismissRequest = close, title = { Text("Configurações") }, confirmButton = { TextButton(onClick = close) { Text("Fechar") } },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Rise Edit 0.1.0 · Atualizações pelo GitHub", fontWeight = FontWeight.Bold)
+                Text("Rise Edit ${state.installedVersion} · Atualizações pelo GitHub", fontWeight = FontWeight.Bold)
                 Text(UpdatePolicy.REPOSITORY, style = MaterialTheme.typography.labelMedium)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Buscar automaticamente ao abrir", modifier = Modifier.weight(1f))

@@ -37,7 +37,12 @@ jobs:
       - name: Publish stable release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" release/rise-edit.apk release/rise-edit.apk.sha256 --verify-tag --title "Rise Edit $GITHUB_REF_NAME" --generate-notes
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release/rise-edit.apk release/rise-edit.apk.sha256 --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" release/rise-edit.apk release/rise-edit.apk.sha256 --verify-tag --title "Rise Edit $GITHUB_REF_NAME" --generate-notes
+          fi
       - name: Remove signing key
         if: always()
         run: rm -f "$RUNNER_TEMP/rise-release.p12"

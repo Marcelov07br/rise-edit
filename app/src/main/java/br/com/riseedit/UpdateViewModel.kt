@@ -2,6 +2,7 @@ package br.com.riseedit
 
 import android.app.Application
 import android.content.Intent
+import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.*
@@ -11,13 +12,19 @@ import java.io.File
 
 data class UpdateState(val automatic: Boolean = true, val connected: Boolean = false, val busy: Boolean = false,
     val message: String = "Conecte o GitHub para receber versões do repositório privado.", val release: AppRelease? = null,
-    val progress: Float = 0f, val ready: File? = null)
+    val progress: Float = 0f, val ready: File? = null, val installedVersion: String = "")
 
 class UpdateViewModel(application: Application) : AndroidViewModel(application) {
     private val manager = UpdateManager(application)
-    private val mutable = MutableStateFlow(UpdateState(automatic = manager.automatic, connected = manager.hasToken))
+    private val installedVersion = application.packageManager.getPackageInfo(application.packageName, 0).versionName.orEmpty()
+    private val mutable = MutableStateFlow(UpdateState(automatic = manager.automatic, connected = manager.hasToken, installedVersion = installedVersion))
     val state = mutable.asStateFlow()
-    init { if (manager.automatic && manager.hasToken) check() }
+    private var lastCheckAt: Long? = null
+    fun onOpen() {
+        val last = lastCheckAt
+        if (manager.automatic && manager.hasToken && state.value.ready == null &&
+            (last == null || SystemClock.elapsedRealtime() - last >= 6 * 60 * 60 * 1000L)) check()
+    }
     fun automatic(value: Boolean) { manager.automatic = value; mutable.value = state.value.copy(automatic = value) }
     fun connect(token: String) {
         if (state.value.busy) return
@@ -25,9 +32,10 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
             mutable.value = state.value.copy(connected = true, message = "Credencial salva somente neste aparelho."); check()
         }.onFailure { mutable.value = state.value.copy(message = "Não foi possível guardar a credencial.") }
     }
-    fun disconnect() { if (!state.value.busy) { manager.forgetToken(); mutable.value = UpdateState(automatic = manager.automatic) } }
+    fun disconnect() { if (!state.value.busy) { manager.forgetToken(); lastCheckAt = null; mutable.value = UpdateState(automatic = manager.automatic, installedVersion = installedVersion) } }
     fun check() {
         if (state.value.busy) return
+        lastCheckAt = SystemClock.elapsedRealtime()
         mutable.value = state.value.copy(busy = true, message = "Buscando versões no GitHub…", ready = null)
         viewModelScope.launch {
             try {
