@@ -34,7 +34,13 @@ class VideoPipelineTest {
             texts = listOf(TextLayer(text = "RISE", startMs = 100, endMs = 1800)),
             overlays = listOf(VideoOverlay(clip = clip.copy(startMs = 500, endMs = 1500), offsetMs = 500, track = 1)))
         store.save(project); assertEquals(project, store.load())
-        val destination = File(context.cacheDir, "pipeline-result.mp4").apply { delete() }
+        val failures = mutableListOf<String>()
+        val variants = listOf("base" to project.copy(audio=emptyList(),texts=emptyList(),overlays=emptyList()),
+            "audio-text" to project.copy(overlays=emptyList()), "full" to project)
+        for ((variant, compositionProject) in variants) {
+        androidx.media3.effect.DebugTraceUtil.enableTracing=true
+        androidx.media3.effect.DebugTraceUtil.reset()
+        val destination = File(context.cacheDir, "pipeline-$variant.mp4").apply { delete() }
         val done = CountDownLatch(1)
         var failure: Exception? = null
         var engine: Transformer? = null
@@ -44,12 +50,16 @@ class VideoPipelineTest {
                     override fun onCompleted(composition: Composition, exportResult: ExportResult) { done.countDown() }
                     override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) { failure = exportException; done.countDown() }
                 }).build()
-            engine!!.start(VideoEngine.composition(project, mapOf(clip.uri to analysis)), destination.absolutePath)
+            engine!!.start(VideoEngine.composition(compositionProject, mapOf(clip.uri to analysis)), destination.absolutePath)
         }
         val completed = done.await(90, TimeUnit.SECONDS)
         if (!completed) instrumentation.runOnMainSync { engine?.cancel() }
-        assertTrue("Export timed out", completed)
-        failure?.let { throw it }
+        if (!completed || failure!=null) {
+            val reason="$variant: ${failure?.stackTraceToString() ?: "Export timed out"}"
+            android.util.Log.e("RisePipeline",reason)
+            android.util.Log.e("RisePipeline",androidx.media3.effect.DebugTraceUtil.generateTraceSummary())
+            failures.add(reason);continue
+        }
         assertTrue(destination.length() > 1000)
         val retriever = MediaMetadataRetriever()
         try {
@@ -60,6 +70,10 @@ class VideoPipelineTest {
             assertEquals("720", retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT))
             assertNotNull(retriever.getFrameAtTime(1_000_000))
         } finally { retriever.release() }
+        android.util.Log.i("RisePipeline","$variant export passed")
+        }
+        androidx.media3.effect.DebugTraceUtil.enableTracing=false
+        assertTrue(failures.joinToString("\n"),failures.isEmpty())
         assertEquals(originalHash, source.readBytes().contentHashCode())
         val manager = UpdateManager(context)
         manager.saveToken("synthetic-test-value")

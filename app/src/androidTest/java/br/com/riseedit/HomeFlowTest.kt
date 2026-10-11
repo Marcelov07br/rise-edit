@@ -23,7 +23,7 @@ class HomeFlowTest {
         context.startActivity(context.packageManager.getLaunchIntentForPackage(context.packageName)!!.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         fun find(node: AccessibilityNodeInfo?,text: String): AccessibilityNodeInfo? {
             if(node==null) return null
-            if(node.text?.toString()?.contains(text)==true) return node
+            if(node.text?.toString()?.contains(text)==true || node.contentDescription?.toString()?.contains(text)==true) return node
             for(index in 0 until node.childCount) find(node.getChild(index),text)?.let {return it}
             return null
         }
@@ -33,19 +33,23 @@ class HomeFlowTest {
             for(index in 0 until node.childCount) scrollable(node.getChild(index))?.let {return it}
             return null
         }
-        fun waitFor(text: String,scroll: Boolean=false): AccessibilityNodeInfo {
-            val deadline=System.currentTimeMillis()+10000
-            while(System.currentTimeMillis()<deadline) {find(i.uiAutomation.rootInActiveWindow,text)?.let {return it};if(scroll) scrollable(i.uiAutomation.rootInActiveWindow)?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);Thread.sleep(200)}
-            throw AssertionError("Missing UI: $text")
-        }
-        fun click(text: String,scroll: Boolean=false) {var node: AccessibilityNodeInfo?=waitFor(text,scroll);while(node!=null && !node.isClickable) node=node.parent;assertNotNull(node);assertTrue(node!!.performAction(AccessibilityNodeInfo.ACTION_CLICK))}
         fun screenshot(name: String) {
             val bitmap=i.uiAutomation.takeScreenshot();assertNotNull(bitmap)
             val file=File(context.getExternalFilesDir(null),name)
             file.outputStream().use {bitmap!!.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}
-            // Gradle removes the test application afterwards; preserve evidence outside its data directory.
             i.uiAutomation.executeShellCommand("cp ${file.absolutePath} /sdcard/Download/$name").use {fd ->java.io.FileInputStream(fd.fileDescriptor).use {it.readBytes()}}
         }
+        fun dump(node: AccessibilityNodeInfo?): String {
+            if(node==null) return "<no active window>"
+            return "[${node.text} / ${node.contentDescription}]" + (0 until node.childCount).joinToString {dump(node.getChild(it))}
+        }
+        fun waitFor(text: String,scroll: Boolean=false): AccessibilityNodeInfo {
+            val deadline=System.currentTimeMillis()+10000
+            while(System.currentTimeMillis()<deadline) {find(i.uiAutomation.rootInActiveWindow,text)?.let {return it};if(scroll) scrollable(i.uiAutomation.rootInActiveWindow)?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);Thread.sleep(200)}
+            screenshot("home-failure-test.png")
+            throw AssertionError("Missing UI: $text; ${dump(i.uiAutomation.rootInActiveWindow)}")
+        }
+        fun click(text: String,scroll: Boolean=false) {var node: AccessibilityNodeInfo?=waitFor(text,scroll);while(node!=null && !node.isClickable) node=node.parent;assertNotNull(node);assertTrue(node!!.performAction(AccessibilityNodeInfo.ACTION_CLICK))}
         waitFor("RISE EDIT");screenshot("home-test.png");click("Novo Projeto");click("Criar e importar");waitFor("Importar vídeos");waitFor("Projetos")
         screenshot("editor-empty-test.png");click("Projetos");click("Projeto de teste",scroll=true);waitFor("Estabilização Rise")
         Thread.sleep(2000);screenshot("editor-timeline-test.png");click("Projetos")
