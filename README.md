@@ -1,6 +1,6 @@
 # Rise Edit
 
-Editor Android nativo, em Kotlin e Jetpack Compose. Versão 0.2.0: importação de vídeos, reprodução da timeline, aparagem, divisão, reordenação, remoção, desfazer/refazer, estabilização global experimental e exportação MP4.
+Editor Android nativo, em Kotlin e Jetpack Compose. Versão 0.3.0: editor com prévia e timeline fixas e barra de ferramentas inferior, importação de vídeos, reprodução da timeline, aparagem, divisão, reordenação, remoção, desfazer/refazer, estabilização global experimental e exportação MP4.
 
 Arquitetura, recursos e limites da evolução: [docs/EDITOR_ARCHITECTURE.md](docs/EDITOR_ARCHITECTURE.md).
 

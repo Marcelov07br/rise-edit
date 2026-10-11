@@ -2,10 +2,7 @@
 package br.com.riseedit
 
 import android.app.Application
-import android.content.Intent
-import android.media.MediaMetadataRetriever
 import android.net.Uri
-import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.*
@@ -108,16 +105,8 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         mutable.value = state.value.copy(busy = "Importando mídia…")
         operation = viewModelScope.launch {
             try {
-                val media = withContext(Dispatchers.IO) { uris.map { uri ->
-                    val app = getApplication<Application>(); app.contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    val r = MediaMetadataRetriever()
-                    try { r.setDataSource(app,uri); check(r.extractMetadata(if (video) MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO else MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO) == "yes") { "Mídia incompatível." }
-                        val duration = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0
-                        var name = if (video) "Overlay" else "Áudio"
-                        app.contentResolver.query(uri,arrayOf(OpenableColumns.DISPLAY_NAME),null,null,null)?.use { if (it.moveToFirst()) name = it.getString(0) }
-                        Clip(uri=uri.toString(),name=name,sourceDurationMs=duration)
-                    } finally { r.release() }
-                } }
+                val kind = if (video) MediaKind.OVERLAY else MediaKind.AUDIO
+                val media = withContext(Dispatchers.IO) { uris.map { uri -> MediaImporter.readClip(getApplication(), uri, kind) } }
                 mutable.value = state.value.copy(busy = null)
                 val p = state.value.project; var offset = state.value.positionMs.coerceIn(0,maxOf(0,p.durationMs-1))
                 if (video) edit(p.copy(overlays = p.overlays + media.map { c -> VideoOverlay(clip=c,offsetMs=offset,track=track).also { offset += c.durationMs } }))
@@ -139,22 +128,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         mutable.value = state.value.copy(busy = "Importando vídeos…", progress = 0f)
         operation = viewModelScope.launch {
             try {
-                val clips = withContext(Dispatchers.IO) {
-                    uris.map { uri ->
-                        getApplication<Application>().contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        val retriever = MediaMetadataRetriever()
-                        try {
-                            retriever.setDataSource(getApplication(), uri)
-                            check(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes") { "O arquivo não contém vídeo." }
-                            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0
-                            var name = "Vídeo"
-                            getApplication<Application>().contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
-                                if (it.moveToFirst()) name = it.getString(0)
-                            }
-                            Clip(uri = uri.toString(), name = name, sourceDurationMs = duration)
-                        } finally { retriever.release() }
-                    }
-                }
+                val clips = withContext(Dispatchers.IO) { uris.map { uri -> MediaImporter.readClip(getApplication(), uri, MediaKind.MAIN_VIDEO) } }
                 mutable.value = state.value.copy(busy = null)
                 edit(state.value.project.copy(clips = state.value.project.clips + clips))
                 message("${clips.size} vídeo(s) importado(s). Projeto salvo no aparelho.")
