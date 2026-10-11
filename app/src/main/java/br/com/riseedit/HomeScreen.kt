@@ -26,7 +26,10 @@ fun HomeScreen(projects: List<Project>, error: String?, library: ProjectLibrary,
     var delete by remember { mutableStateOf<Project?>(null) }
     var name by remember { mutableStateOf("") }
     val filtered = projects.filter { (!favorites || it.favorite) && it.name.contains(query,true) }
-    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal=20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+    LazyVerticalGrid(GridCells.Adaptive(260.dp),modifier=Modifier.fillMaxSize().safeDrawingPadding(),
+        horizontalArrangement=Arrangement.spacedBy(14.dp),verticalArrangement=Arrangement.spacedBy(14.dp),contentPadding=PaddingValues(horizontal=20.dp,vertical=16.dp)) {
+        item(key="home-header",span={GridItemSpan(maxLineSpan)}) {
+        Column(verticalArrangement=Arrangement.spacedBy(14.dp)) {
         Row(Modifier.fillMaxWidth().padding(top=16.dp),verticalAlignment=Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) { Text("RISE EDIT",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Black,color=RiseGreen); Text("Dê forma ao seu movimento",style=MaterialTheme.typography.bodyMedium) }
             TextButton(onClick=onSettings) { Text(if(hasUpdate) "Config. • nova" else "Configurações") }
@@ -49,8 +52,11 @@ fun HomeScreen(projects: List<Project>, error: String?, library: ProjectLibrary,
             FilterChip(favorites,{ favorites=true },label={ Text("★ Favoritos") })
         }
         error?.let { Text(it,color=MaterialTheme.colorScheme.error) }
+        }
+        }
         if (filtered.isEmpty()) {
-            Box(Modifier.fillMaxWidth().weight(1f),contentAlignment=Alignment.Center) {
+            item(key="empty",span={GridItemSpan(maxLineSpan)}) {
+            Box(Modifier.fillMaxWidth().heightIn(min=240.dp),contentAlignment=Alignment.Center) {
                 Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(12.dp)) {
                     Text("▷",style=MaterialTheme.typography.displayLarge,color=RiseGreen)
                     Text(if(projects.isEmpty()) "Uma tela em branco. Muitas histórias." else "Nenhum projeto encontrado",style=MaterialTheme.typography.titleMedium)
@@ -58,7 +64,8 @@ fun HomeScreen(projects: List<Project>, error: String?, library: ProjectLibrary,
                     if(projects.isEmpty()) OutlinedButton(onClick={ name="Meu primeiro vídeo"; create=true },modifier=Modifier.heightIn(min=48.dp)) { Text("Importar mídia em novo projeto") }
                 }
             }
-        } else LazyVerticalGrid(GridCells.Adaptive(260.dp),modifier=Modifier.weight(1f),horizontalArrangement=Arrangement.spacedBy(14.dp),verticalArrangement=Arrangement.spacedBy(14.dp),contentPadding=PaddingValues(bottom=24.dp)) {
+            }
+        } else {
             items(filtered,key={ it.id }) { p ->
                 Card(shape=RoundedCornerShape(20.dp)) {
                     Column {

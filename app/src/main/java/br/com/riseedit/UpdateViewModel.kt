@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 
 data class UpdateState(val automatic: Boolean = true, val connected: Boolean = false, val busy: Boolean = false,
-    val message: String = "Conecte o GitHub para receber versões do repositório privado.", val release: AppRelease? = null,
+    val message: String = "As novas versões são recebidas pelo GitHub.", val release: AppRelease? = null,
     val progress: Float = 0f, val ready: File? = null, val installedVersion: String = "")
 
 class UpdateViewModel(application: Application) : AndroidViewModel(application) {
@@ -22,7 +22,7 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
     private var lastCheckAt: Long? = null
     fun onOpen() {
         val last = lastCheckAt
-        if (manager.automatic && manager.hasToken && state.value.ready == null &&
+        if (manager.automatic && state.value.ready == null &&
             (last == null || SystemClock.elapsedRealtime() - last >= 6 * 60 * 60 * 1000L)) check()
     }
     fun automatic(value: Boolean) { manager.automatic = value; mutable.value = state.value.copy(automatic = value) }

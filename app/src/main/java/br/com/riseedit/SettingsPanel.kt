@@ -39,7 +39,7 @@ fun UpdateSettings(vm: UpdateViewModel, state: UpdateState, canInstall: Boolean,
                     Text("Buscar automaticamente ao abrir", modifier = Modifier.weight(1f))
                     Switch(checked = state.automatic, onCheckedChange = vm::automatic)
                 }
-                Text("Repositório privado: use um token fine-grained, limitado a rise-edit, com Contents: Read-only. A credencial fica criptografada no aparelho.", style = MaterialTheme.typography.bodySmall)
+                Text("As atualizações do repositório público funcionam sem login. Se ele se tornar privado, conecte uma credencial de leitura nas opções abaixo.", style = MaterialTheme.typography.bodySmall)
                 if (!state.connected) {
                     OutlinedTextField(value = token, onValueChange = { token = it }, label = { Text("Token GitHub") }, singleLine = true,
                         visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), enabled = !state.busy)

@@ -16,7 +16,7 @@ O projeto é salvo automaticamente no armazenamento privado do aparelho. Permiss
 
 ## Atualizações pelo GitHub
 
-Em **Configurações**, habilite a busca ao abrir e conecte o GitHub com um token *fine-grained* limitado a `Marcelov07br/rise-edit`, permissão **Contents: Read-only**. Não use um token de administração nem coloque tokens no código. O token é cifrado com AES-GCM e chave não exportável do Android Keystore; backup do app está desativado.
+Em **Configurações**, habilite a busca ao abrir. O repositório público recebe atualizações sem login. Se o repositório se tornar privado, conecte o GitHub com um token *fine-grained* limitado a `Marcelov07br/rise-edit`, permissão **Contents: Read-only**. Não coloque tokens no código. A credencial opcional é cifrada com AES-GCM e chave não exportável do Android Keystore; backup do app está desativado.
 
 O app consulta a última release estável, compara versões numéricas, baixa `rise-edit.apk`, valida o SHA-256 informado pelo GitHub e confirma package name, versionCode crescente e o mesmo certificado de assinatura. Downloads usam HTTPS e não encaminham a credencial ao host de arquivos. Um botão abre o instalador do Android; o usuário precisa autorizar essa origem e confirmar a instalação. Não há instalação silenciosa nem serviço de verificação em segundo plano: a busca automática acontece ao abrir ou retornar ao app, com intervalo mínimo de seis horas na mesma sessão. A busca manual fica disponível a qualquer momento. O repositório privado exige essa conexão por aparelho.
 
