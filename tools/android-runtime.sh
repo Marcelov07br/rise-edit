@@ -4,6 +4,6 @@ mkdir -p artifacts
 status=0
 ./gradlew :app:connectedDebugAndroidTest --no-daemon || status=$?
 for shot in home-test editor-empty-test editor-timeline-test; do
-  adb exec-out run-as br.com.riseedit cat "files/$shot.png" > "artifacts/$shot.png" || true
+  adb pull "/sdcard/Download/$shot.png" "artifacts/$shot.png" || true
 done
 exit "$status"

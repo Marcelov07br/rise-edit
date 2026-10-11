@@ -39,7 +39,13 @@ class HomeFlowTest {
             throw AssertionError("Missing UI: $text")
         }
         fun click(text: String,scroll: Boolean=false) {var node: AccessibilityNodeInfo?=waitFor(text,scroll);while(node!=null && !node.isClickable) node=node.parent;assertNotNull(node);assertTrue(node!!.performAction(AccessibilityNodeInfo.ACTION_CLICK))}
-        fun screenshot(name: String) {val bitmap=i.uiAutomation.takeScreenshot();assertNotNull(bitmap);context.openFileOutput(name,0).use {bitmap!!.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}}
+        fun screenshot(name: String) {
+            val bitmap=i.uiAutomation.takeScreenshot();assertNotNull(bitmap)
+            val file=File(context.getExternalFilesDir(null),name)
+            file.outputStream().use {bitmap!!.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}
+            // Gradle removes the test application afterwards; preserve evidence outside its data directory.
+            i.uiAutomation.executeShellCommand("cp ${file.absolutePath} /sdcard/Download/$name").use {fd ->java.io.FileInputStream(fd.fileDescriptor).use {it.readBytes()}}
+        }
         waitFor("RISE EDIT");screenshot("home-test.png");click("Novo Projeto");click("Criar e importar");waitFor("Importar vídeos");waitFor("Projetos")
         screenshot("editor-empty-test.png");click("Projetos");click("Projeto de teste",scroll=true);waitFor("Estabilização Rise")
         Thread.sleep(2000);screenshot("editor-timeline-test.png");click("Projetos")
