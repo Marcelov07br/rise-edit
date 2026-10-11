@@ -1,0 +1,43 @@
+name: Publish Android update
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Restore signing key
+        env:
+          KEYSTORE: ${{ secrets.RISE_SIGNING_KEYSTORE_B64 }}
+        run: |
+          test -n "$KEYSTORE" || { echo 'Configure signing secrets before publishing updates.'; exit 1; }
+          printf '%s' "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/rise-release.p12"
+      - name: Build and verify release
+        env:
+          RISE_KEYSTORE_PATH: ${{ runner.temp }}/rise-release.p12
+          RISE_KEYSTORE_PASSWORD: ${{ secrets.RISE_KEYSTORE_PASSWORD }}
+          RISE_KEY_PASSWORD: ${{ secrets.RISE_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew :core:test :app:assembleRelease :app:lintRelease --no-daemon
+          mkdir -p release
+          cp app/build/outputs/apk/release/app-release.apk release/rise-edit.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging release/rise-edit.apk > release/badging.txt
+          grep -q "versionName='${GITHUB_REF_NAME#v}'" release/badging.txt || { echo 'Tag must match versionName'; exit 1; }
+          cd release
+          sha256sum rise-edit.apk > rise-edit.apk.sha256
+      - name: Publish stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/rise-edit.apk release/rise-edit.apk.sha256 --verify-tag --title "Rise Edit $GITHUB_REF_NAME" --generate-notes
+      - name: Remove signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/rise-release.p12"
