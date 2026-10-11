@@ -23,13 +23,13 @@ Os textos "Projetos", "Importar vídeos" e "Estabilização Rise" são usados pe
 
 `core/Project.kt` define clipes, pontos de velocidade em coordenadas absolutas da fonte, três faixas de áudio, duas camadas de overlay, textos, keyframes e exportação. `core/Timeline.kt` faz snapping e interpolação. A faixa principal é sequencial e fecha espaços automaticamente; camadas adicionais têm posição absoluta na composição. Cortes na faixa principal não deslocam automaticamente áudio e textos.
 
-`VideoEngine` monta sequências Media3 com gaps, mistura áudio e compõe vídeos sobrepostos. O preview usa `MultipleInputVideoGraph` e saída 480p; a exportação usa a mesma construção com resolução e bitrate escolhidos. Isso reduz o custo de renderização da prévia, mas não cria proxies de arquivos. A decodificação continua dependendo do aparelho.
+`VideoEngine` monta sequências Media3 com gaps, mistura áudio e compõe vídeos sobrepostos. Nesta etapa P0 o preview ainda usa `MultipleInputVideoGraph` e saída 480p; a separação do preview é P1. A URI efetiva prefere proxies na prévia e exige o proxy também na exportação quando o original necessita normalização. A decodificação continua dependendo do aparelho.
 
 `EditingEffects` aplica velocidade, transformações interpoladas, cor, fade através de preto, envelope de áudio e textos temporizados. A interface de velocidade/rampa fica adiada nesta entrega contida. Transições não sobrepõem clipes: o fade mantém a duração da timeline. FPS é um limite de descarte; fontes de 24 fps não ganham novos quadros para chegar a 60 fps.
 
 ## Biblioteca e migração
 
-`ProjectStore` grava cada projeto em `files/projects/<id>.json`, esquema 2, usando `AtomicFile`. IDs são validados antes de formar caminhos. O projeto anterior (`project.json`, esquema 1) é importado com ID fixo uma única vez; o arquivo antigo permanece preservado. Cada projeto possui nome, data, favorito, mídias e edição. Renomear, duplicar e excluir afetam os projetos, não os arquivos de mídia.
+`ProjectStore` grava cada projeto em `files/projects/<id>.json`, esquema 3, usando `AtomicFile`. Esquemas 1/2 continuam legíveis, com metadados e proxy nulos; a sondagem ocorre na primeira abertura/importação. Os campos antigos permanecem, permitindo reverter o JSON para esquema 2 removendo os campos aditivos. IDs são validados antes de formar caminhos. O projeto anterior (`project.json`, esquema 1) é importado com ID fixo uma única vez; o arquivo antigo permanece preservado. Renomear, duplicar e excluir afetam os projetos, não as fontes.
 
 Permissões SAF de leitura são persistidas para vídeo e áudio. Duplicatas compartilham as mesmas fontes e análises imutáveis, com arquivos de projeto independentes. A recuperação exige que as fontes continuem acessíveis. O histórico é limitado a 30 estados por sessão e reinicia ao abrir outro projeto.
 
@@ -47,7 +47,7 @@ O limite de zoom reduz a amplitude da correção quando necessário. Não há ma
 
 - Home: criação, busca, recentes/favoritos, thumbnail real, data, duração, abrir, renomear, duplicar e excluir com confirmação.
 - Timeline: principal, dois overlays, textos, três faixas de áudio, thumbnails extraídos da fonte e waveforms RMS reais amostrados em 64 posições. Falhas de decodificação não são substituídas por ondas decorativas.
-- Tempo: slider de scrubbing, régua com cursor, zoom por controles e pinça na régua; segurar/arrastar move blocos. Ímã aproxima camadas de limites dos clipes. A faixa principal é reordenada, sem criar buracos.
+- Tempo: régua com cursor, zoom por controles e pinça na régua; segurar/arrastar move blocos. Ímã aproxima camadas de limites dos clipes. A faixa principal é reordenada, sem criar buracos.
 - Clipe: trim, split, reorder, remover, fade, volume, cor, enquadramento e keyframes de posição/escala/rotação/opacidade.
 - Camadas: importar música/voz, volume/fade/trim; textos e legendas manuais com cor/tamanho/posição/animação de fade; picture-in-picture com posição/escala/opacidade/trim.
 - Exportação: MP4 H.264/AAC, 480p/720p/1080p, limite 24/30/60 fps, qualidade 4/8/16 Mbps, progresso e cancelamento. Toda a edição exige o app aberto durante processamento.

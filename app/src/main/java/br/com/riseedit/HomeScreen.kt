@@ -70,7 +70,7 @@ fun HomeScreen(projects: List<Project>, error: String?, library: ProjectLibrary,
                 Card(shape=RoundedCornerShape(20.dp)) {
                     Column {
                         Box(Modifier.fillMaxWidth().height(145.dp).clickable { onOpen(p) }) {
-                            MediaThumbnail(p.clips.firstOrNull()?.uri,p.clips.firstOrNull()?.startMs ?: 0,Modifier.fillMaxSize())
+                            MediaThumbnail(p.clips.firstOrNull()?.effectiveUri(true),p.clips.firstOrNull()?.startMs ?: 0,Modifier.fillMaxSize())
                             Surface(Modifier.align(Alignment.BottomEnd).padding(10.dp),color=RiseBackground.copy(alpha=0.85f),shape=RoundedCornerShape(8.dp)) { Text(time(p.durationMs),Modifier.padding(6.dp),style=MaterialTheme.typography.labelMedium) }
                         }
                         Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {

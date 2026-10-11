@@ -31,7 +31,10 @@ data class Clip(
     val volume: Float = 1f,
     val fadeMs: Long = 0,
     val adjustments: Adjustments = Adjustments(),
-    val keyframes: List<TransformKeyframe> = emptyList()
+    val keyframes: List<TransformKeyframe> = emptyList(),
+    val sourceInfo: SourceInfo? = null,
+    val proxyUri: String? = null,
+    val proxyRequired: Boolean = false
 ) {
     init {
         require(sourceDurationMs > 0 && startMs >= 0 && endMs <= sourceDurationMs && endMs > startMs)
@@ -39,6 +42,8 @@ data class Clip(
         require(speedPoints.zipWithNext().all { (a,b) -> a.sourceMs < b.sourceMs })
     }
     val sourceLengthMs get() = endMs - startMs
+    fun effectiveUri(preferProxy: Boolean = false): String =
+        proxyUri?.takeIf { (preferProxy || proxyRequired) && it.isNotBlank() } ?: uri
     fun speedAt(sourceMs: Long) = speedPoints.lastOrNull { it.sourceMs <= sourceMs }?.speed ?: 1.0
     private fun intervals() = (listOf(startMs) + speedPoints.map { it.sourceMs }.filter { it in (startMs + 1) until endMs } + endMs).distinct().sorted()
     val durationMs get() = intervals().zipWithNext().sumOf { (a, b) -> (b - a) / speedAt(a) }.roundToLong().coerceAtLeast(1)

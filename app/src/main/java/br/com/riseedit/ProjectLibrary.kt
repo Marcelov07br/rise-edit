@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.riseedit.core.Project
+import br.com.riseedit.media.ProxyTranscoder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,5 +25,15 @@ class ProjectLibrary(application: Application) : AndroidViewModel(application) {
     fun favorite(p: Project) = update(p.copy(favorite = !p.favorite))
     fun duplicate(p: Project) = update(p.copy(id = UUID.randomUUID().toString(), name = "${p.name} · cópia"))
     private fun update(p: Project) { runCatching { store.save(p.copy(modifiedAt = System.currentTimeMillis())) }.onSuccess { refresh() }.onFailure { error.value = "Falha ao salvar projeto." } }
-    fun delete(p: Project) { runCatching { store.delete(p.id) }.onSuccess { refresh() }.onFailure { error.value = "Falha ao excluir projeto." } }
+    fun delete(p: Project) { viewModelScope.launch {
+        try {
+            val keep = withContext(Dispatchers.IO) {
+                store.delete(p.id)
+                store.list().flatMap { it.clips + it.overlays.map { o -> o.clip } }.mapNotNull { it.proxyUri }.toSet()
+            }
+            ProxyTranscoder(getApplication()).cleanupUnused(keep)
+            refresh()
+        } catch(e: CancellationException) { throw e }
+        catch(e: Exception) { error.value = "Falha ao excluir projeto." }
+    } }
 }

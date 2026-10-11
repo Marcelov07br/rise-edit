@@ -7,14 +7,19 @@ import android.net.Uri
 import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import br.com.riseedit.core.MediaFault
+import br.com.riseedit.media.displayMessage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -27,7 +32,12 @@ object MediaAssets {
     private val workers = Semaphore(2)
     suspend fun thumbnail(context: Context, uri: String, time: Long): Bitmap? = withContext(Dispatchers.IO) { workers.withPermit {
         val key = "$uri:$time"; thumbnails.get(key)?.let { return@withPermit it }
-        runCatching { val r = MediaMetadataRetriever(); try { r.setDataSource(context,Uri.parse(uri)); r.getScaledFrameAtTime(time*1000,MediaMetadataRetriever.OPTION_CLOSEST_SYNC,256,144)?.also { thumbnails.put(key,it) } } finally { r.release() } }.getOrNull()
+        val r = MediaMetadataRetriever()
+        try { r.setDataSource(context,Uri.parse(uri)); (r.getScaledFrameAtTime(time*1000,MediaMetadataRetriever.OPTION_CLOSEST_SYNC,256,144)
+            ?: throw MediaFault.AssetDecodeFailed()).also { thumbnails.put(key,it) } }
+        catch(e: CancellationException) { throw e }
+        catch(e: Exception) { android.util.Log.w("RiseMedia", "Thumbnail failed", e); throw MediaFault.AssetDecodeFailed(e) }
+        finally { runCatching { r.release() } }
     } }
     /** Sparse RMS samples decoded from actual PCM, across the entire source (not decorative bars). */
     suspend fun waveform(context: Context, uri: String, duration: Long): List<Float>? = withContext(Dispatchers.IO) { workers.withPermit {
@@ -62,8 +72,8 @@ object MediaAssets {
             }
             val peak=bins.maxOrNull()?.coerceAtLeast(0.01f) ?: 1f
             bins.map { (it/peak).coerceIn(0f,1f) }.also { waves.put(uri,it) }
-        } catch(e: CancellationException) { throw e } catch(e: Exception) { null }
-        finally { runCatching { codec?.stop() };codec?.release();extractor.release() }
+        } catch(e: CancellationException) { throw e } catch(e: Exception) { android.util.Log.w("RiseMedia", "Waveform failed", e); throw MediaFault.AssetDecodeFailed(e) }
+        finally { runCatching { codec?.stop() }; runCatching { codec?.release() }; runCatching { extractor.release() } }
     } }
 }
 
@@ -71,8 +81,16 @@ object MediaAssets {
 fun MediaThumbnail(uri: String?, sourceMs: Long, modifier: Modifier = Modifier) {
     val context=LocalContext.current
     var image by remember(uri,sourceMs) { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(uri,sourceMs) { image=uri?.let { MediaAssets.thumbnail(context,it,sourceMs) } }
-    Box(modifier.background(RiseBackground),contentAlignment=Alignment.Center) {
-        image?.let { Image(it.asImageBitmap(),contentDescription=null,modifier=Modifier.matchParentSize(),contentScale=ContentScale.Crop) } ?: Text("▷")
+    var fault by remember(uri,sourceMs) { mutableStateOf<MediaFault?>(null) }
+    var details by remember { mutableStateOf(false) }
+    LaunchedEffect(uri,sourceMs) {
+        try { image=uri?.let { MediaAssets.thumbnail(context,it,sourceMs) } }
+        catch(e: MediaFault) { fault=e }
     }
+    Box(modifier.background(RiseBackground),contentAlignment=Alignment.Center) {
+        image?.let { Image(it.asImageBitmap(),contentDescription=null,modifier=Modifier.matchParentSize(),contentScale=ContentScale.Crop) }
+            ?: Text(if (fault == null) "▷" else "Sem prévia ⓘ", Modifier.clickable(enabled = fault != null) { details=true })
+    }
+    if (details) AlertDialog(onDismissRequest={details=false}, title={Text("Prévia indisponível")},
+        text={Text(fault?.displayMessage().orEmpty())}, confirmButton={TextButton(onClick={details=false}) {Text("OK")}})
 }

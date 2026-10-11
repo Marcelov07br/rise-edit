@@ -25,7 +25,7 @@ class MotionAnalyzer(private val context: Context) {
         var pose = Pose(); var segment = 0; var unreliable = 0
         var width = 0; var height = 0
         try {
-            retriever.setDataSource(context, Uri.parse(clip.uri))
+            retriever.setDataSource(context, Uri.parse(clip.effectiveUri(preferProxy = true)))
             var time = 0L
             while (time < clip.sourceDurationMs) {
                 currentCoroutineContext().ensureActive()

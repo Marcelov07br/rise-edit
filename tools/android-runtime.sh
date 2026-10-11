@@ -6,4 +6,5 @@ status=0
 for shot in home-test home-failure-test editor-empty-test editor-timeline-test; do
   adb pull "/sdcard/Download/$shot.png" "artifacts/$shot.png" || true
 done
+adb logcat -d > artifacts/media-runtime.log || true
 exit "$status"

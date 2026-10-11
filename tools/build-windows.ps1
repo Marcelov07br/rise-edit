@@ -16,5 +16,6 @@ $riseJUnit = (Get-ChildItem "$riseCache\junit\junit\4.13.2" -Recurse -Filter 'ju
 $riseHamcrest = (Get-ChildItem "$riseCache\org.hamcrest\hamcrest-core\1.3" -Recurse -Filter 'hamcrest-core-1.3.jar' | Select-Object -First 1).FullName
 $riseKotlin = (Get-ChildItem "$riseCache\org.jetbrains.kotlin\kotlin-stdlib\2.0.21" -Recurse -Filter 'kotlin-stdlib-2.0.21.jar' | Select-Object -First 1).FullName
 $riseClasspath = @("$riseRoot\core\build\classes\kotlin\main", "$riseRoot\core\build\classes\kotlin\test", $riseJUnit, $riseHamcrest, $riseKotlin) -join ';'
-& "$env:JAVA_HOME\bin\java.exe" -cp $riseClasspath org.junit.runner.JUnitCore br.com.riseedit.core.EditingTest br.com.riseedit.core.UpdatePolicyTest br.com.riseedit.core.TimelineTest
+$riseTestClasses = Get-ChildItem "$riseRoot\core\src\test" -Recurse -Filter '*Test.kt' | ForEach-Object { 'br.com.riseedit.core.' + $_.BaseName }
+& "$env:JAVA_HOME\bin\java.exe" -cp $riseClasspath org.junit.runner.JUnitCore $riseTestClasses
 exit $LASTEXITCODE

@@ -1,5 +1,13 @@
 # Validação — Rise Edit 0.2.0
 
+## Engenharia sobre v0.3.0 — P0 em validação
+
+`tools/build-windows.ps1`: assembleDebug/lintDebug/compilação core aprovados; 22 testes JVM executados e aprovados antes da adição do teste de rotação. Instrumentação dos novos formatos ainda não executada. Próxima execução deve incluir 23 testes JVM e os testes Android novos, mantendo os anteriores sem edição.
+
+Corpus: 11 arquivos sintéticos, 237.230 bytes, decodificados no FFmpeg sem erros. Isso confirma os arquivos de teste, não o suporte Android. Há AVC/HEVC 8 e 10-bit, AVC 4:2:2, MKV, VP9, AV1, HDR, AAC, MP3, Opus e PCM. APV não foi gerado nem validado. Detalhes e comandos em MEDIA_FIXTURES.md; limitações de conversão em ENGINEERING_PLAN.md.
+
+Os resultados da v0.2 abaixo são históricos e não aprovam automaticamente esta alteração.
+
 Data: 11/10/2026. Android nativo Kotlin/Compose, Media3 1.9, OpenCV 4.10. Android mínimo 8.1.
 
 - APK release assinado: br.com.riseedit, versionName 0.2.0, versionCode 3. Mesmo certificado das versões 0.1.0 e 0.1.1.

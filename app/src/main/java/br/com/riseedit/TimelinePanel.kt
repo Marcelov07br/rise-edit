@@ -58,11 +58,11 @@ fun TimelinePanel(vm: EditorViewModel,state: EditorState,trackAreaHeight: Dp=270
                                 val start=offset;offset+=c.durationMs
                                 TimelineItem(c.id,c.name,start,c.durationMs,zoom,state.selection==null && i==state.selected,RiseGreen,enabled=state.busy==null,
                                     onSelect={vm.select(i)},onMove={ms -> vm.select(i); val target=(p.clips.runningFold(0L) { t,clip -> t+clip.durationMs }.indexOfLast { it<=ms }).coerceIn(0,p.clips.lastIndex);vm.move(target-i) }) {
-                                    Row(Modifier.fillMaxSize()) {repeat(3) { frame ->MediaThumbnail(c.uri,c.sourceAt(c.durationMs*frame/3),Modifier.weight(1f).fillMaxHeight())} }
+                                    Row(Modifier.fillMaxSize()) {repeat(3) { frame ->MediaThumbnail(c.effectiveUri(true),c.sourceAt(c.durationMs*frame/3),Modifier.weight(1f).fillMaxHeight())} }
                                 }
                             }
                         }
-                        repeat(2) { track -> TrackRow(width) { p.overlays.filter {it.track==track}.forEach { o -> TimelineItem(o.id,o.clip.name,o.offsetMs,o.clip.durationMs,zoom,state.selection==o.id,Color(0xFFB7ABFF),state.busy==null,{vm.selectLayer(o.id)},{vm.moveLayer(o.id,it,snap)}) {MediaThumbnail(o.clip.uri,o.clip.startMs,Modifier.fillMaxSize())} } } }
+                        repeat(2) { track -> TrackRow(width) { p.overlays.filter {it.track==track}.forEach { o -> TimelineItem(o.id,o.clip.name,o.offsetMs,o.clip.durationMs,zoom,state.selection==o.id,Color(0xFFB7ABFF),state.busy==null,{vm.selectLayer(o.id)},{vm.moveLayer(o.id,it,snap)}) {MediaThumbnail(o.clip.effectiveUri(true),o.clip.startMs,Modifier.fillMaxSize())} } } }
                         TrackRow(width) {p.texts.forEach { t ->TimelineItem(t.id,t.text,t.startMs,t.endMs-t.startMs,zoom,state.selection==t.id,Color(0xFFFFC66D),state.busy==null,{vm.selectLayer(t.id)},{vm.moveLayer(t.id,it,snap)})} }
                         repeat(3) { track -> TrackRow(width) {p.audio.filter {it.track==track}.forEach { a ->TimelineItem(a.id,a.name,a.offsetMs,a.durationMs,zoom,state.selection==a.id,Color(0xFF70CFFF),state.busy==null,{vm.selectLayer(a.id)},{vm.moveLayer(a.id,it,snap)}) {Waveform(a)} }} }
                     }
@@ -88,7 +88,12 @@ fun TimelinePanel(vm: EditorViewModel,state: EditorState,trackAreaHeight: Dp=270
 @Composable private fun Waveform(a: AudioClip) {
     val context=LocalContext.current
     var samples by remember(a.uri) {mutableStateOf<List<Float>?>(null)}
-    LaunchedEffect(a.uri) {samples=MediaAssets.waveform(context,a.uri,a.sourceDurationMs)}
+    var fault by remember(a.uri) {mutableStateOf<String?>(null)}
+    LaunchedEffect(a.uri) {
+        try { samples=MediaAssets.waveform(context,a.uri,a.sourceDurationMs); if (samples == null) fault="Arquivo sem faixa de áudio" }
+        catch(e: MediaFault) { fault=e.userMessage }
+    }
+    fault?.let { Text(it,style=MaterialTheme.typography.labelSmall,maxLines=2) }
     Canvas(Modifier.fillMaxSize().padding(vertical=7.dp)) {samples?.let { data ->
         data.forEachIndexed { i,v ->val source=a.sourceDurationMs*i.toFloat()/data.size; if(source>=a.startMs && source<=a.endMs) {val x=(source-a.startMs)/a.durationMs*size.width;val h=max(1f,v*size.height*0.45f);drawLine(Color(0xFF70CFFF),Offset(x,size.height/2-h),Offset(x,size.height/2+h),2f)} }
     }}

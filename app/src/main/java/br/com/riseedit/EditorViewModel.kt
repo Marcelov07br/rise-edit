@@ -9,6 +9,7 @@ import androidx.media3.common.*
 import androidx.media3.transformer.*
 import androidx.media3.effect.MultipleInputVideoGraph
 import br.com.riseedit.core.*
+import br.com.riseedit.media.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +35,19 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private var transformer: Transformer? = null
     private var exportFile: File? = null
     private var exportDestination: Uri? = null
+    private val mediaFaults = mutableMapOf<String, MediaFault>()
+    private fun mediaProgress(progress: Float, phase: String) { mutable.value = state.value.copy(progress = progress, busy = phase) }
+    private fun report(error: Exception) = message((error as? MediaFault)?.displayMessage() ?: "Não foi possível ler este arquivo. Selecione uma cópia compatível e tente novamente.")
+    private suspend fun finishOperation() { if (operation === currentCoroutineContext()[Job]) mutable.value = state.value.copy(busy = null) }
+    private suspend fun trimProxyCache() {
+        val history = (undo + redo).flatMap { it.clips + it.overlays.map { o -> o.clip } }.mapNotNull { it.proxyUri }
+        val keep = withContext(Dispatchers.IO) { store.list().flatMap { it.clips + it.overlays.map { o -> o.clip } }.mapNotNull { it.proxyUri }.toSet() } + history
+        ProxyTranscoder(getApplication()).trimCache(keep)
+    }
+    private suspend fun prepareClip(clip: Clip): Clip = try {
+        MediaPreparation(getApplication()).prepare(clip, ::mediaProgress).also { mediaFaults.remove(clip.id) }
+    } catch(e: CancellationException) { throw e }
+    catch(e: Exception) { mediaFaults[clip.id] = e as? MediaFault ?: MediaFault.ImportFailed(cause=e); clip }
 
     init {
         player.addListener(object : Player.Listener {
@@ -70,15 +84,20 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun redo() = history(redo, undo)
     fun open(project: Project) {
         if (state.value.busy != null) return
-        player.pause(); undo.clear(); redo.clear(); analyses.clear()
+        player.pause(); undo.clear(); redo.clear(); analyses.clear(); mediaFaults.clear()
         mutable.value = EditorState(project = project, busy = "Abrindo projeto…")
         operation = viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) { (project.clips + project.overlays.map { it.clip }).map { it.uri }.distinct().forEach { uri -> store.loadAnalysis(uri)?.let { analyses[uri] = it } } }
-                val usable = project.copy(clips = project.clips.map { if (it.stabilization.enabled && !analyses.containsKey(it.uri)) it.copy(stabilization = it.stabilization.copy(enabled = false)) else it })
+                val prepared = project.copy(clips = project.clips.map { prepareClip(it) }, overlays = project.overlays.map { it.copy(clip = prepareClip(it.clip)) })
+                val usable = prepared.copy(clips = prepared.clips.map { if (it.stabilization.enabled && !analyses.containsKey(it.uri)) it.copy(stabilization = it.stabilization.copy(enabled = false)) else it })
+                if (usable != project) withContext(Dispatchers.IO) { store.save(usable) }
                 mutable.value = state.value.copy(project = usable, busy = null, analyzed = analyses.keys.toSet())
                 rebuild()
-            } catch (e: Exception) { mutable.value = state.value.copy(busy = null); message("Falha ao abrir projeto: ${e.localizedMessage}") }
+                mediaFaults.values.firstOrNull()?.let { message(it.displayMessage()) }
+                trimProxyCache()
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { mutable.value = state.value.copy(busy = null); report(e) }
         }
     }
     fun compare() { mutable.value = state.value.copy(comparing = !state.value.comparing); rebuild() }
@@ -106,13 +125,14 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         operation = viewModelScope.launch {
             try {
                 val kind = if (video) MediaKind.OVERLAY else MediaKind.AUDIO
-                val media = withContext(Dispatchers.IO) { uris.map { uri -> MediaImporter.readClip(getApplication(), uri, kind) } }
+                val media = importMedia(uris, kind)
                 mutable.value = state.value.copy(busy = null)
                 val p = state.value.project; var offset = state.value.positionMs.coerceIn(0,maxOf(0,p.durationMs-1))
                 if (video) edit(p.copy(overlays = p.overlays + media.map { c -> VideoOverlay(clip=c,offsetMs=offset,track=track).also { offset += c.durationMs } }))
                 else edit(p.copy(audio = p.audio + media.map { c -> AudioClip(uri=c.uri,name=c.name,sourceDurationMs=c.sourceDurationMs,offsetMs=offset,track=track).also { offset += c.durationMs } }))
-            } catch (e: CancellationException) { throw e } catch (e: Exception) { message("Importação falhou: ${e.localizedMessage}") }
-            finally { mutable.value = state.value.copy(busy = null) }
+                trimProxyCache()
+            } catch (e: CancellationException) { throw e } catch (e: Exception) { report(e) }
+            finally { finishOperation() }
         }
     }
     private fun history(from: ArrayDeque<Project>, to: ArrayDeque<Project>) {
@@ -128,14 +148,28 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         mutable.value = state.value.copy(busy = "Importando vídeos…", progress = 0f)
         operation = viewModelScope.launch {
             try {
-                val clips = withContext(Dispatchers.IO) { uris.map { uri -> MediaImporter.readClip(getApplication(), uri, MediaKind.MAIN_VIDEO) } }
+                val clips = importMedia(uris, MediaKind.MAIN_VIDEO)
                 mutable.value = state.value.copy(busy = null)
                 edit(state.value.project.copy(clips = state.value.project.clips + clips))
-                message("${clips.size} vídeo(s) importado(s). Projeto salvo no aparelho.")
+                if (clips.size == uris.size) message("${clips.size} vídeo(s) importado(s). Projeto salvo no aparelho.")
+                trimProxyCache()
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { message("Importação falhou: ${e.localizedMessage}") }
-            finally { mutable.value = state.value.copy(busy = null) }
+            catch (e: Exception) { report(e) }
+            finally { finishOperation() }
         }
+    }
+    private suspend fun importMedia(uris: List<Uri>, kind: MediaKind): List<Clip> {
+        val clips = mutableListOf<Clip>()
+        val faults = mutableListOf<String>()
+        uris.forEachIndexed { index, uri ->
+            try {
+                mediaProgress(index.toFloat()/uris.size, "Verificando mídia ${index+1}/${uris.size}…")
+                clips += MediaImporter.readClip(getApplication(), uri, kind, ::mediaProgress)
+            } catch(e: CancellationException) { throw e }
+            catch(e: Exception) { faults += (e as? MediaFault)?.displayMessage() ?: "Um arquivo não pôde ser importado. Selecione uma cópia compatível." }
+        }
+        if (faults.isNotEmpty()) message("${clips.size}/${uris.size} arquivo(s) importado(s). ${faults.distinct().joinToString(" ")}")
+        return clips
     }
     fun select(index: Int) {
         mutable.value = state.value.copy(selected = index, selection = null)
@@ -176,11 +210,13 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
                 message("Análise pronta. ${analysis.unreliableFrames} amostras sem rastreamento; confira a prévia.")
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { message("Análise falhou: ${e.localizedMessage}") }
-            finally { mutable.value = state.value.copy(busy = null) }
+            finally { finishOperation() }
         }
     }
     fun export(destination: Uri) {
         if (state.value.busy != null || state.value.project.clips.isEmpty()) return
+        val currentIds = (state.value.project.clips + state.value.project.overlays.map { it.clip }).map { it.id }.toSet()
+        mediaFaults.entries.firstOrNull { it.key in currentIds }?.value?.let { message(it.displayMessage()); return }
         val p = state.value.project
         if ((p.clips.map { it.uri } + p.audio.map { it.uri } + p.overlays.map { it.clip.uri }).any { it == destination.toString() }) { message("Escolha um novo arquivo para preservar o original."); return }
         player.pause(); mutable.value = state.value.copy(busy = "Exportando MP4 ${p.export.height}p…", progress = 0f)
@@ -222,6 +258,6 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             }
         } catch (e: Exception) { transformer = null; file.delete(); exportFile = null; mutable.value = state.value.copy(busy = null); message("Exportação indisponível: ${e.localizedMessage}") }
     }
-    fun cancel() { operation?.cancel(); transformer?.cancel(); transformer = null; exportFile?.delete(); exportFile = null; mutable.value = state.value.copy(busy = null); message("Operação cancelada.") }
+    fun cancel() { val job=operation; operation=null; job?.cancel(); transformer?.cancel(); transformer = null; exportFile?.delete(); exportFile = null; mutable.value = state.value.copy(busy = null); message("Operação cancelada.") }
     override fun onCleared() { transformer?.cancel(); player.release(); exportFile?.delete() }
 }

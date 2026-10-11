@@ -39,6 +39,8 @@ class ProjectStore(context: Context) {
         .put("speed", JSONArray(c.speedPoints.map { JSONArray(listOf(it.sourceMs, it.speed)) }))
         .put("adjust", JSONArray(listOf(c.adjustments.brightness, c.adjustments.contrast, c.adjustments.saturation, c.adjustments.warmth)))
         .put("keys", JSONArray(c.keyframes.map { JSONArray(listOf(it.sourceMs, it.x, it.y, it.scale, it.rotation, it.opacity)) }))
+        .put("sourceInfo", c.sourceInfo?.let(SourceMetadataJson::encode) ?: JSONObject.NULL)
+        .put("proxyUri", c.proxyUri ?: JSONObject.NULL).put("proxyRequired", c.proxyRequired)
         .put("stabilization", JSONObject().put("enabled", c.stabilization.enabled).put("goal", c.stabilization.goal.name)
             .put("strength", c.stabilization.strength).put("smooth", c.stabilization.smoothSeconds).put("zoom", c.stabilization.maxZoom))
     private fun readClip(c: JSONObject): Clip {
@@ -47,9 +49,12 @@ class ProjectStore(context: Context) {
             stabilization = Stabilization(s.getBoolean("enabled"), MotionGoal.valueOf(s.getString("goal")), s.getDouble("strength"), s.getDouble("smooth"), s.getDouble("zoom")),
             volume = c.optDouble("volume", 1.0).toFloat(), fadeMs = c.optLong("fade"), speedPoints = rows(c.optJSONArray("speed")).map { SpeedPoint(it.getLong(0), it.getDouble(1)) },
             adjustments = if (a == null) Adjustments() else Adjustments(a.getDouble(0).toFloat(), a.getDouble(1).toFloat(), a.getDouble(2).toFloat(), a.getDouble(3).toFloat()),
-            keyframes = rows(c.optJSONArray("keys")).map { TransformKeyframe(it.getLong(0), it.getDouble(1).toFloat(), it.getDouble(2).toFloat(), it.getDouble(3).toFloat(), it.getDouble(4).toFloat(), it.getDouble(5).toFloat()) })
+            keyframes = rows(c.optJSONArray("keys")).map { TransformKeyframe(it.getLong(0), it.getDouble(1).toFloat(), it.getDouble(2).toFloat(), it.getDouble(3).toFloat(), it.getDouble(4).toFloat(), it.getDouble(5).toFloat()) },
+            sourceInfo = c.optJSONObject("sourceInfo")?.let(SourceMetadataJson::decode),
+            proxyUri = if (c.isNull("proxyUri")) null else c.optString("proxyUri").ifBlank { null },
+            proxyRequired = c.optBoolean("proxyRequired"))
     }
-    private fun encode(p: Project) = JSONObject().put("schema", 2).put("id", p.id).put("name", p.name).put("modified", p.modifiedAt).put("favorite", p.favorite)
+    private fun encode(p: Project) = JSONObject().put("schema", 3).put("id", p.id).put("name", p.name).put("modified", p.modifiedAt).put("favorite", p.favorite)
         .put("clips", JSONArray(p.clips.map(::clip))).put("ratio", p.aspectRatio).put("export", JSONArray(listOf(p.export.height, p.export.fps, p.export.bitrate)))
         .put("audio", JSONArray(p.audio.map { a -> JSONObject().put("id", a.id).put("uri", a.uri).put("name", a.name).put("duration", a.sourceDurationMs)
             .put("offset", a.offsetMs).put("start", a.startMs).put("end", a.endMs).put("track", a.track).put("volume", a.volume).put("fade", a.fadeMs) }))
@@ -58,7 +63,7 @@ class ProjectStore(context: Context) {
         .put("overlays", JSONArray(p.overlays.map { o -> JSONObject().put("id", o.id).put("clip", clip(o.clip)).put("offset", o.offsetMs)
             .put("track", o.track).put("x", o.x).put("y", o.y).put("scale", o.scale).put("opacity", o.opacity) }))
     private fun decode(j: JSONObject): Project {
-        require(j.getInt("schema") in 1..2) { "Formato de projeto não reconhecido" }
+        require(j.getInt("schema") in 1..3) { "Formato de projeto não reconhecido" }
         val e = j.optJSONArray("export")
         return Project(clips = objects(j.getJSONArray("clips")).map(::readClip), id = j.optString("id", "legacy-project"), name = j.optString("name", "Meu projeto"),
             modifiedAt = j.optLong("modified", System.currentTimeMillis()), favorite = j.optBoolean("favorite"), aspectRatio = j.optDouble("ratio", 0.0).toFloat(),
