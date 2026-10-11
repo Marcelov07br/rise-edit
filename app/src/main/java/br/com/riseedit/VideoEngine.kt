@@ -97,8 +97,8 @@ object VideoEngine {
         output.add(Presentation.createForHeight(if (preview) 480 else project.export.height))
         if (project.texts.isNotEmpty()) output.add(OverlayEffect(project.texts.map(::TimedText)))
         if (!preview) output.add(FrameDropEffect.createDefaultFrameDropEffect(project.export.fps.toFloat()))
-        return Composition.Builder(sequences)
-            .setVideoCompositorSettings(object : VideoCompositorSettings {
+        val composition = Composition.Builder(sequences)
+        if (overlays.isNotEmpty()) composition.setVideoCompositorSettings(object : VideoCompositorSettings {
                 override fun getOutputSize(sizes: List<Size>) = sizes.first()
                 override fun getOverlaySettings(inputId: Int, presentationTimeUs: Long): OverlaySettings {
                     if (inputId == 0) return StaticOverlaySettings.Builder().build()
@@ -108,7 +108,7 @@ object VideoEngine {
                     return StaticOverlaySettings.Builder().setAlphaScale(alpha).setScale(o.scale,o.scale).setBackgroundFrameAnchor(o.x,o.y).build()
                 }
             })
-            .setEffects(Effects(emptyList(), output))
+        return composition.setEffects(Effects(emptyList(), output))
             .setHdrMode(Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL).build()
     }
 }
