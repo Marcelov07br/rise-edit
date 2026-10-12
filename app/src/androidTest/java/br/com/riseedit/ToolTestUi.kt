@@ -9,6 +9,17 @@ import android.view.accessibility.AccessibilityNodeInfo
 import java.util.concurrent.atomic.AtomicReference
 
 internal class ToolTestUi(private val instrumentation: Instrumentation) {
+    private var toolbar: Rect? = null
+    private val toolLabels = setOf(
+        "Estabilização Rise",
+        "Cortar",
+        "Texto",
+        "Áudio",
+        "Overlay",
+        "Cor",
+        "Movimento",
+        "Formato"
+    )
     fun <T> onMain(action: () -> T): T {
         val result = AtomicReference<T>()
         instrumentation.runOnMainSync { result.set(action()) }
@@ -34,21 +45,23 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         requireClick: Boolean = false
     ): AccessibilityNodeInfo {
         var result: AccessibilityNodeInfo? = null
-        var toolbar: Rect? = null
+        val toolbarControl = requireClick && text in toolLabels
         await(description = {
-            "Missing tool UI: $text; ${labels(instrumentation.uiAutomation.rootInActiveWindow)}"
+            "Missing tool UI: $text; toolbar=$toolbar; ${labels(
+                instrumentation.uiAutomation.rootInActiveWindow
+            )}"
         }) {
             val root = instrumentation.uiAutomation.rootInActiveWindow
+            if (toolbarControl) toolbarBounds(root)?.let { toolbar = it }
             result = find(root) { node ->
                 node.isVisibleToUser &&
                     matchesLabel(node, text) &&
                     (!requireClick || clickableParent(node) != null)
             }
             if (result == null && scroll) {
-                toolbar = toolbar ?: toolbarBounds(root)
                 val bounds = toolbar
-                if (bounds != null) {
-                    swipeToolbar(bounds)
+                if (toolbarControl) {
+                    if (bounds != null) swipeToolbar(bounds)
                 } else {
                     lastScrollable(root)?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
                 }
@@ -73,13 +86,11 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
     private fun toolbarBounds(root: AccessibilityNodeInfo?): Rect? {
         val anchor = find(root) { matchesLabel(it, "Estabilização Rise") && it.isVisibleToUser }
             ?: return null
-        val button = clickableParent(anchor) ?: return null
         val bounds = Rect()
-        button.getBoundsInScreen(bounds)
-        val screen = Rect()
-        root?.getBoundsInScreen(screen)
-        bounds.left = screen.left
-        bounds.right = screen.right
+        anchor.getBoundsInScreen(bounds)
+        if (bounds.isEmpty) return null
+        bounds.left = 0
+        bounds.right = instrumentation.targetContext.resources.displayMetrics.widthPixels
         return bounds
     }
 
@@ -102,7 +113,9 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
                 0
             )
             event.source = InputDevice.SOURCE_TOUCHSCREEN
-            instrumentation.uiAutomation.injectInputEvent(event, true)
+            check(instrumentation.uiAutomation.injectInputEvent(event, true)) {
+                "Toolbar gesture was rejected: $bounds"
+            }
             event.recycle()
             SystemClock.sleep(25)
         }
