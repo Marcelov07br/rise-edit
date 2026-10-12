@@ -1,7 +1,9 @@
 name: Publish Android update
 on:
   push:
+    branches: [main]
     tags: ['v*']
+    paths: ['app/build.gradle.kts', '.github/workflows/release.yml']
 permissions:
   contents: write
 jobs:
@@ -9,19 +11,40 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve release version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(sed -n 's/^[[:space:]]*versionName = "\(.*\)"/\1/p' app/build.gradle.kts)
+          test -n "$VERSION"
+          TAG="v$VERSION"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            test "$GITHUB_REF_NAME" = "$TAG" || { echo 'Tag must match versionName'; exit 1; }
+          elif gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "Version $TAG already has a tag; no new release."
+            echo 'publish=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo 'publish=true' >> "$GITHUB_OUTPUT"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
       - name: Restore signing key
+        if: steps.version.outputs.publish == 'true'
         env:
           KEYSTORE: ${{ secrets.RISE_SIGNING_KEYSTORE_B64 }}
         run: |
           test -n "$KEYSTORE" || { echo 'Configure signing secrets before publishing updates.'; exit 1; }
           printf '%s' "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/rise-release.p12"
       - name: Build and verify release
+        if: steps.version.outputs.publish == 'true'
         env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
           RISE_KEYSTORE_PATH: ${{ runner.temp }}/rise-release.p12
           RISE_KEYSTORE_PASSWORD: ${{ secrets.RISE_KEYSTORE_PASSWORD }}
           RISE_KEY_PASSWORD: ${{ secrets.RISE_KEY_PASSWORD }}
@@ -31,17 +54,30 @@ jobs:
           mkdir -p release
           cp app/build/outputs/apk/release/app-release.apk release/rise-edit.apk
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging release/rise-edit.apk > release/badging.txt
-          grep -q "versionName='${GITHUB_REF_NAME#v}'" release/badging.txt || { echo 'Tag must match versionName'; exit 1; }
+          grep -q "versionName='$RELEASE_VERSION'" release/badging.txt || { echo 'Version must match APK'; exit 1; }
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs release/rise-edit.apk > release/signature.txt
+          grep -q 'Signer #1 certificate SHA-256 digest: 30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec' release/signature.txt || { echo 'Signing certificate mismatch'; exit 1; }
           cd release
           sha256sum rise-edit.apk > rise-edit.apk.sha256
       - name: Publish stable release
+        if: steps.version.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" release/rise-edit.apk release/rise-edit.apk.sha256 --clobber
+          if [ "$GITHUB_REF_TYPE" != tag ]; then
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" --method POST -f "ref=refs/tags/$RELEASE_TAG" -f "sha=$GITHUB_SHA"
+          fi
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release/rise-edit.apk release/rise-edit.apk.sha256 --clobber
           else
-            gh release create "$GITHUB_REF_NAME" release/rise-edit.apk release/rise-edit.apk.sha256 --verify-tag --title "Rise Edit $GITHUB_REF_NAME" --generate-notes
+            NOTES="docs/releases/$RELEASE_VERSION.md"
+            if [ -f "$NOTES" ]; then
+              gh release create "$RELEASE_TAG" release/rise-edit.apk release/rise-edit.apk.sha256 --verify-tag --title "Rise Edit $RELEASE_TAG" --notes-file "$NOTES"
+            else
+              gh release create "$RELEASE_TAG" release/rise-edit.apk release/rise-edit.apk.sha256 --verify-tag --title "Rise Edit $RELEASE_TAG" --generate-notes
+            fi
           fi
       - name: Remove signing key
         if: always()
