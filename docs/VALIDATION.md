@@ -6,6 +6,8 @@
 
 `:app:assembleMinifiedTest :app:assembleMinifiedTestAndroidTest -PminifiedRuntime=true`: compilação aprovada, incluindo o APK de instrumentação com R8 e a nova verificação de pixels reais. CI executará Debug e MinifiedTest; estabilização/exportação/UI otimizadas ainda não declaradas aprovadas. P2 continua fora desta entrega.
 
+Run inicial 38199709850: build aprovado, Debug com 14/15 testes aprovados; falha no novo teste visual ao retornar Fiel→Rápida pausado. MinifiedTest não iniciou os testes porque R8 removeu a classe de tracing usada pelo runner. Screenshots/logs preservados. Regras e binding de superfície corrigidos; aguardando nova execução. Não conta como validação funcional aprovada.
+
 ## Engenharia sobre v0.3.0 — P0 e P1 validados para a v0.4.0
 
 `tools/build-windows.ps1`: assembleDebug/lintDebug e 23 testes JVM aprovados. `:app:compileDebugAndroidTestKotlin` e `:app:assembleRelease` aprovados. GitHub Actions run 38177601938, commit 7bd85bd: build e android-runtime aprovados, oito testes Android sem falha nem skip; os testes anteriores permanecem sem edição.
