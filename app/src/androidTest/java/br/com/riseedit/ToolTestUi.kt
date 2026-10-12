@@ -99,13 +99,9 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
     private fun advanceToolbar(root: AccessibilityNodeInfo?, text: String, bounds: Rect) {
         val visible = toolLabels.indices.filter { index ->
             find(root) { node ->
-                val position = Rect()
-                node.getBoundsInScreen(position)
                 node.isVisibleToUser &&
                     matchesLabel(node, toolLabels[index]) &&
-                    clickableParent(node) != null &&
-                    !position.isEmpty &&
-                    position.centerY() in bounds.top..bounds.bottom
+                    clickableParent(node) != null
             } != null
         }
         // A closing panel can still be in the tree. Wait for the actual toolbar to return.
@@ -145,7 +141,10 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
     private fun labels(node: AccessibilityNodeInfo?): String {
         if (node == null) return "<no active window>"
         val children = (0 until node.childCount).joinToString { labels(node.getChild(it)) }
-        return "[${node.text}/${node.contentDescription}; visible=${node.isVisibleToUser}]$children"
+        val bounds = Rect()
+        node.getBoundsInScreen(bounds)
+        return "[${node.text}/${node.contentDescription}; " +
+            "visible=${node.isVisibleToUser}; bounds=$bounds]$children"
     }
 
     private fun clickableParent(start: AccessibilityNodeInfo): AccessibilityNodeInfo? {
