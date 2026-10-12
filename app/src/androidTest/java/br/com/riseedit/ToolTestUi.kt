@@ -86,6 +86,8 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
     private fun toolbarBounds(root: AccessibilityNodeInfo?): Rect? {
         val anchor = find(root) { matchesLabel(it, "Estabilização Rise") && it.isVisibleToUser }
             ?: return null
+        // The stabilizer panel title has the same label but is not a toolbar button.
+        if (clickableParent(anchor) == null) return null
         val bounds = Rect()
         anchor.getBoundsInScreen(bounds)
         if (bounds.isEmpty) return null
