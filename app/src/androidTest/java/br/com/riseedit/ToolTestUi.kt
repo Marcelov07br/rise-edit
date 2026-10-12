@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 internal class ToolTestUi(private val instrumentation: Instrumentation) {
     private var toolbar: Rect? = null
-    private val toolLabels = setOf(
+    private val toolLabels = listOf(
         "Estabilização Rise",
         "Cortar",
         "Texto",
@@ -61,7 +61,7 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
             if (result == null && scroll) {
                 val bounds = toolbar
                 if (toolbarControl) {
-                    if (bounds != null) swipeToolbar(bounds)
+                    if (bounds != null) advanceToolbar(root, text, bounds)
                 } else {
                     lastScrollable(root)?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
                 }
@@ -96,7 +96,24 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         return bounds
     }
 
-    private fun swipeToolbar(bounds: Rect) {
+    private fun advanceToolbar(root: AccessibilityNodeInfo?, text: String, bounds: Rect) {
+        val visible = toolLabels.indices.filter { index ->
+            find(root) { node ->
+                val position = Rect()
+                node.getBoundsInScreen(position)
+                node.isVisibleToUser &&
+                    matchesLabel(node, toolLabels[index]) &&
+                    clickableParent(node) != null &&
+                    !position.isEmpty &&
+                    position.centerY() in bounds.top..bounds.bottom
+            } != null
+        }
+        // A closing panel can still be in the tree. Wait for the actual toolbar to return.
+        if (visible.isEmpty()) return
+        swipeToolbar(bounds, forward = toolLabels.indexOf(text) >= visible.min())
+    }
+
+    private fun swipeToolbar(bounds: Rect, forward: Boolean) {
         // A full-page accessibility scroll can skip a partially clipped toolbar button.
         val downTime = SystemClock.uptimeMillis()
         for (step in 0..10) {
@@ -105,7 +122,8 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
                 10 -> MotionEvent.ACTION_UP
                 else -> MotionEvent.ACTION_MOVE
             }
-            val x = bounds.left + bounds.width() * (0.8f - step * 0.04f)
+            val fraction = if (forward) 0.65f - step * 0.02f else 0.35f + step * 0.02f
+            val x = bounds.left + bounds.width() * fraction
             val event = MotionEvent.obtain(
                 downTime,
                 SystemClock.uptimeMillis(),
@@ -119,8 +137,9 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
                 "Toolbar gesture was rejected: $bounds"
             }
             event.recycle()
-            SystemClock.sleep(25)
+            SystemClock.sleep(50)
         }
+        SystemClock.sleep(250)
     }
 
     private fun labels(node: AccessibilityNodeInfo?): String {
