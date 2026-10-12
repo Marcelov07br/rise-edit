@@ -54,3 +54,4 @@ jobs:
             app/build/reports/androidTests
             app/build/outputs/androidTest-results
             artifacts/*.png
+            artifacts/media-runtime.log

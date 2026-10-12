@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
                 var activeId by rememberSaveable { mutableStateOf<String?>(null) }
                 val editing=activeId!=null
                 var settings by remember { mutableStateOf(false) }
-                fun home() { if (state.busy == null) { editor.player.stop(); activeId=null; library.refresh() } }
+                fun home() { if (state.busy == null) { editor.suspendPreview(); activeId=null; library.refresh() } }
                 LaunchedEffect(activeId,projects,libraryLoading) {
                     val id=activeId
                     if(id!=null && !libraryLoading && state.project.id!=id) {
@@ -57,5 +57,5 @@ class MainActivity : ComponentActivity() {
         }
     }
     override fun onStart() { super.onStart(); updates.onOpen() }
-    override fun onStop() { editor.player.pause(); super.onStop() }
+    override fun onStop() { editor.pausePreview(); super.onStop() }
 }

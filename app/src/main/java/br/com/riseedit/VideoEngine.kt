@@ -50,7 +50,7 @@ object VideoEngine {
         require(project.clips.isNotEmpty())
         var offset = 0L
         val items = project.clips.map { clip ->
-            val media = MediaItem.Builder().setUri(clip.uri).setClippingConfiguration(
+            val media = MediaItem.Builder().setUri(clip.effectiveUri(preview)).setClippingConfiguration(
                 MediaItem.ClippingConfiguration.Builder().setStartPositionMs(clip.startMs).setEndPositionMs(clip.endMs).build()
             ).build()
             val effects = mutableListOf<Effect>()
@@ -73,7 +73,7 @@ object VideoEngine {
             if (o.offsetMs > 0) sequence.addItem(videoGap(o.offsetMs,project.export.fps))
             val available = project.durationMs - o.offsetMs
             val end = c.sourceAt(min(c.durationMs,available))
-            val media = MediaItem.Builder().setUri(c.uri).setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(c.startMs).setEndPositionMs(end).build()).build()
+            val media = MediaItem.Builder().setUri(c.effectiveUri(preview)).setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(c.startMs).setEndPositionMs(end).build()).build()
             // Media3 1.9 setSpeed waits for an audio processor even when audio is removed (#3006).
             // Overlay speed is not exposed in this release; leave its native timestamps intact.
             sequence.addItem(EditedMediaItem.Builder(media).setDurationUs(c.sourceDurationMs*1000).setRemoveAudio(true).build())

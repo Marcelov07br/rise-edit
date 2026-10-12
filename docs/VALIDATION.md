@@ -1,5 +1,19 @@
 # Validação — Rise Edit 0.2.0
 
+## Engenharia sobre v0.3.0 — P0 e P1 validados para a v0.4.0
+
+`tools/build-windows.ps1`: assembleDebug/lintDebug e 23 testes JVM aprovados. `:app:compileDebugAndroidTestKotlin` e `:app:assembleRelease` aprovados. GitHub Actions run 38177601938, commit 7bd85bd: build e android-runtime aprovados, oito testes Android sem falha nem skip; os testes anteriores permanecem sem edição.
+
+P0: 11 arquivos sintéticos, 237.230 bytes, decodificados no FFmpeg sem erros. No Android API 35, H.264, HEVC 8-bit/MKV, VP9/WebM e AV1/MKV foram convertidos para H.264 e realmente reproduzidos pelo ExoPlayer. AVC 10-bit, AVC 4:2:2, HEVC 10-bit e HEVC HDR sem decoder foram recusados com falhas tipadas; metadados corretos foram verificados. MP3, Opus e PCM tiveram decoder reconhecido. APV não foi gerado nem validado. P1 adiciona um vídeo 720p, totalizando 12 arquivos e 581.761 bytes. Detalhes em MEDIA_FIXTURES.md; limitações em ENGINEERING_PLAN.md.
+
+APK baseline assinado: 146.335.665 bytes; certificado SHA-256 30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec.
+
+P1: run 38178856495, commit ab5ad57, build e android-runtime aprovados. 14 testes Android executados, sem falhas nem skips: inclui frames reais em 720p, scrubbing, transição entre clips aparados, slots ausentes, fallback Fiel→Rápida, esquema 3 e leitura de esquema 2. Os testes anteriores de Home e exportação não foram alterados. Build/lint debug e 23 testes JVM também passaram. Isso não comprova FPS de tela nem a meta de 1,5 s em aparelho físico.
+
+Entrega contida 0.4.0: publica P0/P1. P2 (refatoração/static checks) e P3 (R8/ABIs/tamanho) não foram implementados nem declarados concluídos. O teste adicional de binding visual ainda é um rascunho local e não faz parte desta release.
+
+Os resultados da v0.2 abaixo são históricos e não aprovam automaticamente esta alteração.
+
 Data: 11/10/2026. Android nativo Kotlin/Compose, Media3 1.9, OpenCV 4.10. Android mínimo 8.1.
 
 - APK release assinado: br.com.riseedit, versionName 0.2.0, versionCode 3. Mesmo certificado das versões 0.1.0 e 0.1.1.
