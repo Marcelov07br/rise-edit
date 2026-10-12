@@ -12,3 +12,5 @@
 -keep interface androidx.media3.exoplayer.analytics.AnalyticsListener { *; }
 -keep class androidx.media3.effect.DebugTraceUtil { public *; }
 -keep class androidx.lifecycle.ViewModelProvider** { *; }
+-keep interface androidx.media3.common.Player** { *; }
+-keepclassmembers class androidx.activity.ComponentActivity { public *; }
