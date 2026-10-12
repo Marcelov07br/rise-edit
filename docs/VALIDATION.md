@@ -14,6 +14,8 @@ Run 38201162060: Debug com 15/15 testes aprovados após a correção visual; Min
 
 Run 38202687787: Debug e build aprovados. A instrumentação otimizada avançou para os testes de reprodução, mas encontrou `Timeline.Window.getDurationMs` e a sobrecarga de superfície do CompositionPlayer removidas. APIs públicas de janela/composição foram preservadas; exportação otimizada permanece pendente até a execução completa.
 
+Run 38203359707: os testes otimizados de reprodução/conversão passaram; restaram falhas de API no lifecycle do teste visual e no setter de MIME do builder de exportação. Os contratos públicos correspondentes foram preservados. Testes antigos continuam sem alterações; aguardando a validação integral.
+
 ## Engenharia sobre v0.3.0 — P0 e P1 validados para a v0.4.0
 
 `tools/build-windows.ps1`: assembleDebug/lintDebug e 23 testes JVM aprovados. `:app:compileDebugAndroidTestKotlin` e `:app:assembleRelease` aprovados. GitHub Actions run 38177601938, commit 7bd85bd: build e android-runtime aprovados, oito testes Android sem falha nem skip; os testes anteriores permanecem sem edição.
