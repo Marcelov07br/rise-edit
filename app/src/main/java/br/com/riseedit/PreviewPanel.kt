@@ -70,6 +70,7 @@ fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = M
             }) {
                 key(previewPlayer) { AndroidView(
                     factory={ context -> (LayoutInflater.from(context).inflate(if (fast) R.layout.preview_player else R.layout.preview_player_faithful,null) as PlayerView).apply {
+                        setEnableComposeSurfaceSyncWorkaround(true)
                         player=previewPlayer;setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                         if (fast) doOnPreDraw { post {
                             // A seek to the same position is ignored by ExoPlayer. Reprepare after the real surface exists.

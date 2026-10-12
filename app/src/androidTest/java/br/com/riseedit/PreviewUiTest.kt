@@ -5,6 +5,7 @@ package br.com.riseedit
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -64,12 +65,14 @@ class PreviewUiTest {
             val fast = awaitPreview(host, vm, PreviewQuality.Fast)
             assertTrue(onMain { fast.videoSurfaceView is TextureView })
             assertTrue(onMain { vm.player is ExoPlayer })
+            assertEditorControlsVisible()
             screenshot("preview-fast-test.png")
 
             click("Fiel")
             val faithful = awaitPreview(host, vm, PreviewQuality.Faithful)
             assertTrue(onMain { faithful.videoSurfaceView is SurfaceView })
             assertTrue(onMain { vm.player is CompositionPlayer })
+            assertEditorControlsVisible()
             screenshot("preview-faithful-test.png")
 
             click("Rápida")
@@ -77,6 +80,7 @@ class PreviewUiTest {
             assertTrue(onMain { returnedFast.videoSurfaceView is TextureView })
             assertTrue(onMain { vm.player is ExoPlayer })
             assertNull(onMain { vm.state.value.previewFault })
+            assertEditorControlsVisible()
 
             onMain { vm.seek(300); if (!vm.player.playWhenReady) vm.togglePlay() }
             waitUntil("Fast preview did not start playing") { onMain { vm.player.isPlaying } }
@@ -121,6 +125,19 @@ class PreviewUiTest {
         is PlayerView -> listOf(view)
         is ViewGroup -> (0 until view.childCount).flatMap { playerViews(view.getChildAt(it)) }
         else -> emptyList()
+    }
+
+    private fun assertEditorControlsVisible() = waitUntil("The video surface covered the Exportar control") {
+        val node = find(instrumentation.uiAutomation.rootInActiveWindow, "Exportar") ?: return@waitUntil false
+        val bounds = Rect().also { node.getBoundsInScreen(it) }
+        val bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return@waitUntil false
+        try {
+            if (!bounds.intersect(0, 0, bitmap.width, bitmap.height)) return@waitUntil false
+            (1..6).any { row -> (1..6).any { column ->
+                val pixel = bitmap.getPixel(bounds.left + column * bounds.width() / 7, bounds.top + row * bounds.height() / 7)
+                Color.green(pixel) > 180 && Color.red(pixel) > 100 && Color.blue(pixel) < 150
+            } }
+        } finally { bitmap.recycle() }
     }
 
     private fun hasSourcePixels(playerView: PlayerView): Boolean {

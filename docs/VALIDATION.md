@@ -1,6 +1,6 @@
 # Validação — Rise Edit 0.2.0
 
-## P3 — 0.4.1 em validação
+## P3 — 0.4.1, resultado da otimização
 
 `tools/build-windows.ps1 -Release`: assembleRelease, lintRelease e 23 testes JVM aprovados com R8/shrinking habilitados. APK local: 40.518.463 bytes, contra 146.352.977 bytes da 0.4.0 publicada (72,3% menor). `apksigner verify --print-certs`: aprovado, mesmo certificado SHA-256 30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec. `aapt dump badging`: br.com.riseedit, versionCode 6, versionName 0.4.1; somente ARM64 e ARMv7.
 
@@ -15,6 +15,12 @@ Run 38201162060: Debug com 15/15 testes aprovados após a correção visual; Min
 Run 38202687787: Debug e build aprovados. A instrumentação otimizada avançou para os testes de reprodução, mas encontrou `Timeline.Window.getDurationMs` e a sobrecarga de superfície do CompositionPlayer removidas. APIs públicas de janela/composição foram preservadas; exportação otimizada permanece pendente até a execução completa.
 
 Run 38203359707: os testes otimizados de reprodução/conversão passaram; restaram falhas de API no lifecycle do teste visual e no setter de MIME do builder de exportação. Os contratos públicos correspondentes foram preservados. Testes antigos continuam sem alterações; aguardando a validação integral.
+
+Resultado final executado: commit f3a138c, run 38203918232, MinifiedTest com 15 testes Android aprovados, sem skips/falhas. Inclui sondagem/proxy, reprodução e scrubbing, Fiel/fallback, pixels reais Rápida→Fiel→Rápida e lifecycle, persistência, análise OpenCV e três exports (base estabilizada, áudio/texto, overlay). Debug de mesma UI passou com 15 testes nos runs anteriores; a tentativa Debug deste run teve erro HTTP 502 ao baixar o emulador, sem executar testes, e foi reiniciada isoladamente.
+
+A repetição isolada de Debug passou com 15 testes; run 38203918232 ficou inteiramente verde. Revisão visual adicional observou uma captura Fiel com controles cobertos; o teste novo passou a verificar também o botão Exportar por pixels, e a sincronização de SurfaceView/Compose para API 34 foi habilitada. Esta última verificação visual ainda está em execução; a aprovação anterior não cobre essa asserção nova.
+
+`tools/build-windows.ps1 -Release` no commit final: assembleRelease/lintRelease e 23 testes JVM aprovados. APK final local: 41.443.641 bytes (41,44 MB), redução de 71,7% sobre a 0.4.0. A primeira medição de 40.518.463 bytes acima é histórica: as regras públicas adicionais aumentaram cerca de 0,93 MB, mantendo a meta de menos de 60 MB. Certificado original preservado, package br.com.riseedit/code 6/0.4.1, apenas ARM64/ARMv7. Hashes dos seis binários ARM comparados com 0.4.0: iguais. Validação física ARM e instalação de atualização em aparelho não executadas; P2 pendente.
 
 ## Engenharia sobre v0.3.0 — P0 e P1 validados para a v0.4.0
 

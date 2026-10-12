@@ -29,7 +29,7 @@ Existe API pública `maxSupportedInstances` desde API 23; ela é uma indicação
 
 Comandos e resultados executados em VALIDATION.md. Corpus pequeno e reproduzível em MEDIA_FIXTURES.md. APV não tem fixture nem validação física. Não há garantia de reproduzir todos os formatos em todos os aparelhos.
 
-## P3 — otimização do APK (em validação)
+## P3 — otimização do APK
 
 - Release: R8 com regras padrão de otimização e remoção de recursos não usados; APK contém ARM64 e ARMv7. Debug conserva todas as ABIs.
 - OpenCV é preservado por causa do JNI. Nesta primeira release com R8, preservamos o contrato público do app/modelo, Kotlin, coroutines e tracing compartilhados com a instrumentação; Media3/Compose e recursos continuam sujeitos à redução. Regras mais estreitas ficam fora desta etapa.
@@ -37,6 +37,8 @@ Comandos e resultados executados em VALIDATION.md. Corpus pequeno e reproduzíve
 - Variante `minifiedTest`, habilitada somente por `-PminifiedRuntime=true`, herda R8/shrinking da release, mas usa assinatura de debug e x86_64 para o emulador. Ela não é publicada. O CI executa os mesmos testes em Debug e MinifiedTest, incluindo análise OpenCV e três exportações.
 - O teste de binding visual adicional verifica pixels reais na TextureView/SurfaceView e a pausa ao sair do editor. Os testes existentes não foram modificados.
 - Primeira execução encontrou a ausência de `androidx.tracing.Trace` na instrumentação otimizada e um quadro preto ao trocar Fiel→Rápida com o player pausado. Foram adicionadas regras de tracing e binding por identidade do player, com nova solicitação do quadro após a superfície real existir. Debug e MinifiedTest são executados em emuladores separados; a correção continua em validação.
-- Base medida: APK publicado 0.4.0, 146.352.977 bytes. Release otimizada local: 40.518.463 bytes, redução de 72,3%; a meta de menos de 60 MB foi atingida. O deploy recusa um APK acima desse limite. Certificado original e ARM64/ARMv7 conferidos; instrumentação ainda em validação.
+- Base medida: APK publicado 0.4.0, 146.352.977 bytes. Release otimizada local final: 41.443.641 bytes, redução de 71,7%; a meta de menos de 60 MB foi atingida. O deploy recusa um APK acima desse limite. Certificado original e ARM64/ARMv7 conferidos; os seis binários nativos ARM são idênticos aos da 0.4.0.
+- Run 38203918232: 15 testes com R8 aprovados sem skips/falhas, incluindo análise OpenCV, três exportações e pixels reais de preview. Debug passou com 15 testes nas execuções anteriores; neste run foi repetido porque o servidor do emulador retornou HTTP 502 antes de iniciar os testes. As APIs públicas do player, da janela, do lifecycle e dos builders são preservadas na release e na variante de instrumentação para manter os descritores entre APKs.
+- A validação executada usa Android 15/x86_64; instalação em aparelho ARM e atualização com retenção de dados em aparelho físico não foram executadas nesta etapa. A política de otimização foi testada, mas a variante de instrumentação possui ABI e assinatura próprias. A refatoração P2 permanece pendente.
 
 Referências: [otimização de tamanho](https://developer.android.com/topic/performance/reduce-apk-size), [preservação de recursos](https://developer.android.com/topic/performance/app-optimization/customize-which-resources-to-keep), [ABIs](https://developer.android.com/ndk/guides/abis). A refatoração P2 continua fora desta entrega.
