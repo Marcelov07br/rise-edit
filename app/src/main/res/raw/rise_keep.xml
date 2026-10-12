@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The transparent image is addressed by an android.resource URI in the video compositor. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@raw/transparent" />

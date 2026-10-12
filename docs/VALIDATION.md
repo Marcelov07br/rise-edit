@@ -1,5 +1,11 @@
 # Validação — Rise Edit 0.2.0
 
+## P3 — 0.4.1 em validação
+
+`tools/build-windows.ps1 -Release`: assembleRelease, lintRelease e 23 testes JVM aprovados com R8/shrinking habilitados. APK local: 40.518.463 bytes, contra 146.352.977 bytes da 0.4.0 publicada (72,3% menor). `apksigner verify --print-certs`: aprovado, mesmo certificado SHA-256 30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec. `aapt dump badging`: br.com.riseedit, versionCode 6, versionName 0.4.1; somente ARM64 e ARMv7.
+
+`:app:assembleMinifiedTest :app:assembleMinifiedTestAndroidTest -PminifiedRuntime=true`: compilação aprovada, incluindo o APK de instrumentação com R8 e a nova verificação de pixels reais. CI executará Debug e MinifiedTest; estabilização/exportação/UI otimizadas ainda não declaradas aprovadas. P2 continua fora desta entrega.
+
 ## Engenharia sobre v0.3.0 — P0 e P1 validados para a v0.4.0
 
 `tools/build-windows.ps1`: assembleDebug/lintDebug e 23 testes JVM aprovados. `:app:compileDebugAndroidTestKotlin` e `:app:assembleRelease` aprovados. GitHub Actions run 38177601938, commit 7bd85bd: build e android-runtime aprovados, oito testes Android sem falha nem skip; os testes anteriores permanecem sem edição.

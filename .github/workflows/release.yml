@@ -57,6 +57,8 @@ jobs:
           ./gradlew :core:test :app:assembleRelease :app:lintRelease --no-daemon
           mkdir -p release
           cp app/build/outputs/apk/release/app-release.apk release/rise-edit.apk
+          SIZE=$(wc -c < release/rise-edit.apk)
+          test "$SIZE" -lt 60000000 || { echo "APK exceeds the 60 MB limit: $SIZE bytes"; exit 1; }
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging release/rise-edit.apk > release/badging.txt
           grep -q "versionName='$RELEASE_VERSION'" release/badging.txt || { echo 'Version must match APK'; exit 1; }
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs release/rise-edit.apk > release/signature.txt
