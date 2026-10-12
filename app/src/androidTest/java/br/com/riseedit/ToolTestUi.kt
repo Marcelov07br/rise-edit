@@ -34,6 +34,7 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         requireClick: Boolean = false
     ): AccessibilityNodeInfo {
         var result: AccessibilityNodeInfo? = null
+        var toolbar: Rect? = null
         await(description = {
             "Missing tool UI: $text; ${labels(instrumentation.uiAutomation.rootInActiveWindow)}"
         }) {
@@ -44,8 +45,13 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
                     (!requireClick || clickableParent(node) != null)
             }
             if (result == null && scroll) {
-                // The editor's toolbar follows the timeline in the accessibility tree.
-                lastScrollable(root)?.let { advance(it) }
+                toolbar = toolbar ?: toolbarBounds(root)
+                val bounds = toolbar
+                if (bounds != null) {
+                    swipeToolbar(bounds)
+                } else {
+                    lastScrollable(root)?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                }
             }
             result != null
         }
@@ -64,13 +70,20 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
             label.lineSequence().any { it.trim().trimStart('‹', '◆', '✦', ' ') == text }
         }
 
-    private fun advance(node: AccessibilityNodeInfo) {
+    private fun toolbarBounds(root: AccessibilityNodeInfo?): Rect? {
+        val anchor = find(root) { matchesLabel(it, "Estabilização Rise") && it.isVisibleToUser }
+            ?: return null
+        val button = clickableParent(anchor) ?: return null
         val bounds = Rect()
-        node.getBoundsInScreen(bounds)
-        if (bounds.width() <= bounds.height() * 3) {
-            node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
-            return
-        }
+        button.getBoundsInScreen(bounds)
+        val screen = Rect()
+        root?.getBoundsInScreen(screen)
+        bounds.left = screen.left
+        bounds.right = screen.right
+        return bounds
+    }
+
+    private fun swipeToolbar(bounds: Rect) {
         // A full-page accessibility scroll can skip a partially clipped toolbar button.
         val downTime = SystemClock.uptimeMillis()
         for (step in 0..10) {
