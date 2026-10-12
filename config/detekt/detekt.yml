@@ -1,0 +1,23 @@
+config:
+  validation: true
+  warningsAsErrors: true
+
+build:
+  maxIssues: 0
+
+# Start with the P2 complexity budget. Formatting is checked by ktlint.
+# Keep existing debt in baseline.xml; do not disable checks to hide new findings.
+complexity:
+  active: true
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 15
+  LongMethod:
+    active: true
+    threshold: 60
+  LargeClass:
+    active: true
+    threshold: 300
+  NestedBlockDepth:
+    active: true
+    threshold: 4

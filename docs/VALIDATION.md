@@ -1,5 +1,11 @@
 # Validação — Rise Edit 0.2.0
 
+## P2 — preparação 0.4.2
+
+Local: `:detekt :app:assembleDebug :app:compileDebugAndroidTestKotlin :app:lintDebug` aprovado. CLI ktlint 1.5.0: app/core/scripts sem violações novas, usando baselines capturados do commit 0461625. Detekt inicialmente recusou quatro violações novas de funções/complexidade; foram corrigidas em componentes menores sem ampliar baseline. Os testes antigos HomeFlowTest e VideoPipelineTest permanecem sem edição.
+
+Nova cobertura preparada: oito painéis, edição de texto/undo/redo/reabertura e cancelamento pelo ViewModel seguido de reexportação, com verificação do temporário e da fonte original. Compilação não comprova execução desses cenários. Debug/MinifiedTest no emulador e distribuição assinada ainda pendentes nesta preparação.
+
 ## P3 — 0.4.1, resultado da otimização
 
 `tools/build-windows.ps1 -Release`: assembleRelease, lintRelease e 23 testes JVM aprovados com R8/shrinking habilitados. APK local: 40.518.463 bytes, contra 146.352.977 bytes da 0.4.0 publicada (72,3% menor). `apksigner verify --print-certs`: aprovado, mesmo certificado SHA-256 30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec. `aapt dump badging`: br.com.riseedit, versionCode 6, versionName 0.4.1; somente ARM64 e ARMv7.

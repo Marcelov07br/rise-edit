@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<baseline version="1.0">
+    <file name="settings.gradle.kts">
+        <error line="1" column="35" source="standard:statement-wrapping" />
+        <error line="1" column="44" source="standard:statement-wrapping" />
+        <error line="1" column="60" source="standard:statement-wrapping" />
+        <error line="1" column="82" source="standard:statement-wrapping" />
+        <error line="4" column="20" source="standard:statement-wrapping" />
+        <error line="4" column="29" source="standard:statement-wrapping" />
+        <error line="4" column="45" source="standard:statement-wrapping" />
+    </file>
+</baseline>
