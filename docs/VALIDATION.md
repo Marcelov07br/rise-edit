@@ -20,6 +20,8 @@ Resultado final executado: commit f3a138c, run 38203918232, MinifiedTest com 15 
 
 A repetição isolada de Debug passou com 15 testes; run 38203918232 ficou inteiramente verde. Revisão visual adicional observou uma captura Fiel com controles cobertos; o teste novo passou a verificar também o botão Exportar por pixels, e a sincronização de SurfaceView/Compose para API 34 foi habilitada. Esta última verificação visual ainda está em execução; a aprovação anterior não cobre essa asserção nova.
 
+Verificação visual final aprovada: commit 5e7266b, run 38205186498 — build, Debug (15 testes) e MinifiedTest (15 testes) verdes, sem skips/falhas. A nova asserção espera os pixels do controle Exportar após a troca, além dos pixels do vídeo. A captura anterior ocorreu antes da composição visual estabilizar; os controles reaparecem e agora são verificados antes das capturas finais. R8, análise OpenCV, três exportações, proxy e UI foram executados e aprovados. Meta P3 atingida; instalação física ARM permanece não executada.
+
 `tools/build-windows.ps1 -Release` no commit final: assembleRelease/lintRelease e 23 testes JVM aprovados. APK final local: 41.443.641 bytes (41,44 MB), redução de 71,7% sobre a 0.4.0. A primeira medição de 40.518.463 bytes acima é histórica: as regras públicas adicionais aumentaram cerca de 0,93 MB, mantendo a meta de menos de 60 MB. Certificado original preservado, package br.com.riseedit/code 6/0.4.1, apenas ARM64/ARMv7. Hashes dos seis binários ARM comparados com 0.4.0: iguais. Validação física ARM e instalação de atualização em aparelho não executadas; P2 pendente.
 
 ## Engenharia sobre v0.3.0 — P0 e P1 validados para a v0.4.0
