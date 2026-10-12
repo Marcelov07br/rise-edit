@@ -10,6 +10,10 @@ Run 38313712423, commit c205b33: build/qualidade/JVM aprovados; cada variante ex
 
 Release local: assembleRelease/lintRelease e 50 testes JVM diretos aprovados; variante MinifiedTest e instrumentação compilaram com R8. APK local 41.460.410 bytes, package br.com.riseedit/code 7/0.4.2, ARM64/ARMv7; apksigner aprovado com certificado original SHA-256 `30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec`. Hash local `7a367371c11df32c48c8761b196bf72077cdc3b236924ca39e66e165784bd2c2`; não é o hash de uma publicação já realizada.
 
+Runs 38314817968 e 38315816126 ainda encontraram a falha do helper ao acessar Áudio. O dump de acessibilidade mostrou que a busca genérica de scroll estava movendo as faixas, mantendo a barra de ferramentas parada. O helper passou a usar um gesto curto sobre os limites reais da barra, com labels exatos e ancestrais clicáveis. Esses ajustes alteram somente a instrumentação; o código do APK permanece o mesmo do commit c205b33. Nenhum teste antigo foi alterado para ocultar a falha.
+
+Runs 38316669193 e 38317769305 expuseram outras ambiguidades da automação: posição capturada após fechar o painel, título da estabilização com o mesmo label do botão e gesto que ultrapassava o controle procurado. A correção guarda as coordenadas do texto clicável da barra, espera sua reaparição e rola lentamente nos dois sentidos conforme os botões visíveis. A execução completa continua sendo exigida; não há skips nem remoção das asserções dos painéis.
+
 ## P3 — 0.4.1, resultado da otimização
 
 `tools/build-windows.ps1 -Release`: assembleRelease, lintRelease e 23 testes JVM aprovados com R8/shrinking habilitados. APK local: 40.518.463 bytes, contra 146.352.977 bytes da 0.4.0 publicada (72,3% menor). `apksigner verify --print-certs`: aprovado, mesmo certificado SHA-256 30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec. `aapt dump badging`: br.com.riseedit, versionCode 6, versionName 0.4.1; somente ARM64 e ARMv7.
