@@ -8,6 +8,8 @@
 
 Run inicial 38199709850: build aprovado, Debug com 14/15 testes aprovados; falha no novo teste visual ao retornar Fiel→Rápida pausado. MinifiedTest não iniciou os testes porque R8 removeu a classe de tracing usada pelo runner. Screenshots/logs preservados. Regras e binding de superfície corrigidos; aguardando nova execução. Não conta como validação funcional aprovada.
 
+Run 38200934126: o seek para a mesma posição não resolveu o quadro pausado; a correção passou a re-preparar o player somente após a superfície existir, mantendo o cursor. O runner otimizado encontrou a API `kotlin.LazyKt` removida. As APIs compartilhadas de Kotlin/coroutines/tracing foram preservadas também na release para que os testes exercitem a mesma política de otimização. Novo resultado funcional ainda pendente.
+
 ## Engenharia sobre v0.3.0 — P0 e P1 validados para a v0.4.0
 
 `tools/build-windows.ps1`: assembleDebug/lintDebug e 23 testes JVM aprovados. `:app:compileDebugAndroidTestKotlin` e `:app:assembleRelease` aprovados. GitHub Actions run 38177601938, commit 7bd85bd: build e android-runtime aprovados, oito testes Android sem falha nem skip; os testes anteriores permanecem sem edição.

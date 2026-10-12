@@ -32,7 +32,7 @@ Comandos e resultados executados em VALIDATION.md. Corpus pequeno e reproduzíve
 ## P3 — otimização do APK (em validação)
 
 - Release: R8 com regras padrão de otimização e remoção de recursos não usados; APK contém ARM64 e ARMv7. Debug conserva todas as ABIs.
-- OpenCV é preservado por causa do JNI. Nesta primeira release com R8, o contrato público do app/modelo também é preservado; o ganho de shrinking vem das dependências. Regras mais estreitas ficam fora desta etapa.
+- OpenCV é preservado por causa do JNI. Nesta primeira release com R8, preservamos o contrato público do app/modelo, Kotlin, coroutines e tracing compartilhados com a instrumentação; Media3/Compose e recursos continuam sujeitos à redução. Regras mais estreitas ficam fora desta etapa.
 - `@raw/transparent` é mantido explicitamente porque o compositor o acessa por URI. Não substituir por gaps nativos de vídeo: a composição anterior verificou que eles não funcionam nesta versão do Media3.
 - Variante `minifiedTest`, habilitada somente por `-PminifiedRuntime=true`, herda R8/shrinking da release, mas usa assinatura de debug e x86_64 para o emulador. Ela não é publicada. O CI executa os mesmos testes em Debug e MinifiedTest, incluindo análise OpenCV e três exportações.
 - O teste de binding visual adicional verifica pixels reais na TextureView/SurfaceView e a pausa ao sair do editor. Os testes existentes não foram modificados.
