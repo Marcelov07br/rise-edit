@@ -1,7 +1,10 @@
 package br.com.riseedit
 
 import android.app.Instrumentation
+import android.graphics.Rect
 import android.os.SystemClock
+import android.view.InputDevice
+import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import java.util.concurrent.atomic.AtomicReference
 
@@ -12,13 +15,17 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         return result.get()
     }
 
-    fun await(timeoutMs: Long = 15000, condition: () -> Boolean) {
+    fun await(
+        timeoutMs: Long = 15000,
+        description: () -> String = { "Editor did not reach the expected state" },
+        condition: () -> Boolean
+    ) {
         val deadline = SystemClock.elapsedRealtime() + timeoutMs
         while (SystemClock.elapsedRealtime() < deadline) {
             if (condition()) return
             SystemClock.sleep(100)
         }
-        error("Editor did not reach the expected state")
+        error(description())
     }
 
     fun waitFor(
@@ -27,7 +34,9 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         requireClick: Boolean = false
     ): AccessibilityNodeInfo {
         var result: AccessibilityNodeInfo? = null
-        await {
+        await(description = {
+            "Missing tool UI: $text; ${labels(instrumentation.uiAutomation.rootInActiveWindow)}"
+        }) {
             val root = instrumentation.uiAutomation.rootInActiveWindow
             result = find(root) { node ->
                 node.isVisibleToUser &&
@@ -36,7 +45,7 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
             }
             if (result == null && scroll) {
                 // The editor's toolbar follows the timeline in the accessibility tree.
-                lastScrollable(root)?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                lastScrollable(root)?.let { advance(it) }
             }
             result != null
         }
@@ -54,6 +63,43 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         listOfNotNull(node.text, node.contentDescription).any { label ->
             label.lineSequence().any { it.trim().trimStart('‹', '◆', '✦', ' ') == text }
         }
+
+    private fun advance(node: AccessibilityNodeInfo) {
+        val bounds = Rect()
+        node.getBoundsInScreen(bounds)
+        if (bounds.width() <= bounds.height() * 3) {
+            node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+            return
+        }
+        // A full-page accessibility scroll can skip a partially clipped toolbar button.
+        val downTime = SystemClock.uptimeMillis()
+        for (step in 0..10) {
+            val action = when (step) {
+                0 -> MotionEvent.ACTION_DOWN
+                10 -> MotionEvent.ACTION_UP
+                else -> MotionEvent.ACTION_MOVE
+            }
+            val x = bounds.left + bounds.width() * (0.8f - step * 0.04f)
+            val event = MotionEvent.obtain(
+                downTime,
+                SystemClock.uptimeMillis(),
+                action,
+                x,
+                bounds.exactCenterY(),
+                0
+            )
+            event.source = InputDevice.SOURCE_TOUCHSCREEN
+            instrumentation.uiAutomation.injectInputEvent(event, true)
+            event.recycle()
+            SystemClock.sleep(25)
+        }
+    }
+
+    private fun labels(node: AccessibilityNodeInfo?): String {
+        if (node == null) return "<no active window>"
+        val children = (0 until node.childCount).joinToString { labels(node.getChild(it)) }
+        return "[${node.text}/${node.contentDescription}; visible=${node.isVisibleToUser}]$children"
+    }
 
     private fun clickableParent(start: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         var node: AccessibilityNodeInfo? = start
