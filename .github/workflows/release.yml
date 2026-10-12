@@ -22,7 +22,7 @@ jobs:
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             test "$GITHUB_REF_NAME" = "$TAG" || { echo 'Tag must match versionName'; exit 1; }
           elif gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
-            if gh release view "$TAG" >/dev/null 2>&1; then
+            if [ "$(gh release view "$TAG" --json isDraft --jq '.isDraft' 2>/dev/null || true)" = false ]; then
               echo "Version $TAG is already published; no new release."
               echo 'publish=false' >> "$GITHUB_OUTPUT"
               exit 0
@@ -83,11 +83,12 @@ jobs:
           else
             NOTES="docs/releases/$RELEASE_VERSION.md"
             if [ -f "$NOTES" ]; then
-              gh release create "$RELEASE_TAG" release/rise-edit.apk release/rise-edit.apk.sha256 --verify-tag --title "Rise Edit $RELEASE_TAG" --notes-file "$NOTES"
+              gh release create "$RELEASE_TAG" release/rise-edit.apk release/rise-edit.apk.sha256 --draft --verify-tag --title "Rise Edit $RELEASE_TAG" --notes-file "$NOTES"
             else
-              gh release create "$RELEASE_TAG" release/rise-edit.apk release/rise-edit.apk.sha256 --verify-tag --title "Rise Edit $RELEASE_TAG" --generate-notes
+              gh release create "$RELEASE_TAG" release/rise-edit.apk release/rise-edit.apk.sha256 --draft --verify-tag --title "Rise Edit $RELEASE_TAG" --generate-notes
             fi
           fi
+          gh release edit "$RELEASE_TAG" --draft=false --latest
       - name: Remove signing key
         if: always()
         run: rm -f "$RUNNER_TEMP/rise-release.p12"
