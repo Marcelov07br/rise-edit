@@ -14,3 +14,5 @@
 -keep class androidx.lifecycle.ViewModelProvider** { *; }
 -keep interface androidx.media3.common.Player** { *; }
 -keepclassmembers class androidx.activity.ComponentActivity { public *; }
+-keep class androidx.media3.common.Timeline$Window { public *; }
+-keepclassmembers class androidx.media3.transformer.CompositionPlayer { public *; }
