@@ -72,9 +72,11 @@ fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = M
                     factory={ context -> (LayoutInflater.from(context).inflate(if (fast) R.layout.preview_player else R.layout.preview_player_faithful,null) as PlayerView).apply {
                         player=previewPlayer;setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                         if (fast) doOnPreDraw { post {
-                            // Re-render the paused frame after switching from a placeholder to the real TextureView.
-                            if (isAttachedToWindow && player === previewPlayer && previewPlayer.mediaItemCount > 0)
-                                previewPlayer.seekTo(previewPlayer.currentMediaItemIndex,previewPlayer.currentPosition)
+                            // A seek to the same position is ignored by ExoPlayer. Reprepare after the real surface exists.
+                            if (isAttachedToWindow && player === previewPlayer && previewPlayer.mediaItemCount > 0 && !previewPlayer.playWhenReady) {
+                                val index=previewPlayer.currentMediaItemIndex;val position=previewPlayer.currentPosition
+                                previewPlayer.stop();previewPlayer.seekTo(index,position);previewPlayer.prepare()
+                            }
                         } }
                     } },
                     update={ view ->
