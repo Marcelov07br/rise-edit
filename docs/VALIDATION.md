@@ -6,6 +6,10 @@ Local: `:detekt :app:assembleDebug :app:compileDebugAndroidTestKotlin :app:lintD
 
 Nova cobertura preparada: oito painéis, edição de texto/undo/redo/reabertura e cancelamento pelo ViewModel seguido de reexportação, com verificação do temporário e da fonte original. Compilação não comprova execução desses cenários. Debug/MinifiedTest no emulador e distribuição assinada ainda pendentes nesta preparação.
 
+Run 38313712423, commit c205b33: build/qualidade/JVM aprovados; cada variante executou 17 testes Android e falhou somente no teste novo dos painéis (`Cannot click Áudio`). Ele procurava substring e encontrou o rótulo não clicável da timeline. Helper corrigido para labels exatos, ancestrais clicáveis e rolagem da barra; nova execução pendente. Os outros 16 cenários de cada variante, incluindo cancelamento/reexportação, passaram. Isso não aprova ainda o fluxo completo dos oito painéis.
+
+Release local: assembleRelease/lintRelease e 50 testes JVM diretos aprovados; variante MinifiedTest e instrumentação compilaram com R8. APK local 41.460.410 bytes, package br.com.riseedit/code 7/0.4.2, ARM64/ARMv7; apksigner aprovado com certificado original SHA-256 `30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec`. Hash local `7a367371c11df32c48c8761b196bf72077cdc3b236924ca39e66e165784bd2c2`; não é o hash de uma publicação já realizada.
+
 ## P3 — 0.4.1, resultado da otimização
 
 `tools/build-windows.ps1 -Release`: assembleRelease, lintRelease e 23 testes JVM aprovados com R8/shrinking habilitados. APK local: 40.518.463 bytes, contra 146.352.977 bytes da 0.4.0 publicada (72,3% menor). `apksigner verify --print-certs`: aprovado, mesmo certificado SHA-256 30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec. `aapt dump badging`: br.com.riseedit, versionCode 6, versionName 0.4.1; somente ARM64 e ARMv7.

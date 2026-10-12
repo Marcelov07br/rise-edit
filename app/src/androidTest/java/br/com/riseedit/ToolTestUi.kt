@@ -21,18 +21,22 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         error("Editor did not reach the expected state")
     }
 
-    fun waitFor(text: String, scroll: Boolean = false): AccessibilityNodeInfo {
+    fun waitFor(
+        text: String,
+        scroll: Boolean = false,
+        requireClick: Boolean = false
+    ): AccessibilityNodeInfo {
         var result: AccessibilityNodeInfo? = null
         await {
             val root = instrumentation.uiAutomation.rootInActiveWindow
             result = find(root) { node ->
-                node.text?.contains(text) == true || node.contentDescription?.contains(text) == true
+                node.isVisibleToUser &&
+                    matchesLabel(node, text) &&
+                    (!requireClick || clickableParent(node) != null)
             }
             if (result == null && scroll) {
-                find(root) { node ->
-                    node.isScrollable &&
-                        node.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD }
-                }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                // The editor's toolbar follows the timeline in the accessibility tree.
+                lastScrollable(root)?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
             }
             result != null
         }
@@ -40,10 +44,35 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
     }
 
     fun click(text: String, scroll: Boolean = false) {
-        var node: AccessibilityNodeInfo? = waitFor(text, scroll)
-        while (node != null && !node.isClickable) node = node.parent
+        val node = clickableParent(waitFor(text, scroll, requireClick = true))
         check(node?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true) {
             "Cannot click $text"
+        }
+    }
+
+    private fun matchesLabel(node: AccessibilityNodeInfo, text: String): Boolean =
+        listOfNotNull(node.text, node.contentDescription).any { label ->
+            label.lineSequence().any { it.trim().trimStart('‹', '◆', '✦', ' ') == text }
+        }
+
+    private fun clickableParent(start: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        var node: AccessibilityNodeInfo? = start
+        while (node != null && (!node.isClickable || !node.isEnabled)) node = node.parent
+        return node
+    }
+
+    private fun lastScrollable(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+        if (node == null) return null
+        for (index in node.childCount - 1 downTo 0) {
+            lastScrollable(node.getChild(index))?.let { return it }
+        }
+        return node.takeIf {
+            it.isScrollable &&
+                it.isVisibleToUser &&
+                it.actionList.any { action ->
+                    action.id ==
+                        AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+                }
         }
     }
 
