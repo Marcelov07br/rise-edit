@@ -4,6 +4,7 @@ package br.com.riseedit
 import android.graphics.Paint
 import android.view.LayoutInflater
 import android.view.View
+import androidx.core.view.doOnPreDraw
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,6 +21,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.ui.PlayerView
+import androidx.media3.exoplayer.ExoPlayer
 import br.com.riseedit.core.*
 import br.com.riseedit.preview.PreviewQuality
 import br.com.riseedit.media.displayMessage
@@ -28,7 +30,8 @@ import kotlin.math.*
 /** TextureView lets the cheap preview transform decoded frames without the GL effect graph. */
 @Composable
 fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = Modifier) {
-    val fast = state.previewQuality == PreviewQuality.Fast
+    val previewPlayer = vm.player
+    val fast = previewPlayer is ExoPlayer
     val clip = vm.previewClip
     val analysis = clip?.let { vm.motionAnalysis(it.uri) }
     val corrections = remember(analysis, clip?.stabilization, clip?.startMs, clip?.endMs, state.comparing) {
@@ -65,12 +68,20 @@ fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = M
                 translationX=key.x*videoWidth*density/2;translationY=-key.y*videoHeight*density/2
                 alpha=key.opacity*gain
             }) {
-                key(fast) { AndroidView(
+                key(previewPlayer) { AndroidView(
                     factory={ context -> (LayoutInflater.from(context).inflate(if (fast) R.layout.preview_player else R.layout.preview_player_faithful,null) as PlayerView).apply {
-                        player=vm.player;setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+                        setEnableComposeSurfaceSyncWorkaround(true)
+                        player=previewPlayer;setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+                        if (fast) doOnPreDraw { post {
+                            // A seek to the same position is ignored by ExoPlayer. Reprepare after the real surface exists.
+                            if (isAttachedToWindow && player === previewPlayer && previewPlayer.mediaItemCount > 0 && !previewPlayer.playWhenReady) {
+                                val index=previewPlayer.currentMediaItemIndex;val position=previewPlayer.currentPosition
+                                previewPlayer.stop();previewPlayer.seekTo(index,position);previewPlayer.prepare()
+                            }
+                        } }
                     } },
                     update={ view ->
-                        if (view.player !== vm.player) view.player=vm.player
+                        if (view.player !== previewPlayer) view.player=previewPlayer
                         view.setLayerType(if (filter == null) View.LAYER_TYPE_NONE else View.LAYER_TYPE_HARDWARE, filter?.let { Paint().apply { colorFilter=it } })
                     },
                     modifier=Modifier.fillMaxSize().graphicsLayer {
