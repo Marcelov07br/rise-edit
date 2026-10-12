@@ -10,6 +10,8 @@ Run inicial 38199709850: build aprovado, Debug com 14/15 testes aprovados; falha
 
 Run 38200934126: o seek para a mesma posição não resolveu o quadro pausado; a correção passou a re-preparar o player somente após a superfície existir, mantendo o cursor. O runner otimizado encontrou a API `kotlin.LazyKt` removida. As APIs compartilhadas de Kotlin/coroutines/tracing foram preservadas também na release para que os testes exercitem a mesma política de otimização. Novo resultado funcional ainda pendente.
 
+Run 38201162060: Debug com 15/15 testes aprovados após a correção visual; MinifiedTest ainda não iniciou por `LazyKt`. Run 38201624199: Debug novamente 15/15; MinifiedTest iniciou 15 testes, mas APIs usadas pelo APK de instrumentação haviam sido removidas ou tinham descritores alterados por R8 (ExoPlayer builder/analytics, ViewModelProvider e DebugTraceUtil). Regras públicas específicas adicionadas à mesma política da release; aguardando nova execução. Não houve aprovação de exportação otimizada nesta execução.
+
 ## Engenharia sobre v0.3.0 — P0 e P1 validados para a v0.4.0
 
 `tools/build-windows.ps1`: assembleDebug/lintDebug e 23 testes JVM aprovados. `:app:compileDebugAndroidTestKotlin` e `:app:assembleRelease` aprovados. GitHub Actions run 38177601938, commit 7bd85bd: build e android-runtime aprovados, oito testes Android sem falha nem skip; os testes anteriores permanecem sem edição.

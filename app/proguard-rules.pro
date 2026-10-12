@@ -6,3 +6,9 @@
 -keep class androidx.tracing.** { *; }
 -keep class kotlin.** { *; }
 -keep class kotlinx.coroutines.** { *; }
+# Preserve APIs called across the separate instrumentation APK (including their method descriptors).
+-keep class androidx.media3.exoplayer.ExoPlayer$Builder { public *; }
+-keep interface androidx.media3.exoplayer.ExoPlayer { *; }
+-keep interface androidx.media3.exoplayer.analytics.AnalyticsListener { *; }
+-keep class androidx.media3.effect.DebugTraceUtil { public *; }
+-keep class androidx.lifecycle.ViewModelProvider** { *; }
