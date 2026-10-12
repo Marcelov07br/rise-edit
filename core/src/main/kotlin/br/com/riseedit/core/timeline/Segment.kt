@@ -6,7 +6,9 @@ data class Segment(val id: String, val source: SegmentSource, val timeMap: TimeM
         require(id.isNotBlank()) { "Segment ID must not be blank" }
         require(timeMap.targetRange.startUs == 0L) { "Segment time starts at zero" }
         when (source) {
-            is SegmentSource.Media -> require(timeMap.sourceRange.endUs <= source.originalDurationUs) {
+            is SegmentSource.Media -> require(
+                timeMap.sourceRange.endUs <= source.originalDurationUs
+            ) {
                 "Trim exceeds the original media duration"
             }
             is SegmentSource.Still -> Unit
@@ -22,7 +24,7 @@ data class Segment(val id: String, val source: SegmentSource, val timeMap: TimeM
         fun gap(id: String, durationUs: Long): Segment = Segment(
             id,
             SegmentSource.Gap,
-            ConstantSpeedMap(TimeRange(0, durationUs), 1.0),
+            ConstantSpeedMap(TimeRange(0, durationUs), 1.0)
         )
     }
 }

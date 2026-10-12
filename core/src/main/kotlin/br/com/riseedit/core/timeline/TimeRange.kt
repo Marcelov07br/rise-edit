@@ -21,15 +21,17 @@ data class TimeRange(val startUs: Long, val endUs: Long) : Comparable<TimeRange>
 
     fun shifted(deltaUs: Long): TimeRange = TimeRange(
         Math.addExact(startUs, deltaUs),
-        Math.addExact(endUs, deltaUs),
+        Math.addExact(endUs, deltaUs)
     )
 
-    override fun compareTo(other: TimeRange): Int = compareValuesBy(this, other, { it.startUs }, { it.endUs })
+    override fun compareTo(other: TimeRange): Int = compareValuesBy(this, other, {
+        it.startUs
+    }, { it.endUs })
 
     companion object {
         fun fromMs(startMs: Long, endMs: Long): TimeRange = TimeRange(
             Math.multiplyExact(startMs, 1000),
-            Math.multiplyExact(endMs, 1000),
+            Math.multiplyExact(endMs, 1000)
         )
     }
 }

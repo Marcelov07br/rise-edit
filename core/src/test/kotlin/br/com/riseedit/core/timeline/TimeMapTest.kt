@@ -1,10 +1,10 @@
 package br.com.riseedit.core.timeline
 
+import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.math.abs
 
 class TimeMapTest {
     @Test
@@ -31,19 +31,27 @@ class TimeMapTest {
         val time = Long.MAX_VALUE - 7
         assertEquals(time, large.targetToSource(large.sourceToTarget(time)))
         listOf(0.0, -1.0, Double.NaN, Double.POSITIVE_INFINITY).forEach {
-            assertThrows(IllegalArgumentException::class.java) { ConstantSpeedMap(TimeRange(0, 100), it) }
+            assertThrows(IllegalArgumentException::class.java) {
+                ConstantSpeedMap(TimeRange(0, 100), it)
+            }
         }
-        assertThrows(IllegalArgumentException::class.java) { ConstantSpeedMap(TimeRange(0, 1), 4.0) }
-        assertThrows(ArithmeticException::class.java) { ConstantSpeedMap(TimeRange(0, Long.MAX_VALUE), 0.5) }
+        assertThrows(IllegalArgumentException::class.java) {
+            ConstantSpeedMap(TimeRange(0, 1), 4.0)
+        }
+        assertThrows(ArithmeticException::class.java) {
+            ConstantSpeedMap(TimeRange(0, Long.MAX_VALUE), 0.5)
+        }
     }
 
     @Test
     fun piecewiseRampRetainsAbsoluteSourceBoundariesAndChoosesRightHandSpeed() {
-        val map = PiecewiseMap(listOf(
-            ConstantSpeedMap(TimeRange.fromMs(2000, 4000), 0.5),
-            ConstantSpeedMap(TimeRange.fromMs(4000, 6000), 2.0),
-            ConstantSpeedMap(TimeRange.fromMs(6000, 8000), 1.0),
-        ))
+        val map = PiecewiseMap(
+            listOf(
+                ConstantSpeedMap(TimeRange.fromMs(2000, 4000), 0.5),
+                ConstantSpeedMap(TimeRange.fromMs(4000, 6000), 2.0),
+                ConstantSpeedMap(TimeRange.fromMs(6000, 8000), 1.0)
+            )
+        )
         assertEquals(7_000_000L, map.targetRange.durationUs)
         assertEquals(4_000_000L, map.targetToSource(4_000_000))
         assertEquals(5_000_000L, map.targetToSource(4_500_000))
@@ -68,5 +76,30 @@ class TimeMapTest {
         assertEquals(10L, map.targetRange.durationUs)
         assertEquals(listOf(piece), map.pieces)
         assertEquals(map, map.copy())
+    }
+
+    @Test
+    fun cumulativeRoundingRetainsEndpointsAndMonotonicityAndRejectsCollapsedPieces() {
+        val map = PiecewiseMap(
+            listOf(
+                ConstantSpeedMap(TimeRange(0, 3), 2.0),
+                ConstantSpeedMap(TimeRange(3, 6), 2.0)
+            ),
+            cumulativeRounding = true
+        )
+        assertEquals(3L, map.targetRange.durationUs)
+        assertEquals(3L, map.sourceToTarget(Long.MAX_VALUE))
+        assertEquals(6L, map.targetToSource(Long.MAX_VALUE))
+        assertTrue((0L..6L).map(map::sourceToTarget).zipWithNext().all { (a, b) -> a <= b })
+        assertTrue((0L..3L).map(map::targetToSource).zipWithNext().all { (a, b) -> a <= b })
+        assertThrows(IllegalArgumentException::class.java) {
+            PiecewiseMap(
+                listOf(
+                    ConstantSpeedMap(TimeRange(0, 1), 2.0),
+                    ConstantSpeedMap(TimeRange(1, 2), 2.0)
+                ),
+                cumulativeRounding = true
+            )
+        }
     }
 }

@@ -12,7 +12,9 @@ data class ConstantSpeedMap(override val sourceRange: TimeRange, val speed: Doub
     private val decimalSpeed = BigDecimal.valueOf(speed)
     override val targetRange = TimeRange(
         0,
-        BigDecimal.valueOf(sourceRange.durationUs).divide(decimalSpeed, 0, RoundingMode.HALF_UP).longValueExact(),
+        BigDecimal.valueOf(
+            sourceRange.durationUs
+        ).divide(decimalSpeed, 0, RoundingMode.HALF_UP).longValueExact()
     )
 
     override fun sourceToTarget(sourceUs: Long): Long {

@@ -8,14 +8,18 @@ data class Track(
     val name: String,
     val kind: TrackKind,
     val startUs: Long,
-    val segments: FrozenList<Segment>,
+    val segments: FrozenList<Segment>
 ) {
     constructor(id: String, name: String, kind: TrackKind, startUs: Long, segments: List<Segment>) :
         this(id, name, kind, startUs, FrozenList(segments))
 
     init {
         require(startUs >= 0) { "Track start must be nonnegative" }
-        require(segments.map { it.id }.distinct().size == segments.size) { "Segment IDs must be unique on a track" }
+        require(
+            segments.map {
+                it.id
+            }.distinct().size == segments.size
+        ) { "Segment IDs must be unique on a track" }
     }
 
     private val starts = LongArray(segments.size + 1).apply {

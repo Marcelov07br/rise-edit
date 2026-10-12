@@ -6,11 +6,23 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class TrackTest {
-    private val clip = Segment("clip", SegmentSource.Media("v", 10000), ConstantSpeedMap(TimeRange(2000, 6000), 2.0))
+    private val clip =
+        Segment(
+            "clip",
+            SegmentSource.Media("v", 10000),
+            ConstantSpeedMap(TimeRange(2000, 6000), 2.0)
+        )
 
     @Test
     fun lookupUsesGlobalOffsetHalfOpenBoundariesAndExplicitGaps() {
-        val track = Track("track", "Main", TrackKind.VIDEO, 1000, listOf(clip, Segment.gap("gap", 500), clip.copy(id = "next")))
+        val track =
+            Track(
+                "track",
+                "Main",
+                TrackKind.VIDEO,
+                1000,
+                listOf(clip, Segment.gap("gap", 500), clip.copy(id = "next"))
+            )
         assertEquals(4500L, track.durationUs)
         assertEquals(5500L, track.endUs)
         assertEquals(3500L, track.segmentStartUs(2))
@@ -44,11 +56,23 @@ class TrackTest {
 
     @Test
     fun rejectsInvalidStartsDuplicateIdsAndDurationOverflow() {
-        assertThrows(IllegalArgumentException::class.java) { Track("t", "T", TrackKind.VIDEO, -1, listOf(clip)) }
-        assertThrows(IllegalArgumentException::class.java) { Track("t", "T", TrackKind.VIDEO, 0, listOf(clip, clip)) }
-        assertThrows(ArithmeticException::class.java) { Track("t", "T", TrackKind.VIDEO, Long.MAX_VALUE, listOf(clip)) }
+        assertThrows(IllegalArgumentException::class.java) {
+            Track("t", "T", TrackKind.VIDEO, -1, listOf(clip))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            Track("t", "T", TrackKind.VIDEO, 0, listOf(clip, clip))
+        }
         assertThrows(ArithmeticException::class.java) {
-            Track("t", "T", TrackKind.VIDEO, 0, listOf(Segment.gap("a", Long.MAX_VALUE), Segment.gap("b", 1)))
+            Track("t", "T", TrackKind.VIDEO, Long.MAX_VALUE, listOf(clip))
+        }
+        assertThrows(ArithmeticException::class.java) {
+            Track(
+                "t",
+                "T",
+                TrackKind.VIDEO,
+                0,
+                listOf(Segment.gap("a", Long.MAX_VALUE), Segment.gap("b", 1))
+            )
         }
     }
 }

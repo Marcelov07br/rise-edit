@@ -36,7 +36,7 @@ class TimeRangeTest {
         assertEquals(TimeRange(1000, 6000), range.shifted(-1000))
         assertEquals(
             listOf(TimeRange(0, 5), TimeRange(0, 8), TimeRange(1, 4)),
-            listOf(TimeRange(1, 4), TimeRange(0, 8), TimeRange(0, 5)).sorted(),
+            listOf(TimeRange(1, 4), TimeRange(0, 8), TimeRange(0, 5)).sorted()
         )
         val large = TimeRange(Long.MAX_VALUE - 3, Long.MAX_VALUE)
         assertEquals(large, large.intersect(large))

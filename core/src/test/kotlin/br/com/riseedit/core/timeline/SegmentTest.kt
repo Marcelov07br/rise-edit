@@ -19,8 +19,12 @@ class SegmentTest {
         assertThrows(IllegalArgumentException::class.java) {
             Segment("video", SegmentSource.Media("v", 5000), map)
         }
-        assertThrows(IllegalArgumentException::class.java) { Segment("", SegmentSource.Still("p"), map) }
-        assertThrows(IllegalArgumentException::class.java) { Segment("gap", SegmentSource.Gap, map) }
+        assertThrows(IllegalArgumentException::class.java) {
+            Segment("", SegmentSource.Still("p"), map)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            Segment("gap", SegmentSource.Gap, map)
+        }
         assertThrows(IllegalArgumentException::class.java) { Segment.gap("gap", 0) }
     }
 }
