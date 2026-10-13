@@ -69,6 +69,15 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         commands.projectSettings(ratio, export)
     fun clipSettings(clip: Clip) = commands.clipSettings(clip)
     fun trim(start: Long, end: Long) = commands.trim(start, end)
+    fun trimClip(original: Clip, trimmed: Clip): Boolean {
+        if (!commands.trimClip(original, trimmed)) return false
+        val current = state.value
+        val index = current.project.clips.indexOfFirst { it.id == original.id }
+        val offset = current.project.clips.take(index).sumOf { it.durationMs }
+        preview.seek(current.positionMs.coerceIn(offset, offset + trimmed.durationMs - 1))
+        return true
+    }
+    fun moveClip(id: String, target: Int) = commands.moveClip(id, target)
     fun split() = commands.split()
     fun remove() = commands.remove()
     fun move(delta: Int) = commands.move(delta)

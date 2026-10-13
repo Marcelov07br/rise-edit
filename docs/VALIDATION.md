@@ -2,6 +2,8 @@
 
 ## P2 — preparação 0.4.2
 
+Retomada em 12/10: os runs 38334266231 e 38335184353 ainda falharam no helper de Áudio. A captura `tool-failure.png` do segundo run mostrou a barra realmente deslocada para Áudio/Overlay/Cor/Movimento/Formato, enquanto o dump de UiAutomation ainda devolvia os botões iniciais e coordenadas antigas. O diagnóstico anterior de gesto/posição não explicava sozinho a falha: havia cache de nós virtuais desatualizado. O helper passou a limpar esse cache com UiAutomation.clearCache no Android 33+, antes de cada consulta, preservando todas as asserções. Run 38336017682, commit ea6f900, verifica a correção e coleta capturas dos painéis.
+
 Local: `:detekt :app:assembleDebug :app:compileDebugAndroidTestKotlin :app:lintDebug` aprovado. CLI ktlint 1.5.0: app/core/scripts sem violações novas, usando baselines capturados do commit 0461625. Detekt inicialmente recusou quatro violações novas de funções/complexidade; foram corrigidas em componentes menores sem ampliar baseline. Os testes antigos HomeFlowTest e VideoPipelineTest permanecem sem edição.
 
 Nova cobertura preparada: oito painéis, edição de texto/undo/redo/reabertura e cancelamento pelo ViewModel seguido de reexportação, com verificação do temporário e da fonte original. Compilação não comprova execução desses cenários. Debug/MinifiedTest no emulador e distribuição assinada ainda pendentes nesta preparação.

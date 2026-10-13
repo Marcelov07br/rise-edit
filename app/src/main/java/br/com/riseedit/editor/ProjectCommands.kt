@@ -5,6 +5,24 @@ import br.com.riseedit.core.ExportSettings
 import br.com.riseedit.core.Stabilization
 
 internal class ProjectCommands(private val document: EditorDocument) {
+    fun trimClip(original: Clip, trimmed: Clip): Boolean {
+        val state = document.current
+        val index = state.project.clips.indexOfFirst { it.id == original.id }
+        if (index < 0 || state.project.clips[index] != original) return false
+        if (trimmed != original.trim(trimmed.startMs, trimmed.endMs)) return false
+        return document.edit(state.project.replace(index, trimmed))
+    }
+
+    fun moveClip(id: String, target: Int) {
+        val state = document.current
+        val index = state.project.clips.indexOfFirst { it.id == id }
+        if (index < 0) return
+        val destination = target.coerceIn(0, state.project.clips.lastIndex)
+        if (document.edit(state.project.move(index, destination - index))) {
+            document.update { it.copy(selected = destination, selection = null) }
+        }
+    }
+
     fun projectSettings(ratio: Float, export: ExportSettings) {
         document.edit(document.current.project.copy(aspectRatio = ratio, export = export))
     }
