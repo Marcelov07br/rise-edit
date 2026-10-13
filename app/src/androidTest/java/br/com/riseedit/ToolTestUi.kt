@@ -3,6 +3,7 @@ package br.com.riseedit
 import android.app.Instrumentation
 import android.graphics.Bitmap
 import android.graphics.Rect
+import android.os.Build
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityNodeInfo
 import java.io.File
@@ -50,10 +51,10 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         await(description = {
             screenshot("tool-failure")
             "Missing tool UI: $text; toolbar=$toolbar; ${labels(
-                instrumentation.uiAutomation.rootInActiveWindow
+                root()
             )}"
         }) {
-            val root = instrumentation.uiAutomation.rootInActiveWindow
+            val root = root()
             if (toolbarControl) toolbarBounds(root)?.let { toolbar = it }
             result = find(root) { node ->
                 node.isVisibleToUser &&
@@ -101,7 +102,7 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
 
     private fun resetToolbar() {
         await {
-            val root = instrumentation.uiAutomation.rootInActiveWindow
+            val root = root()
             val closing = find(root) { matchesLabel(it, "Concluir") && it.isVisibleToUser }
             if (closing != null) return@await false
             toolbarBounds(root)?.let { toolbar = it }
@@ -146,6 +147,12 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         node.getBoundsInScreen(bounds)
         return "[${node.text}/${node.contentDescription}; " +
             "visible=${node.isVisibleToUser}; bounds=$bounds]$children"
+    }
+
+    private fun root(): AccessibilityNodeInfo? {
+        // Compose scrolls visually before UiAutomation's cached virtual nodes are invalidated.
+        if (Build.VERSION.SDK_INT >= 33) instrumentation.uiAutomation.clearCache()
+        return instrumentation.uiAutomation.rootInActiveWindow
     }
 
     private fun clickableParent(start: AccessibilityNodeInfo): AccessibilityNodeInfo? {
