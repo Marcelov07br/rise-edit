@@ -1,4 +1,18 @@
-# Validação — Rise Edit 0.2.0
+# Validação — Rise Edit
+
+## 0.4.3 — pinça e arestas na timeline
+
+- Código de produção: 09d8905. Calculadores puros de viewport/trim, controlador único de gestos, componentes separados e confirmação por ID/snapshot. JSON 3 e modelos existentes preservados.
+- 57 testes JVM aprovados localmente; assembleRelease/lintRelease aprovados. Detekt sem novas violações e ktlint dos arquivos novos/modificados aprovado. Build/qualidade/JVM também verdes na CI dos runs 38343090080 e 38344229618.
+- Android 15, run 38343832131: 18 testes Debug e 18 MinifiedTest aprovados, sem skips/falhas. Inclui pinça com dois contatos sobre clipe e faixa vazia, corte das duas arestas, recuperação da fonte, cancelamento, uma edição por gesto, undo/redo, reabertura, tempo de origem no preview e MP4 com duração/quadro válidos. O projeto de gesto contém dois clipes e verifica a preservação de ambos os arquivos originais por SHA-256.
+- A primeira asserção de undo comparava com a fixture anterior ao probe, sem SourceInfo. Corrigida para usar o snapshot completo aberto pelo editor; as comparações de histórico foram mantidas. O run acima falhou apenas na regra de tamanho do método novo de teste (61/60); preparação extraída e recompilada com detekt aprovado, sem mudança de produção ou comportamento do teste.
+- APK local 0.4.3/code 8: 41.476.642 bytes, br.com.riseedit, ARM64/ARMv7, R8. Assinatura conferida com certificado SHA-256 30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec; digest do APK 5f62808a23ecf21ec6c6571060029b7891568e21d070ddcb67d825643c396b7a.
+- APK enviado e tamanho conferido no Drive. Gravação real de 26,88 s, com pinça e arrastes, decodificada e enviada ao Drive; capturas inspecionadas. Instalação física ARM não foi executada.
+- Escopo: arestas para vídeo principal. Áudio/overlays/texto com arestas, contratos de ripple e transições na junção ficam nas próximas entregas descritas em TIMELINE_INTERACTION_PLAN.md.
+
+## P2 — resultado final da preparação
+
+Run 38337354805, commit c0a6ecb: build/qualidade/JVM, 17 testes Debug e 17 MinifiedTest aprovados. A preparação P2 foi concluída; os registros seguintes são históricos. A 0.4.3 integra P2, os sete commits do modelo de timeline v1 e os novos gestos visíveis.
 
 ## P2 — preparação 0.4.2
 

@@ -44,15 +44,16 @@ Comandos e resultados executados em VALIDATION.md. Corpus pequeno e reproduzíve
 
 Referências: [otimização de tamanho](https://developer.android.com/topic/performance/reduce-apk-size), [preservação de recursos](https://developer.android.com/topic/performance/app-optimization/customize-which-resources-to-keep), [ABIs](https://developer.android.com/ndk/guides/abis). A refatoração P2 continua fora desta entrega.
 
-## P2 — preparação da 0.4.2
+## P2 — base validada, integrada na 0.4.3
 
 - `EditorViewModel` virou fachada; `EditorState`, histórico puro, documento, comandos, abertura/importação, prévia, análise e exportação têm componentes próprios. Save precede publicação/histórico; proxies do projeto atual e do histórico são protegidos.
 - `EditorOperations` mantém uma única operação até renderização, cópia e limpeza terminarem. Cancelar impede novos comandos enquanto o Transformer é cancelado e o temporário é removido. A cópia SAF verifica cancelamento entre blocos e fecha ambos os streams.
 - Oito painéis com `EditorTool` tipado e dispatch exaustivo. A tela foi dividida em estado local, launchers, efeitos, regiões e diálogos, mantendo layout e textos usados pelos testes.
 - `VideoEngine` separa principal/overlays/áudio, efeitos finais, compositor e `TransparentGapItem`. Preservados SpeedPoint, o workaround de velocidade/áudio do Media3, proxy obrigatório e compositor somente com overlays.
 - Detekt/ktlint fixados no CI/deploy. Baselines exclusivamente da 0.4.1/0461625; novas funções longas foram corrigidas, não suprimidas. Componentes extraídos têm aproximadamente 120 linhas ou menos; arquivos legados de compatibilidade/prévia permanecem fora desta reorganização. Classe 300, função 60, complexidade 15 e nesting 4 são os limites ativos.
-- Sete commits da timeline v1 preservados: modelo puro ainda sem ligação à UI/JSON. Esta etapa não desbloqueia velocidade/rampa na interface.
-- Local: assembleDebug, lintDebug, compilação da instrumentação e detekt aprovados; CLI ktlint nos três módulos passou com os baselines. Testes Android, inclusive cancelamento/reexportação e oito painéis, ainda aguardam execução em Debug/MinifiedTest.
-- Publicação 0.4.2/code 7 será integrada somente após os checks funcionais. Não declarar conclusão funcional com base em compilação.
+- Sete commits da timeline v1 preservados. A 0.4.3 reutiliza seu adaptador somente leitura para calcular trim com limites de velocidade, mantendo listas antigas e JSON 3. Velocidade/rampa não foi desbloqueada na interface.
+- P2 validada: run 38337354805, build/qualidade/JVM e 17 testes por variante Debug/MinifiedTest aprovados, inclusive oito painéis e cancelamento/reexportação.
+- A primeira entrega visível da 0.4.3 acrescenta pinça em clipes/faixas vazias, viewport de largura fixa e arestas no vídeo principal, com rascunho e uma transação por gesto. 57 testes JVM; 18 testes por variante no run 38343832131. APK assinado e demonstração real entregues no Drive.
+- Próximas entregas: arestas nas demais camadas, ripple/sincronização explícitos e transições nas junções. Escopo e critérios em TIMELINE_INTERACTION_PLAN.md; resultados e limites em VALIDATION.md.
 
 Nota de distribuição P3: APK 0.4.1 efetivamente publicado tem 41.427.257 bytes e SHA-256 `a9904593627185ca5467459db299730041fb32ed7163baffef324ce1cfa7ebfa`; os valores locais anteriores acima são históricos.
