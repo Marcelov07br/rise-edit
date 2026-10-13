@@ -1,11 +1,12 @@
 package br.com.riseedit
 
 import android.app.Instrumentation
+import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.SystemClock
-import android.view.InputDevice
-import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import java.io.File
+import java.io.FileInputStream
 import java.util.concurrent.atomic.AtomicReference
 
 internal class ToolTestUi(private val instrumentation: Instrumentation) {
@@ -61,7 +62,7 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
             if (result == null && scroll) {
                 val bounds = toolbar
                 if (toolbarControl) {
-                    if (bounds != null) advanceToolbar(root, text, bounds)
+                    if (bounds != null) swipeToolbar(bounds, forward = true)
                 } else {
                     lastScrollable(root)?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
                 }
@@ -72,6 +73,7 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
     }
 
     fun click(text: String, scroll: Boolean = false) {
+        if (text in toolLabels) resetToolbar()
         val node = clickableParent(waitFor(text, scroll, requireClick = true))
         check(node?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true) {
             "Cannot click $text"
@@ -96,46 +98,41 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         return bounds
     }
 
-    private fun advanceToolbar(root: AccessibilityNodeInfo?, text: String, bounds: Rect) {
-        val visible = toolLabels.indices.filter { index ->
-            find(root) { node ->
-                node.isVisibleToUser &&
-                    matchesLabel(node, toolLabels[index]) &&
-                    clickableParent(node) != null
-            } != null
+    private fun resetToolbar() {
+        await {
+            val root = instrumentation.uiAutomation.rootInActiveWindow
+            val closing = find(root) { matchesLabel(it, "Concluir") && it.isVisibleToUser }
+            if (closing != null) return@await false
+            toolbarBounds(root)?.let { toolbar = it }
+            toolbar != null
         }
-        // A closing panel can still be in the tree. Wait for the actual toolbar to return.
-        if (visible.isEmpty()) return
-        swipeToolbar(bounds, forward = toolLabels.indexOf(text) >= visible.min())
+        val bounds = checkNotNull(toolbar)
+        // Start each search at the left edge, then advance by less than a viewport.
+        repeat(3) { swipeToolbar(bounds, forward = false) }
     }
 
     private fun swipeToolbar(bounds: Rect, forward: Boolean) {
-        // A full-page accessibility scroll can skip a partially clipped toolbar button.
-        val downTime = SystemClock.uptimeMillis()
-        for (step in 0..10) {
-            val action = when (step) {
-                0 -> MotionEvent.ACTION_DOWN
-                10 -> MotionEvent.ACTION_UP
-                else -> MotionEvent.ACTION_MOVE
-            }
-            val fraction = if (forward) 0.65f - step * 0.02f else 0.35f + step * 0.02f
-            val x = bounds.left + bounds.width() * fraction
-            val event = MotionEvent.obtain(
-                downTime,
-                SystemClock.uptimeMillis(),
-                action,
-                x,
-                bounds.exactCenterY(),
-                0
-            )
-            event.source = InputDevice.SOURCE_TOUCHSCREEN
-            check(instrumentation.uiAutomation.injectInputEvent(event, true)) {
-                "Toolbar gesture was rejected: $bounds"
-            }
-            event.recycle()
-            SystemClock.sleep(50)
-        }
+        val from = (bounds.width() * if (forward) 0.75f else 0.2f).toInt()
+        val to = (bounds.width() * if (forward) 0.45f else 0.85f).toInt()
+        val duration = if (forward) 400 else 100
+        val y = bounds.centerY()
+        instrumentation.uiAutomation.executeShellCommand("input swipe $from $y $to $y $duration")
+            .use { descriptor -> FileInputStream(descriptor.fileDescriptor).use { it.readBytes() } }
         SystemClock.sleep(250)
+    }
+
+    fun screenshot(name: String) {
+        val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
+        val file = File(instrumentation.targetContext.getExternalFilesDir(null), "$name.png")
+        try {
+            file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        } finally {
+            bitmap.recycle()
+        }
+        instrumentation.uiAutomation.executeShellCommand(
+            "cp ${file.absolutePath} /sdcard/Download/$name.png"
+        )
+            .use { descriptor -> FileInputStream(descriptor.fileDescriptor).use { it.readBytes() } }
     }
 
     private fun labels(node: AccessibilityNodeInfo?): String {

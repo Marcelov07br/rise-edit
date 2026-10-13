@@ -67,9 +67,10 @@ class ToolPanelFlowTest {
             "Movimento" to "Adicionar keyframe no cursor",
             "Formato" to "Original"
         )
-        panels.forEach { (tool, content) ->
+        panels.forEachIndexed { index, (tool, content) ->
             ui.click(tool, scroll = true)
             ui.waitFor(content)
+            ui.screenshot("tool-$index")
             ui.click("Concluir")
         }
     }
@@ -91,6 +92,7 @@ class ToolPanelFlowTest {
                 vm.state.value.project.texts.single().text
             }
         )
+        ui.screenshot("tool-text")
         ui.click("Concluir")
         ui.click("Projetos")
         ui.click(projectName, scroll = true)
