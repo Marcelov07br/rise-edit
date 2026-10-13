@@ -48,6 +48,7 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         var result: AccessibilityNodeInfo? = null
         val toolbarControl = requireClick && text in toolLabels
         await(description = {
+            screenshot("tool-failure")
             "Missing tool UI: $text; toolbar=$toolbar; ${labels(
                 instrumentation.uiAutomation.rootInActiveWindow
             )}"
@@ -115,7 +116,10 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         val from = (bounds.width() * if (forward) 0.75f else 0.2f).toInt()
         val to = (bounds.width() * if (forward) 0.45f else 0.85f).toInt()
         val duration = if (forward) 400 else 100
-        val y = bounds.centerY()
+        // The label is close to Android's bottom gesture region; swipe through the glyph row.
+        val y =
+            bounds.top -
+                (12 * instrumentation.targetContext.resources.displayMetrics.density).toInt()
         instrumentation.uiAutomation.executeShellCommand("input swipe $from $y $to $y $duration")
             .use { descriptor -> FileInputStream(descriptor.fileDescriptor).use { it.readBytes() } }
         SystemClock.sleep(250)
