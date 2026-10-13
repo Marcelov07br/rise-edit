@@ -31,13 +31,21 @@ class TimelineGestureTest {
             source.outputStream().use { input.copyTo(it) }
         }
         val digest = hash(source)
+        val neighborSource = File.createTempFile("timeline-neighbor-", ".mp4", context.cacheDir)
+        source.copyTo(neighborSource, overwrite = true)
         val original =
             Clip(
                 uri = Uri.fromFile(source).toString(),
                 name = "Timeline real",
                 sourceDurationMs = 3000
             )
-        val project = Project(listOf(original), name = "Teste de gestos")
+        val neighbor = Clip(
+            uri = Uri.fromFile(neighborSource).toString(),
+            name = "Segunda cena",
+            sourceDurationMs = 3000,
+            endMs = 100
+        )
+        val project = Project(listOf(original, neighbor), name = "Teste de gestos")
         val store = ProjectStore(context)
         val output = File.createTempFile("timeline-export-", ".mp4", context.cacheDir)
         var activity: MainActivity? = null
@@ -59,27 +67,37 @@ class TimelineGestureTest {
             }
             recording = startRecording()
             verifyPinch(vm)
-            verifyEdges(vm, original)
-            val edited = ui.onMain { vm.state.value.project.clips.single() }
+            verifyEdges(vm, ui.onMain { vm.state.value.project.clips.first() })
+            val edited = ui.onMain { vm.state.value.project.clips.first() }
+            assertEquals(neighbor.id, ui.onMain { vm.state.value.project.clips.last().id })
             verifyReopenAndPreview(vm, project.name, edited)
             ui.onMain { vm.export(Uri.fromFile(output)) }
             ui.await(90000) { ui.onMain { vm.state.value.busy == null } }
             assertTrue(ui.onMain { vm.state.value.message?.startsWith("Vídeo exportado.") == true })
-            verifyExport(output, edited.durationMs)
+            verifyExport(output, ui.onMain { vm.state.value.project.durationMs })
             assertArrayEquals(digest, hash(source))
+            assertArrayEquals(digest, hash(neighborSource))
             ui.screenshot("timeline-export-complete")
         } finally {
             recording?.let { shell("kill -2 $it") }
+            shell("settings put system show_touches 0")
             activity?.let { host -> ui.onMain { host.finish() } }
             store.delete(project.id)
-            listOf(source, output).forEach { it.delete() }
+            listOf(source, neighborSource, output).forEach { it.delete() }
         }
     }
 
-    private fun startRecording(): Int? = shell(
-        "screenrecord --time-limit 120 /sdcard/Download/timeline-demo.mp4 " +
-            ">/dev/null 2>&1 & echo \$!"
-    ).trim().toIntOrNull()
+    private fun startRecording(): Int? {
+        shell("settings put system show_touches 1")
+        val script = File(context.getExternalFilesDir(null), "record-timeline.sh")
+        script.writeText(
+            "#!/system/bin/sh\n" +
+                "screenrecord --time-limit 120 --bit-rate 2000000 " +
+                "/sdcard/Download/timeline-demo.mp4 >/dev/null 2>&1 &\n" +
+                "echo \$!\n"
+        )
+        return shell("sh ${script.absolutePath}").trim().toIntOrNull()
+    }
 
     private fun shell(command: String): String =
         instrumentation.uiAutomation.executeShellCommand(command)
@@ -105,30 +123,30 @@ class TimelineGestureTest {
 
     private fun verifyEdges(vm: EditorViewModel, original: Clip) {
         dragEdge("Aresta inicial", 500, original.durationMs)
-        val leftTrimmed = ui.onMain { vm.state.value.project.clips.single() }
+        val leftTrimmed = ui.onMain { vm.state.value.project.clips.first() }
         assertTrue(leftTrimmed.startMs in 450..550)
         assertEquals(original.endMs, leftTrimmed.endMs)
         ui.onMain { vm.undo() }
-        assertEquals(original, ui.onMain { vm.state.value.project.clips.single() })
+        assertEquals(original, ui.onMain { vm.state.value.project.clips.first() })
         assertFalse("One drag must produce exactly one undo", ui.onMain { vm.state.value.canUndo })
         ui.onMain { vm.redo() }
-        assertEquals(leftTrimmed, ui.onMain { vm.state.value.project.clips.single() })
+        assertEquals(leftTrimmed, ui.onMain { vm.state.value.project.clips.first() })
         ui.screenshot("timeline-trim-left")
         dragEdge("Aresta final", -300, leftTrimmed.durationMs)
-        val bothTrimmed = ui.onMain { vm.state.value.project.clips.single() }
+        val bothTrimmed = ui.onMain { vm.state.value.project.clips.first() }
         assertTrue(bothTrimmed.endMs in 2650..2750)
         assertEquals(leftTrimmed.startMs, bothTrimmed.startMs)
         ui.onMain { vm.undo() }
-        assertEquals(leftTrimmed, ui.onMain { vm.state.value.project.clips.single() })
+        assertEquals(leftTrimmed, ui.onMain { vm.state.value.project.clips.first() })
         ui.onMain { vm.redo() }
         dragEdge("Aresta final", -200, bothTrimmed.durationMs, cancel = true)
         assertEquals(
             "Cancelled gesture changed the project",
             bothTrimmed,
-            ui.onMain { vm.state.value.project.clips.single() }
+            ui.onMain { vm.state.value.project.clips.first() }
         )
         dragEdge("Aresta final", 300, bothTrimmed.durationMs)
-        assertTrue(ui.onMain { vm.state.value.project.clips.single().endMs in 2950..3000 })
+        assertTrue(ui.onMain { vm.state.value.project.clips.first().endMs in 2950..3000 })
         ui.onMain { vm.undo() }
         ui.screenshot("timeline-trim-both")
     }
@@ -150,7 +168,7 @@ class TimelineGestureTest {
         ui.click("Projetos")
         ui.click(name, scroll = true)
         ui.await { ui.onMain { vm.state.value.busy == null } }
-        assertEquals(clip, ui.onMain { vm.state.value.project.clips.single() })
+        assertEquals(clip, ui.onMain { vm.state.value.project.clips.first() })
         ui.onMain { vm.seek(500) }
         ui.await { ui.onMain { kotlin.math.abs(vm.previewSourceMs - clip.sourceAt(500)) <= 100 } }
         ui.screenshot("timeline-preview-trimmed")
