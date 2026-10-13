@@ -66,11 +66,19 @@ class EditorOperationTest {
                     (temporaryExports() - initial).isNotEmpty()
                 if (rendering) {
                     // Observe and cancel in the same main-thread action, before completion can race us.
-                    vm.cancel()
                     assertNotNull(vm.state.value.busy)
-                    vm.trim(1, 2999)
-                    vm.export(Uri.fromFile(other))
-                    assertEquals(0L, vm.state.value.project.clips.first().startMs)
+                    vm.cancel()
+                    if (vm.state.value.busy != null) {
+                        vm.trim(1, 2999)
+                        vm.export(Uri.fromFile(other))
+                        assertEquals(0L, vm.state.value.project.clips.first().startMs)
+                    } else {
+                        // Synchronous cleanup may release ownership before cancel returns.
+                        assertTrue(
+                            "Owner released before cleanup",
+                            (temporaryExports() - initial).isEmpty()
+                        )
+                    }
                 }
                 rendering
             }
