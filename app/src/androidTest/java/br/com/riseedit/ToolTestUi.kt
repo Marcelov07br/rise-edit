@@ -105,12 +105,31 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
             val root = root()
             val closing = find(root) { matchesLabel(it, "Concluir") && it.isVisibleToUser }
             if (closing != null) return@await false
-            toolbarBounds(root)?.let { toolbar = it }
-            toolbar != null
+            toolbarBounds(root)?.let {
+                toolbar = it
+                return@await true
+            }
+            val metrics = instrumentation.targetContext.resources.displayMetrics
+            val screenHeight = metrics.heightPixels
+            val margin = (100 * metrics.density).toInt()
+            val button = find(root) { node ->
+                val bounds = Rect()
+                node.getBoundsInScreen(bounds)
+                node.isVisibleToUser &&
+                    toolLabels.any { matchesLabel(node, it) } &&
+                    clickableParent(node) != null &&
+                    bounds.top >= screenHeight - margin
+            }
+            button?.let {
+                val bounds = Rect()
+                it.getBoundsInScreen(bounds)
+                bounds.left = 0
+                bounds.right = instrumentation.targetContext.resources.displayMetrics.widthPixels
+                toolbar = bounds
+                swipeToolbar(bounds, forward = false)
+            }
+            false
         }
-        val bounds = checkNotNull(toolbar)
-        // Start each search at the left edge, then advance by less than a viewport.
-        repeat(3) { swipeToolbar(bounds, forward = false) }
     }
 
     private fun swipeToolbar(bounds: Rect, forward: Boolean) {

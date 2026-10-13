@@ -61,15 +61,19 @@ class EditorOperationTest {
         val initial = temporaryExports()
         ui.onMain { vm.export(Uri.fromFile(destination)) }
         ui.await(30000) {
-            ui.onMain { vm.state.value.busy?.startsWith("Exportando MP4") == true } &&
-                (temporaryExports() - initial).isNotEmpty()
-        }
-        ui.onMain {
-            vm.cancel()
-            assertNotNull(vm.state.value.busy)
-            vm.trim(1, 2999)
-            vm.export(Uri.fromFile(other))
-            assertEquals(0L, vm.state.value.project.clips.first().startMs)
+            ui.onMain {
+                val rendering = vm.state.value.busy?.startsWith("Exportando MP4") == true &&
+                    (temporaryExports() - initial).isNotEmpty()
+                if (rendering) {
+                    // Observe and cancel in the same main-thread action, before completion can race us.
+                    vm.cancel()
+                    assertNotNull(vm.state.value.busy)
+                    vm.trim(1, 2999)
+                    vm.export(Uri.fromFile(other))
+                    assertEquals(0L, vm.state.value.project.clips.first().startMs)
+                }
+                rendering
+            }
         }
         ui.await(30000) { ui.onMain { vm.state.value.busy == null } }
         assertEquals("Operação cancelada.", ui.onMain { vm.state.value.message })
