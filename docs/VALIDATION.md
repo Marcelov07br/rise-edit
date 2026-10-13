@@ -1,4 +1,34 @@
-# Validação — Rise Edit 0.2.0
+# Validação — Rise Edit
+
+## 0.4.3 — pinça e arestas na timeline
+
+- Código de produção: 09d8905. Calculadores puros de viewport/trim, controlador único de gestos, componentes separados e confirmação por ID/snapshot. JSON 3 e modelos existentes preservados.
+- 57 testes JVM aprovados localmente; assembleRelease/lintRelease aprovados. Detekt sem novas violações e ktlint dos arquivos novos/modificados aprovado. Build/qualidade/JVM também verdes na CI dos runs 38343090080 e 38344229618.
+- Android 15, run 38343832131: 18 testes Debug e 18 MinifiedTest aprovados, sem skips/falhas. Inclui pinça com dois contatos sobre clipe e faixa vazia, corte das duas arestas, recuperação da fonte, cancelamento, uma edição por gesto, undo/redo, reabertura, tempo de origem no preview e MP4 com duração/quadro válidos. O projeto de gesto contém dois clipes e verifica a preservação de ambos os arquivos originais por SHA-256.
+- A primeira asserção de undo comparava com a fixture anterior ao probe, sem SourceInfo. Corrigida para usar o snapshot completo aberto pelo editor; as comparações de histórico foram mantidas. O run acima falhou apenas na regra de tamanho do método novo de teste (61/60); preparação extraída e recompilada com detekt aprovado, sem mudança de produção ou comportamento do teste.
+- APK local 0.4.3/code 8: 41.476.642 bytes, br.com.riseedit, ARM64/ARMv7, R8. Assinatura conferida com certificado SHA-256 30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec; digest do APK 5f62808a23ecf21ec6c6571060029b7891568e21d070ddcb67d825643c396b7a.
+- APK enviado e tamanho conferido no Drive. Gravação real de 26,88 s, com pinça e arrastes, decodificada e enviada ao Drive; capturas inspecionadas. Instalação física ARM não foi executada.
+- Escopo: arestas para vídeo principal. Áudio/overlays/texto com arestas, contratos de ripple e transições na junção ficam nas próximas entregas descritas em TIMELINE_INTERACTION_PLAN.md.
+
+## P2 — resultado final da preparação
+
+Run 38337354805, commit c0a6ecb: build/qualidade/JVM, 17 testes Debug e 17 MinifiedTest aprovados. A preparação P2 foi concluída; os registros seguintes são históricos. A 0.4.3 integra P2, os sete commits do modelo de timeline v1 e os novos gestos visíveis.
+
+## P2 — preparação 0.4.2
+
+Retomada em 12/10: os runs 38334266231 e 38335184353 ainda falharam no helper de Áudio. A captura `tool-failure.png` do segundo run mostrou a barra realmente deslocada para Áudio/Overlay/Cor/Movimento/Formato, enquanto o dump de UiAutomation ainda devolvia os botões iniciais e coordenadas antigas. O diagnóstico anterior de gesto/posição não explicava sozinho a falha: havia cache de nós virtuais desatualizado. O helper passou a limpar esse cache com UiAutomation.clearCache no Android 33+, antes de cada consulta, preservando todas as asserções. Run 38336017682, commit ea6f900, verifica a correção e coleta capturas dos painéis.
+
+Local: `:detekt :app:assembleDebug :app:compileDebugAndroidTestKotlin :app:lintDebug` aprovado. CLI ktlint 1.5.0: app/core/scripts sem violações novas, usando baselines capturados do commit 0461625. Detekt inicialmente recusou quatro violações novas de funções/complexidade; foram corrigidas em componentes menores sem ampliar baseline. Os testes antigos HomeFlowTest e VideoPipelineTest permanecem sem edição.
+
+Nova cobertura preparada: oito painéis, edição de texto/undo/redo/reabertura e cancelamento pelo ViewModel seguido de reexportação, com verificação do temporário e da fonte original. Compilação não comprova execução desses cenários. Debug/MinifiedTest no emulador e distribuição assinada ainda pendentes nesta preparação.
+
+Run 38313712423, commit c205b33: build/qualidade/JVM aprovados; cada variante executou 17 testes Android e falhou somente no teste novo dos painéis (`Cannot click Áudio`). Ele procurava substring e encontrou o rótulo não clicável da timeline. Helper corrigido para labels exatos, ancestrais clicáveis e rolagem da barra; nova execução pendente. Os outros 16 cenários de cada variante, incluindo cancelamento/reexportação, passaram. Isso não aprova ainda o fluxo completo dos oito painéis.
+
+Release local: assembleRelease/lintRelease e 50 testes JVM diretos aprovados; variante MinifiedTest e instrumentação compilaram com R8. APK local 41.460.410 bytes, package br.com.riseedit/code 7/0.4.2, ARM64/ARMv7; apksigner aprovado com certificado original SHA-256 `30c4705483fa494a54863f6862d2c4ddb8967d6d940b02253ee88322e7c39cec`. Hash local `7a367371c11df32c48c8761b196bf72077cdc3b236924ca39e66e165784bd2c2`; não é o hash de uma publicação já realizada.
+
+Runs 38314817968 e 38315816126 ainda encontraram a falha do helper ao acessar Áudio. O dump de acessibilidade mostrou que a busca genérica de scroll estava movendo as faixas, mantendo a barra de ferramentas parada. O helper passou a usar um gesto curto sobre os limites reais da barra, com labels exatos e ancestrais clicáveis. Esses ajustes alteram somente a instrumentação; o código do APK permanece o mesmo do commit c205b33. Nenhum teste antigo foi alterado para ocultar a falha.
+
+Runs 38316669193 e 38317769305 expuseram outras ambiguidades da automação: posição capturada após fechar o painel, título da estabilização com o mesmo label do botão e gesto que ultrapassava o controle procurado. A correção guarda as coordenadas do texto clicável da barra, espera sua reaparição e rola lentamente nos dois sentidos conforme os botões visíveis. A execução completa continua sendo exigida; não há skips nem remoção das asserções dos painéis.
 
 ## P3 — 0.4.1, resultado da otimização
 

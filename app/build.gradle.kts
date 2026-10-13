@@ -9,7 +9,8 @@ val signing = Properties().apply {
     val file = rootProject.file(".signing/signing.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
-fun signingValue(name: String, envName: String) = System.getenv(envName) ?: signing.getProperty(name)
+fun signingValue(name: String, envName: String) =
+    System.getenv(envName) ?: signing.getProperty(name)
 android {
     namespace = "br.com.riseedit"
     compileSdk = 35
@@ -17,16 +18,18 @@ android {
         applicationId = "br.com.riseedit"
         minSdk = 27
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.4.1"
+        versionCode = 8
+        versionName = "0.4.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
-        if (signingValue("storeFile", "RISE_KEYSTORE_PATH") != null) create("distribution") {
-            storeFile = rootProject.file(signingValue("storeFile", "RISE_KEYSTORE_PATH")!!)
-            storePassword = signingValue("storePassword", "RISE_KEYSTORE_PASSWORD")
-            keyAlias = "rise"
-            keyPassword = signingValue("keyPassword", "RISE_KEY_PASSWORD")
+        if (signingValue("storeFile", "RISE_KEYSTORE_PATH") != null) {
+            create("distribution") {
+                storeFile = rootProject.file(signingValue("storeFile", "RISE_KEYSTORE_PATH")!!)
+                storePassword = signingValue("storePassword", "RISE_KEYSTORE_PASSWORD")
+                keyAlias = "rise"
+                keyPassword = signingValue("keyPassword", "RISE_KEY_PASSWORD")
+            }
         }
     }
     buildTypes {
@@ -34,17 +37,32 @@ android {
             signingConfig = signingConfigs.findByName("distribution")
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         }
-        if (providers.gradleProperty("minifiedRuntime").orNull == "true") create("minifiedTest") {
-            initWith(getByName("release"))
-            signingConfig = signingConfigs.getByName("debug")
-            ndk { abiFilters.clear(); abiFilters += "x86_64" }
-            matchingFallbacks += "release"
+        if (providers.gradleProperty("minifiedRuntime").orNull == "true") {
+            create("minifiedTest") {
+                initWith(getByName("release"))
+                signingConfig = signingConfigs.getByName("debug")
+                ndk {
+                    abiFilters.clear()
+                    abiFilters += "x86_64"
+                }
+                matchingFallbacks += "release"
+            }
         }
     }
-    testBuildType = if (providers.gradleProperty("minifiedRuntime").orNull == "true") "minifiedTest" else "debug"
+    testBuildType =
+        if (providers.gradleProperty("minifiedRuntime").orNull ==
+            "true"
+        ) {
+            "minifiedTest"
+        } else {
+            "debug"
+        }
     buildFeatures { compose = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

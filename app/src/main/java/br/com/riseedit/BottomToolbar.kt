@@ -21,20 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-
-/**
- * Tool keys understood by [ToolPanel]. The first value is the key, the second the label shown in the toolbar.
- * Stabilization comes first: it is the product's signature feature.
- */
-private val panelTools = listOf(
-    Triple("Corte", "✂", "Cortar"),
-    Triple("Texto", "T", "Texto"),
-    Triple("Áudio", "♪", "Áudio"),
-    Triple("Overlay", "▣", "Overlay"),
-    Triple("Cor", "◐", "Cor"),
-    Triple("Movimento", "◆", "Movimento"),
-    Triple("Formato", "▭", "Formato")
-)
+import br.com.riseedit.tools.EditorTool
 
 /** Large touch targets that scroll horizontally. Direct actions work immediately; the others open a [ToolSheet]. */
 @Composable
@@ -42,28 +29,40 @@ fun BottomToolbar(
     enabled: Boolean,
     layerSelected: Boolean,
     onImport: () -> Unit,
-    onTool: (String) -> Unit,
+    onTool: (EditorTool) -> Unit,
     onSplit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(modifier.fillMaxWidth(), color = RiseSurface) {
         Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 6.dp),
+            Modifier.fillMaxWidth().horizontalScroll(
+                rememberScrollState()
+            ).padding(horizontal = 8.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ToolButton("✦", "Estabilização Rise", enabled, accent = true) { onTool("Estabilizar") }
+            ToolButton("✦", "Estabilização Rise", enabled, accent = true) {
+                onTool(EditorTool.Stabilize)
+            }
             ToolButton("+", "Vídeo", enabled, onClick = onImport)
             ToolButton("⫽", "Dividir", enabled && !layerSelected, onClick = onSplit)
-            panelTools.forEach { (key, glyph, label) -> ToolButton(glyph, label, enabled) { onTool(key) } }
+            EditorTool.panels.forEach { tool ->
+                ToolButton(tool.glyph, tool.label, enabled) { onTool(tool) }
+            }
             ToolButton("✕", "Excluir", enabled, onClick = onDelete)
         }
     }
 }
 
 @Composable
-private fun ToolButton(glyph: String, label: String, enabled: Boolean, accent: Boolean = false, onClick: () -> Unit) {
+private fun ToolButton(
+    glyph: String,
+    label: String,
+    enabled: Boolean,
+    accent: Boolean = false,
+    onClick: () -> Unit
+) {
     val tint = if (accent) RiseGreen else MaterialTheme.colorScheme.onSurface
     Column(
         Modifier

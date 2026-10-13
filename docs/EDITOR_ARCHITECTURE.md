@@ -6,7 +6,7 @@ A interface de velocidade/rampa foi adiada para a próxima evolução. O modelo 
 
 ## Estrutura
 
-O app continua nativo: Kotlin, Compose, Media3 1.9 e OpenCV 4.10. `MainActivity` coordena a navegação Home/Editor e as configurações de atualização. `HomeScreen` usa uma grade adaptativa de projetos. `EditorScreen` contém preview, controles, timeline e painéis. `TimelinePanel` representa tempo em uma escala comum; `ToolPanels` altera os dados do projeto, sem manipular fontes. `EditorViewModel` guarda histórico e reconstrói a composição após cada edição confirmada.
+O app continua nativo: Kotlin, Compose, Media3 1.9 e OpenCV 4.10. `MainActivity` coordena a navegação Home/Editor e as configurações de atualização. `HomeScreen` usa uma grade adaptativa de projetos. `EditorScreen` contém preview, controles, timeline e painéis. `TimelinePanel` representa tempo em uma escala comum; cada painel em `tools/` altera os dados do projeto, sem manipular fontes. `EditorViewModel` mantém a API da interface e delega às operações em `editor/`.
 
 ## Layout do editor (evolução 0.3, fase 1)
 
@@ -17,13 +17,25 @@ O editor deixou de ser uma coluna que rola e passou a ter regiões fixas, de cim
 - `BottomToolbar`: botões grandes que rolam na horizontal. **Estabilização Rise** é o primeiro e tem destaque. Dividir e Excluir agem na hora (excluir remove a camada selecionada, ou o clipe se não houver camada); as demais ferramentas abrem o `ToolSheet`.
 - `ToolSheet`: substitui a barra enquanto uma ferramenta está aberta (botão "Concluir"). A timeline encolhe de 190 dp para 110 dp nas faixas e continua visível; o painel rola dentro de no máximo 42% da altura.
 - `TimelinePanel` recebeu o parâmetro `trackAreaHeight`. O controle deslizante de posição foi removido: a régua da timeline (toque e arraste) e o toque na prévia o substituem. Arrastar o cursor diretamente na área de faixas fica para a fase 2.
-- `MediaImporter` (com `MediaKind`) concentra a leitura de metadados e a permissão persistente dos documentos escolhidos, antes duplicada em dois pontos do `EditorViewModel`. Exportação e análise de movimento continuam no ViewModel e serão separadas em fases seguintes.
+- `MediaImporter` (com `MediaKind`) concentra a leitura de metadados e a permissão persistente dos documentos escolhidos. No P2, `ImportCoordinator`, `MotionCoordinator` e `ExportCoordinator` passam a coordenar os processamentos antes concentrados no ViewModel.
 
 Os textos "Projetos", "Importar vídeos" e "Estabilização Rise" são usados pelos testes instrumentados e devem ser mantidos.
 
 `core/Project.kt` define clipes, pontos de velocidade em coordenadas absolutas da fonte, três faixas de áudio, duas camadas de overlay, textos, keyframes e exportação. `core/Timeline.kt` faz snapping e interpolação. A faixa principal é sequencial e fecha espaços automaticamente; camadas adicionais têm posição absoluta na composição. Cortes na faixa principal não deslocam automaticamente áudio e textos.
 
-`VideoEngine` monta sequências Media3 com gaps, mistura áudio e compõe vídeos sobrepostos. Nesta etapa P0 o preview ainda usa `MultipleInputVideoGraph` e saída 480p; a separação do preview é P1. A URI efetiva prefere proxies na prévia e exige o proxy também na exportação quando o original necessita normalização. A decodificação continua dependendo do aparelho.
+`VideoEngine` monta as sequências principal, de overlays e de áudio extraídas para `composition/`, com efeitos finais e compositor separados. `TransparentGapItem` nomeia o preenchimento por PNG transparente exigido pelos intervalos de vídeo do Media3 1.9; não foi substituído por gaps nativos. O compositor personalizado só é aplicado com overlays. A URI efetiva prefere proxies na prévia e exige o proxy também na exportação quando o original necessita normalização. A decodificação continua dependendo do aparelho.
+
+Desde P1, `preview/PreviewEngine` usa ExoPlayer na prévia Rápida e CompositionPlayer na Fiel. A Rápida aplica efeitos aproximados na superfície Compose; a Fiel usa a composição completa com saída 480p. Esse dimensionamento não significa que a entrada seja decodificada em 480p. Fallback, debounce e proteção de decoders continuam ativos.
+
+## Responsabilidades do editor — P2
+
+- `EditorState` conserva o contrato de estado. `EditorDocument` salva antes de publicar uma revisão e atualizar o histórico. `core/HistoryController` é puro, mantém 30 revisões por sessão e conserva referências dos proxies usados pelo histórico.
+- `ProjectCommands` e `LayerCommands` aplicam edições; `EditorPreview` coordena a prévia; importação, abertura, movimento e exportação têm coordenadores próprios.
+- `EditorOperations` mantém uma única operação proprietária até terminar o processamento e sua limpeza. Cancelar mantém a interface ocupada até os recursos serem liberados. A cópia ao destino da exportação pertence à mesma operação da renderização.
+- `tools/EditorTool` define as oito ferramentas e suas chaves persistidas. O dispatch é exaustivo, com um arquivo por painel; nomes em português e layout permanecem os mesmos.
+- `EditorUiState` guarda a ferramenta salva e estado local dos diálogos/faixas. `EditorMediaActions` concentra os launchers SAF; regiões, mensagens e diálogos têm componentes próprios. Isso mantém a função da tela pequena sem alterar sua geometria.
+
+As verificações de complexidade e formatação usam dívida anterior registrada em baseline. Os novos componentes devem passar sem adicionar supressões ao baseline. Contagem de linhas não é medida de qualidade: o objetivo é separar responsabilidades e reduzir funções complexas, mantendo o comportamento testado.
 
 `EditingEffects` aplica velocidade, transformações interpoladas, cor, fade através de preto, envelope de áudio e textos temporizados. A interface de velocidade/rampa fica adiada nesta entrega contida. Transições não sobrepõem clipes: o fade mantém a duração da timeline. FPS é um limite de descarte; fontes de 24 fps não ganham novos quadros para chegar a 60 fps.
 

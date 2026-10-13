@@ -16,7 +16,18 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
+      - name: Kotlin quality (existing debt baseline; fail new findings)
+        run: ./gradlew :detekt :ktlintCheck --no-daemon
       - run: ./gradlew :core:test :app:assembleDebug :app:lintDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rise-edit-quality
+          path: |
+            build/reports/detekt
+            build/reports/ktlint
+            app/build/reports/ktlint
+            core/build/reports/ktlint
       - uses: actions/upload-artifact@v4
         with:
           name: rise-edit-debug
