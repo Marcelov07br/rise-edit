@@ -26,10 +26,7 @@ class TimelineGestureTest {
 
     @Test
     fun pinchOnClipsAndEmptyTracksAndBothEdgesProduceAPlayableExport() {
-        val source = File.createTempFile("timeline-source-", ".mp4", context.cacheDir)
-        instrumentation.context.assets.open("compatibility/h264_720p_scrub.mp4").use { input ->
-            source.outputStream().use { input.copyTo(it) }
-        }
+        val source = sourceFile()
         val digest = hash(source)
         val neighborSource = File.createTempFile("timeline-neighbor-", ".mp4", context.cacheDir)
         source.copyTo(neighborSource, overwrite = true)
@@ -85,6 +82,14 @@ class TimelineGestureTest {
             store.delete(project.id)
             listOf(source, neighborSource, output).forEach { it.delete() }
         }
+    }
+
+    private fun sourceFile(): File {
+        val source = File.createTempFile("timeline-source-", ".mp4", context.cacheDir)
+        instrumentation.context.assets.open("compatibility/h264_720p_scrub.mp4").use { input ->
+            source.outputStream().use { input.copyTo(it) }
+        }
+        return source
     }
 
     private fun startRecording(): Int? {
