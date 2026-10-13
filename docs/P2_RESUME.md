@@ -3,6 +3,11 @@
 Atualizado em 13/10/2026. A pausa antiga por tokens foi retomada. P2 passou no run
 38337354805 (c0a6ecb): qualidade/build/JVM e 17 testes por variante Android.
 
+Entrega concluída: run 38344229618 inteiramente verde; PR #4 integrada em ec5eb5c;
+[v0.4.3 publicada](https://github.com/Marcelov07br/rise-edit/releases/tag/v0.4.3),
+descoberta por releases/latest. APK público baixado e conferido contra digest publicado,
+certificado original, versão/code e ABIs. Publicação: run 38344919107.
+
 ## Entrega 0.4.3
 
 - Produção: 09d8905, versão 0.4.3/code 8. Pinça sobre régua, clipes e faixas vazias;

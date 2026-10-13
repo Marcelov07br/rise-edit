@@ -2,6 +2,8 @@
 
 ## 0.4.3 — pinça e arestas na timeline
 
+Resultado final: run 38344229618/f2f75f6 inteiramente verde (build/qualidade/JVM e 18 testes em cada variante Android). PR #4 integrada por merge ec5eb5c, preservando os sete commits da timeline v1. Release pública v0.4.3 publicada pelo run 38344919107 e descoberta em `/releases/latest`. APK público baixado: 41.476.642 bytes; package br.com.riseedit/code 8/0.4.3; ARM64/ARMv7; certificado original conferido; SHA-256 `73d577af2f7090c1486811dcaddfe0e52fa3f630723177a7206462bfc1b33568`, igual ao arquivo `.sha256` publicado. O digest do APK local/Drive abaixo é distinto, pois são builds separados da mesma produção.
+
 - Código de produção: 09d8905. Calculadores puros de viewport/trim, controlador único de gestos, componentes separados e confirmação por ID/snapshot. JSON 3 e modelos existentes preservados.
 - 57 testes JVM aprovados localmente; assembleRelease/lintRelease aprovados. Detekt sem novas violações e ktlint dos arquivos novos/modificados aprovado. Build/qualidade/JVM também verdes na CI dos runs 38343090080 e 38344229618.
 - Android 15, run 38343832131: 18 testes Debug e 18 MinifiedTest aprovados, sem skips/falhas. Inclui pinça com dois contatos sobre clipe e faixa vazia, corte das duas arestas, recuperação da fonte, cancelamento, uma edição por gesto, undo/redo, reabertura, tempo de origem no preview e MP4 com duração/quadro válidos. O projeto de gesto contém dois clipes e verifica a preservação de ambos os arquivos originais por SHA-256.
