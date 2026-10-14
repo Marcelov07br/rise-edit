@@ -2,7 +2,11 @@ name: Android checks
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *' # nightly emulator run (03:00 BRT)
 permissions:
   contents: read
 jobs:
@@ -17,8 +21,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
       - name: Kotlin quality (existing debt baseline; fail new findings)
-        run: ./gradlew :detekt :ktlintCheck --no-daemon
-      - run: ./gradlew :core:test :app:assembleDebug :app:lintDebug --no-daemon
+        run: ./gradlew :detekt :ktlintCheck
+      - run: ./gradlew :core:test :app:assembleDebug :app:lintDebug
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -33,12 +37,14 @@ jobs:
           name: rise-edit-debug
           path: app/build/outputs/apk/debug/app-debug.apk
   android-runtime:
+    # Emulator tests are slow (7-10 min); run them manually, nightly and on release tags only.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        variant: [Debug, MinifiedTest]
+        variant: ${{ fromJSON(startsWith(github.ref, 'refs/tags/') && '["Debug","MinifiedTest"]' || '["Debug"]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -52,14 +58,35 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - run: chmod +x gradlew
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-35-google_apis-x86_64-pixel_7
+      - name: Create AVD snapshot
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "Generated AVD snapshot for caching."
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
           target: google_apis
           arch: x86_64
           profile: pixel_7
+          force-avd-creation: false
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash tools/android-runtime.sh ${{ matrix.variant }}
       - uses: actions/upload-artifact@v4
         if: always()
