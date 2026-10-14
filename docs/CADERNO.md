@@ -87,4 +87,4 @@ Fonte: avaliação externa (Claude, via leitura do repo) e respostas do Dev Comp
 
 ### Por último
 - [ ] Comparação de câmeras com sincronização pelo áudio; histograma, forma de onda e zebra.
-- [x] ~~README diz 0.3.0~~ → atualizar junto da próxima versão.
+- [ ] Atualizar o README (ainda diz 0.3.0) junto da próxima versão.
