@@ -38,8 +38,8 @@ fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = M
         if (analysis != null && clip != null && clip.stabilization.enabled && !state.comparing)
             MotionSmoother.corrections(analysis, clip.stabilization, clip.startMs, clip.endMs) else emptyList()
     }
-    val zoom = remember(corrections, analysis) { if (analysis == null || corrections.isEmpty()) 1f else
-        corrections.maxOf { MotionSmoother.requiredZoom(it.pose, analysis.width, analysis.height) }.toFloat() }
+    val zoom = corrections.takeIf { it.isNotEmpty() }
+        ?.let { MotionSmoother.zoomAt(it, vm.previewSourceMs).toFloat() } ?: 1f
     val pose = if (fast && corrections.isNotEmpty()) MotionSmoother.interpolate(corrections, vm.previewSourceMs) else Pose()
     val key = if (fast && clip != null) Timeline.keyframe(clip, vm.previewSourceMs) else TransformKeyframe(0)
     val density = LocalDensity.current.density

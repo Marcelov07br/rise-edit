@@ -53,7 +53,7 @@ O produto destaca **Estabilização Rise**, com presets Suave, Forte e Câmera f
 
 O motor próprio estima movimento global rígido, não reproduz a tecnologia proprietária Warp Stabilizer. Na v0.2, a análise passa de 320px/~12 Hz para até 640px/~24 Hz. Lucas–Kanade é verificado nos dois sentidos (erro de retorno <1,5px); RANSAC exige maioria de inliers e cobertura de pelo menos três quadrantes. Estimativas rejeitadas reiniciam um segmento, evitando suavizar através de falhas de rastreamento. A trajetória original fica separada dos parâmetros de correção.
 
-O limite de zoom reduz a amplitude da correção quando necessário. Não há malha óptica, deformação por regiões, homografia, correção de rolling shutter ou garantia de câmera fixa. O limite inicial é de dois minutos por fonte. O aumento de amostragem e as verificações melhoram a estimativa, mas a qualidade precisa ser medida em cenas reais com parallax, movimento de pessoas, pouca textura e zoom de câmera.
+O limite de zoom reduz a amplitude da correção quando necessário. Não há malha óptica, deformação por regiões, homografia, correção de rolling shutter ou garantia de câmera fixa. Desde a 0.4.4 a análise usa decodificação sequencial MediaCodec (fallback MediaMetadataRetriever), suavização O(n), zoom variável no tempo, ponte de perdas curtas de rastreamento e cache por fonte; limite de 20 minutos por fonte (2 no fallback). API independente de UI: `MotionAnalyzer.analysisFlow(clip)` emite `MotionAnalysisEvent.Progress`/`Finished`. O aumento de amostragem e as verificações melhoram a estimativa, mas a qualidade precisa ser medida em cenas reais com parallax, movimento de pessoas, pouca textura e zoom de câmera.
 
 ## Interação e recursos
 

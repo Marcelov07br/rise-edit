@@ -22,9 +22,6 @@ class StabilizationEffect(
         clip.startMs,
         clip.endMs
     )
-    private val zoom = corrections.maxOf {
-        MotionSmoother.requiredZoom(it.pose, analysis.width, analysis.height)
-    }.coerceIn(1.0, clip.stabilization.maxZoom)
     private val matrix = Matrix()
 
     override fun configure(inputWidth: Int, inputHeight: Int) = Size(inputWidth, inputHeight)
@@ -32,7 +29,9 @@ class StabilizationEffect(
     override fun getMatrix(presentationTimeUs: Long): Matrix {
         // Both CompositionPlayer and Transformer use the composition timescale.
         val sourceTime = clip.sourceAt(presentationTimeUs / 1000 - timelineStartMs)
-        val pose = MotionSmoother.interpolate(corrections, sourceTime)
+        val correction = MotionSmoother.at(corrections, sourceTime)
+        val pose = correction.pose
+        val zoom = correction.zoom
         val cosine = cos(pose.angle)
         val sine = sin(pose.angle)
         val aspect = analysis.width.toDouble() / analysis.height

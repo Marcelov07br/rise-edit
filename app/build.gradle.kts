@@ -18,8 +18,8 @@ android {
         applicationId = "br.com.riseedit"
         minSdk = 27
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.4.3"
+        versionCode = 9
+        versionName = "0.4.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
