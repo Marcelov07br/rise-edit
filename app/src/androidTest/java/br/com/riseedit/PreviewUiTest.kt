@@ -179,7 +179,7 @@ class PreviewUiTest {
 
     private fun find(node: AccessibilityNodeInfo?, text: String): AccessibilityNodeInfo? {
         if (node == null) return null
-        val actual = node.text?.toString()?.trim()?.removePrefix("• ")
+        val actual = (node.text ?: node.contentDescription)?.toString()?.trim()?.removePrefix("• ")
         if (node.isVisibleToUser && (actual == text || actual == "‹ $text" || actual?.lineSequence()?.any { it.trim() == text } == true)) return node
         for (index in 0 until node.childCount) find(node.getChild(index), text)?.let { return it }
         return null
