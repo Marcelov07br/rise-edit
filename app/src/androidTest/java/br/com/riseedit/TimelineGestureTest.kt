@@ -11,6 +11,7 @@ import br.com.riseedit.core.Project
 import java.io.File
 import java.io.FileInputStream
 import java.security.MessageDigest
+import kotlin.math.abs
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -114,16 +115,37 @@ class TimelineGestureTest {
         val left = bounds("Aresta inicial")
         val right = bounds("Aresta final")
         val before = right.centerX() - left.centerX()
-        val center = (left.centerX() + right.centerX()) / 2f
-        touch.pinch(center, left.centerY().toFloat(), before / 6f, 1.5f)
-        val enlarged = bounds("Aresta final").centerX() - bounds("Aresta inicial").centerX()
-        assertTrue("Pinch over the clip did not zoom", enlarged > before * 1.3)
+        val spread = before / 6f
+        // A short project opens fitted: zooming out further is clamped at "whole timeline".
+        touch.pinch(
+            (left.centerX() + right.centerX()) / 2f,
+            left.centerY().toFloat(),
+            spread,
+            1 / 1.5f
+        )
+        val clamped = bounds("Aresta final").centerX() - bounds("Aresta inicial").centerX()
+        assertTrue("Zoom out passed the fit limit", abs(clamped - before) < before * 0.05)
+        val focus = bounds("Aresta inicial").centerX() + spread + 12
+        touch.pinch(focus, left.centerY().toFloat(), spread, 1.6f)
+        assertTrue("Pinch over the clip did not zoom", !visible("Aresta final"))
         ui.screenshot("timeline-pinch-clip")
         val density = context.resources.displayMetrics.density
-        touch.pinch(center, left.bottom + 26 * density, before / 6f, 1 / 1.5f)
+        touch.pinch(focus, left.bottom + 26 * density, spread, 1 / 2f)
         val reduced = bounds("Aresta final").centerX() - bounds("Aresta inicial").centerX()
-        assertTrue("Pinch over an empty track did not zoom", reduced < enlarged * 0.8)
+        assertTrue(
+            "Pinch over an empty track did not zoom back to fit",
+            abs(reduced - before) < before * 0.05
+        )
         assertFalse("Zoom must not create an edit", ui.onMain { vm.state.value.canUndo })
+    }
+
+    private fun visible(label: String): Boolean {
+        fun search(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+            if (node == null) return false
+            if (node.contentDescription?.toString() == label) return true
+            return (0 until node.childCount).any { search(node.getChild(it)) }
+        }
+        return search(instrumentation.uiAutomation.rootInActiveWindow)
     }
 
     private fun verifyEdges(vm: EditorViewModel, original: Clip) {
