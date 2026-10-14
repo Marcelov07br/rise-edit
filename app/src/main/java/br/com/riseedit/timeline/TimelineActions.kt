@@ -6,10 +6,12 @@ import kotlin.math.roundToLong
 
 internal class TimelineActions(
     private val vm: EditorViewModel,
-    private val state: () -> EditorState
+    private val state: () -> EditorState,
+    private val onSelect: () -> Unit = {}
 ) {
     fun select(entry: TimelineEntry) {
         entry.mainIndex?.let { vm.select(it) } ?: vm.selectLayer(entry.id)
+        onSelect()
     }
     fun beginScrub() {
         vm.pausePreview()

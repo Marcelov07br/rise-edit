@@ -62,7 +62,7 @@ class HomeFlowTest {
         }
         fun click(text: String,scroll: Boolean=false) {var node: AccessibilityNodeInfo?=waitFor(text,scroll);while(node!=null && !node.isClickable) node=node.parent;assertNotNull(node);assertTrue(node!!.performAction(AccessibilityNodeInfo.ACTION_CLICK))}
         waitFor("RISE EDIT");screenshot("home-test.png");click("Novo Projeto");click("Criar e importar");waitFor("Importar vídeos");waitFor("Projetos")
-        screenshot("editor-empty-test.png");click("Projetos");click("Projeto de teste",scroll=true);waitFor("Estabilização Rise")
+        screenshot("editor-empty-test.png");click("Projetos");click("Projeto de teste",scroll=true);waitFor("Estabilizar")
         Thread.sleep(2000);screenshot("editor-timeline-test.png");click("Projetos")
     }
 }

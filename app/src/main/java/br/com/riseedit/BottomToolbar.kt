@@ -1,82 +1,112 @@
 package br.com.riseedit
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import br.com.riseedit.tools.EditorTool
+import androidx.compose.ui.unit.sp
 
-/** Large touch targets that scroll horizontally. Direct actions work immediately; the others open a [ToolSheet]. */
+/** One toolbar entry: icon over a short label. */
+internal data class ToolbarItem(
+    val label: String,
+    val icon: ImageVector,
+    val enabled: Boolean = true,
+    val active: Boolean = false,
+    val onClick: () -> Unit
+)
+
+/**
+ * CapCut-style horizontally scrolling toolbar. [leading] stays pinned (e.g. the back arrow of a
+ * contextual toolbar) while the remaining items scroll.
+ */
 @Composable
-fun BottomToolbar(
-    enabled: Boolean,
-    layerSelected: Boolean,
-    onImport: () -> Unit,
-    onTool: (EditorTool) -> Unit,
-    onSplit: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
+internal fun BottomToolbar(
+    items: List<ToolbarItem>,
+    modifier: Modifier = Modifier,
+    leading: ToolbarItem? = null
 ) {
-    Surface(modifier.fillMaxWidth(), color = RiseSurface) {
+    Row(
+        modifier.fillMaxWidth().background(RiseBlack).padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (leading != null) {
+            ToolButton(leading, Modifier.padding(start = 6.dp))
+            Box(Modifier.width(1.dp).height(36.dp).background(RiseOutline))
+        }
         Row(
-            Modifier.fillMaxWidth().horizontalScroll(
-                rememberScrollState()
-            ).padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ToolButton("✦", "Estabilização Rise", enabled, accent = true) {
-                onTool(EditorTool.Stabilize)
-            }
-            ToolButton("+", "Vídeo", enabled, onClick = onImport)
-            ToolButton("⫽", "Dividir", enabled && !layerSelected, onClick = onSplit)
-            EditorTool.panels.forEach { tool ->
-                ToolButton(tool.glyph, tool.label, enabled) { onTool(tool) }
-            }
-            ToolButton("✕", "Excluir", enabled, onClick = onDelete)
+            items.forEach { ToolButton(it) }
+            Spacer(Modifier.width(8.dp))
         }
     }
 }
 
 @Composable
-private fun ToolButton(
-    glyph: String,
-    label: String,
-    enabled: Boolean,
-    accent: Boolean = false,
-    onClick: () -> Unit
-) {
-    val tint = if (accent) RiseGreen else MaterialTheme.colorScheme.onSurface
+private fun ToolButton(item: ToolbarItem, modifier: Modifier = Modifier) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, riseSpring(), label = "press")
+    val tint = if (item.active) RiseBlack else RiseWhite
     Column(
-        Modifier
-            .defaultMinSize(minWidth = 64.dp)
-            .heightIn(min = 56.dp)
-            .alpha(if (enabled) 1f else 0.4f)
-            .clip(RoundedCornerShape(12.dp))
-            .then(if (accent) Modifier.background(RiseGreen.copy(alpha = 0.14f)) else Modifier)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+        modifier
+            .widthIn(min = 62.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .alpha(if (item.enabled) 1f else 0.35f)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(interaction, null, enabled = item.enabled, onClick = item.onClick)
+            .padding(horizontal = 6.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(glyph, color = tint, style = MaterialTheme.typography.titleMedium)
-        Text(label, color = tint, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        Box(
+            Modifier.size(36.dp).clip(RoundedCornerShape(12.dp))
+                .background(if (item.active) RiseWhite else RiseSurfaceHigh),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(item.icon, null, Modifier.size(20.dp), tint = tint)
+        }
+        Text(
+            item.label,
+            color = if (item.enabled) RiseWhite else RiseMuted,
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.labelSmall
+        )
     }
 }

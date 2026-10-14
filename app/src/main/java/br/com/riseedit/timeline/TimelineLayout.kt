@@ -2,13 +2,30 @@ package br.com.riseedit.timeline
 
 import androidx.compose.ui.graphics.Color
 import br.com.riseedit.EditorState
-import br.com.riseedit.RiseGreen
+import br.com.riseedit.LaneAudio
+import br.com.riseedit.LaneOverlay
+import br.com.riseedit.LaneText
+import br.com.riseedit.LaneVideo
 import br.com.riseedit.core.AudioClip
 import br.com.riseedit.core.Clip
 import br.com.riseedit.core.editing.TrimEdge
 
 internal val trackNames =
     listOf("Vídeo", "Overlay 1", "Overlay 2", "Texto", "Áudio 1", "Áudio 2", "Áudio 3")
+
+/** Video, one overlay and one audio lane are always present; others appear on demand. */
+internal val BASE_LANES = listOf(0, 1, 4)
+internal const val LANE_DP = 44
+internal const val RULER_DP = 28
+
+internal fun visibleLanes(entries: List<TimelineEntry>, extra: Set<Int>): List<Int> = (
+    BASE_LANES + entries.map {
+        it.row
+    } + extra
+    ).distinct().filter { it in trackNames.indices }.sorted()
+
+/** Next hidden lane of a kind: overlay (1-2), text (3) or audio (4-6). */
+internal fun nextLane(kind: IntRange, shown: List<Int>): Int? = kind.firstOrNull { it !in shown }
 
 internal data class TimelineEntry(
     val id: String,
@@ -37,7 +54,7 @@ internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<Time
                     it.offsetMs * 1000.0,
                     it.clip.durationMs * 1000,
                     state.selection == it.id,
-                    Color(0xFFB7ABFF),
+                    LaneOverlay,
                     it.clip
                 )
             )
@@ -51,7 +68,7 @@ internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<Time
                     it.startMs * 1000.0,
                     (it.endMs - it.startMs) * 1000,
                     state.selection == it.id,
-                    Color(0xFFFFC66D)
+                    LaneText
                 )
             )
         }
@@ -64,7 +81,7 @@ internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<Time
                     it.offsetMs * 1000.0,
                     it.durationMs * 1000,
                     state.selection == it.id,
-                    Color(0xFF70CFFF),
+                    LaneAudio,
                     audio = it
                 )
             )
@@ -93,7 +110,7 @@ private fun mainEntries(state: EditorState, ui: TimelineUiState): List<TimelineE
             TimelineEntry(
                 original.id, original.name, 0, offset * 1000.0 + leftDelta,
                 clip.durationMs * 1000, state.selection == null && index == state.selected,
-                RiseGreen, original, mainIndex = index
+                LaneVideo, original, mainIndex = index
             )
         )
         offset +=

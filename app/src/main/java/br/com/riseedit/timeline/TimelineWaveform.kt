@@ -42,7 +42,7 @@ internal fun TimelineWaveform(audio: AudioClip) {
                 val x = (source - audio.startMs) / audio.durationMs * size.width
                 val height = max(1f, value * size.height * 0.45f)
                 drawLine(
-                    Color(0xFF70CFFF),
+                    Color(0xFFBDBDBD),
                     Offset(x, size.height / 2 - height),
                     Offset(x, size.height / 2 + height),
                     2f

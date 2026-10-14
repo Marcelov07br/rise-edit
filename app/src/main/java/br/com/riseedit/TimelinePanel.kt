@@ -3,6 +3,7 @@ package br.com.riseedit
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,17 +21,28 @@ import br.com.riseedit.timeline.TimelineStage
 import br.com.riseedit.timeline.TimelineUiState
 
 @Composable
-fun TimelinePanel(vm: EditorViewModel, state: EditorState, trackAreaHeight: Dp = 270.dp) {
+fun TimelinePanel(
+    vm: EditorViewModel,
+    state: EditorState,
+    trackAreaHeight: Dp = 270.dp,
+    onSelect: () -> Unit = {},
+    onAddToLane: (Int) -> Unit = {}
+) {
     val density = LocalDensity.current.density
     val ui = remember(state.project.id, density) { TimelineUiState(density) }
     val latest = rememberUpdatedState(state)
-    val actions = remember(vm, state.project.id) { TimelineActions(vm) { latest.value } }
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    val select = rememberUpdatedState(onSelect)
+    val actions = remember(vm, state.project.id) {
+        TimelineActions(vm, { latest.value }) { select.value() }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "TIMELINE",
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.weight(1f)
+                hint(ui),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                modifier = Modifier.weight(1f).padding(start = 4.dp)
             )
             FilterChip(ui.snapping, { ui.snapping = !ui.snapping }, label = { Text("Ímã") })
             TextButton(onClick = {
@@ -38,19 +50,13 @@ fun TimelinePanel(vm: EditorViewModel, state: EditorState, trackAreaHeight: Dp =
             }) { Text("−") }
             TextButton(onClick = { zoomTimeline(ui, 1.4, state.project.durationMs) }) { Text("+") }
         }
-        TimelineStage(ui, latest, actions, trackAreaHeight)
-        val draft = ui.draft
-        val hint = if (draft == null) {
-            "Pinça para zoom · arraste as arestas · segure para mover"
-        } else {
-            "Corte: ${draft.startMs}–${draft.endMs} ms · solte para salvar"
-        }
-        Text(
-            hint,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        TimelineStage(ui, latest, actions, trackAreaHeight, onAddToLane)
     }
+}
+
+private fun hint(ui: TimelineUiState): String {
+    val draft = ui.draft ?: return "Pinça para zoom · segure para mover"
+    return "Corte: ${draft.startMs}–${draft.endMs} ms · solte para salvar"
 }
 
 private fun zoomTimeline(ui: TimelineUiState, factor: Double, durationMs: Long) {

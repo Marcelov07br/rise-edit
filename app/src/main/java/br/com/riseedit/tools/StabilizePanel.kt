@@ -18,7 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import br.com.riseedit.EditorState
 import br.com.riseedit.EditorViewModel
-import br.com.riseedit.RiseGreen
+import br.com.riseedit.RiseWhite
 import br.com.riseedit.core.MotionGoal
 import br.com.riseedit.core.Stabilization
 
@@ -27,7 +27,7 @@ internal fun StabilizePanel(vm: EditorViewModel, state: EditorState) {
     val p = state.project
     val clip = p.clips.getOrNull(state.selected) ?: return
     val enabled = state.busy == null
-    Text("✦ De tremido a suave", color = RiseGreen, fontWeight = FontWeight.Bold)
+    Text("✦ De tremido a suave", color = RiseWhite, fontWeight = FontWeight.Bold)
     Text(
         "1. Escolha um modo  2. Analise  3. Compare e ajuste",
         style = MaterialTheme.typography.bodySmall

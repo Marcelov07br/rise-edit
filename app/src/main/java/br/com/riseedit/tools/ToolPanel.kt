@@ -23,5 +23,7 @@ fun ToolPanel(
         EditorTool.Color -> ColorPanel(vm, state)
         EditorTool.Movement -> MovementPanel(vm, state)
         EditorTool.Format -> FormatPanel(vm, state)
+        EditorTool.Speed -> SpeedPanel(vm, state)
+        EditorTool.Volume -> VolumePanel(vm, state)
     }
 }

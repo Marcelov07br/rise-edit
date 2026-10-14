@@ -24,6 +24,12 @@ internal class TimelineUiState(density: Float) {
     var movingUs by mutableStateOf(0.0)
     var snapping by mutableStateOf(true)
 
+    /** Logical rows currently shown, top to bottom (see [trackNames]). */
+    var lanes by mutableStateOf(BASE_LANES)
+
+    /** Extra lanes the user opened with "+ Faixa" before putting anything on them. */
+    var extraLanes by mutableStateOf(emptySet<Int>())
+
     fun clearGesture() {
         trim = null
         draft = null

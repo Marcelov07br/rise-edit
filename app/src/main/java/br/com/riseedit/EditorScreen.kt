@@ -1,5 +1,6 @@
 package br.com.riseedit
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,15 +21,19 @@ fun EditorScreen(
     val enabled = state.busy == null
     val hasClips = state.project.clips.isNotEmpty()
     EditorScreenEffects(vm, state, ui)
-    BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
-        val sheetMax = maxHeight * 0.42f
+    BoxWithConstraints(Modifier.fillMaxSize().background(RiseBlack).safeDrawingPadding()) {
+        val sheetMax = maxHeight * 0.28f
         Column(Modifier.fillMaxSize()) {
             EditorTopBar(
                 state.project.name,
                 enabled,
                 enabled && hasClips,
+                state.canUndo,
+                state.canRedo,
                 onBack,
-                onSettings,
+                onUndo = vm::undo,
+                onRedo = vm::redo,
+                onSettings = onSettings,
                 onExport = { ui.exportDialog = true }
             )
             if (hasClips) {

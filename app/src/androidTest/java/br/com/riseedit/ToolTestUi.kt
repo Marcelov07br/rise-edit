@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicReference
 internal class ToolTestUi(private val instrumentation: Instrumentation) {
     private var toolbar: Rect? = null
     private val toolLabels = listOf(
-        "Estabilização Rise",
+        "Estabilizar",
         "Cortar",
         "Texto",
         "Áudio",
@@ -88,9 +88,9 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         }
 
     private fun toolbarBounds(root: AccessibilityNodeInfo?): Rect? {
-        val anchor = find(root) { matchesLabel(it, "Estabilização Rise") && it.isVisibleToUser }
+        val anchor = find(root) { matchesLabel(it, "Estabilizar") && it.isVisibleToUser }
             ?: return null
-        // The stabilizer panel title has the same label but is not a toolbar button.
+        // Only the toolbar button (clickable) counts as the anchor.
         if (clickableParent(anchor) == null) return null
         val bounds = Rect()
         anchor.getBoundsInScreen(bounds)

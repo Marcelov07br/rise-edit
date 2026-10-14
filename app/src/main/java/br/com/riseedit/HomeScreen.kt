@@ -31,15 +31,15 @@ fun HomeScreen(projects: List<Project>, error: String?, library: ProjectLibrary,
         item(key="home-header",span={GridItemSpan(maxLineSpan)}) {
         Column(verticalArrangement=Arrangement.spacedBy(14.dp)) {
         Row(Modifier.fillMaxWidth().padding(top=16.dp),verticalAlignment=Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) { Text("RISE EDIT",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Black,color=RiseGreen); Text("Dê forma ao seu movimento",style=MaterialTheme.typography.bodyMedium) }
+            Column(Modifier.weight(1f)) { Text("RISE EDIT",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Black,color=RiseWhite); Text("Dê forma ao seu movimento",style=MaterialTheme.typography.bodyMedium) }
             TextButton(onClick=onSettings) { Text(if(hasUpdate) "Config. • nova" else "Configurações") }
         }
-        Card(colors=CardDefaults.cardColors(containerColor=RiseGreen.copy(alpha=0.1f)),shape=RoundedCornerShape(24.dp)) {
+        Card(colors=CardDefaults.cardColors(containerColor=RiseWhite.copy(alpha=0.1f)),shape=RoundedCornerShape(24.dp)) {
             Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                 Text("Seu próximo vídeo começa aqui",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
                 Text("Importe, monte sua história e transforme cenas tremidas em movimentos suaves.")
                 Button(onClick={ name="Projeto ${projects.size+1}"; create=true },modifier=Modifier.fillMaxWidth().height(60.dp),shape=RoundedCornerShape(16.dp)) { Text("+  Novo Projeto",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold) }
-                Text("✦  Estabilização Rise · seu superpoder",color=RiseGreen,style=MaterialTheme.typography.labelLarge)
+                Text("✦  Estabilização Rise · seu superpoder",color=RiseWhite,style=MaterialTheme.typography.labelLarge)
             }
         }
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
@@ -58,7 +58,7 @@ fun HomeScreen(projects: List<Project>, error: String?, library: ProjectLibrary,
             item(key="empty",span={GridItemSpan(maxLineSpan)}) {
             Box(Modifier.fillMaxWidth().heightIn(min=240.dp),contentAlignment=Alignment.Center) {
                 Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                    Text("▷",style=MaterialTheme.typography.displayLarge,color=RiseGreen)
+                    Text("▷",style=MaterialTheme.typography.displayLarge,color=RiseWhite)
                     Text(if(projects.isEmpty()) "Uma tela em branco. Muitas histórias." else "Nenhum projeto encontrado",style=MaterialTheme.typography.titleMedium)
                     Text(if(projects.isEmpty()) "Crie um projeto e escolha seus vídeos." else "Ajuste a busca ou o filtro.",style=MaterialTheme.typography.bodyMedium)
                     if(projects.isEmpty()) OutlinedButton(onClick={ name="Meu primeiro vídeo"; create=true },modifier=Modifier.heightIn(min=48.dp)) { Text("Importar mídia em novo projeto") }
@@ -77,7 +77,7 @@ fun HomeScreen(projects: List<Project>, error: String?, library: ProjectLibrary,
                             Text(p.name,maxLines=1,overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium,modifier=Modifier.clickable { onOpen(p) })
                             Text(SimpleDateFormat("dd MMM · HH:mm",Locale("pt","BR")).format(Date(p.modifiedAt)),style=MaterialTheme.typography.labelMedium)
                             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-                                TextButton(onClick={ library.favorite(p) }) { Text(if(p.favorite) "★" else "☆",color=RiseGreen) }
+                                TextButton(onClick={ library.favorite(p) }) { Text(if(p.favorite) "★" else "☆",color=RiseWhite) }
                                 var menu by remember { mutableStateOf(false) }
                                 Box { TextButton(onClick={ menu=true }) { Text("•••") }; DropdownMenu(menu,{menu=false}) {
                                     DropdownMenuItem(text={Text("Abrir projeto")},onClick={menu=false;onOpen(p)})

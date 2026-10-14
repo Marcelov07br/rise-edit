@@ -59,7 +59,7 @@ class ToolPanelFlowTest {
 
     private fun checkPanels(ui: ToolTestUi) {
         val panels = listOf(
-            "Estabilização Rise" to "Analisar e estabilizar",
+            "Estabilizar" to "Analisar e estabilizar",
             "Cortar" to "Aplicar trim",
             "Áudio" to "Importar música / voz",
             "Overlay" to "Importar vídeo sobreposto",

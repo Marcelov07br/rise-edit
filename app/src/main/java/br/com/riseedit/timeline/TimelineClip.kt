@@ -26,7 +26,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import br.com.riseedit.MediaThumbnail
-import br.com.riseedit.RiseGreen
+import br.com.riseedit.RiseWhite
 
 @Composable
 internal fun BoxScope.TimelineClip(
@@ -99,7 +99,7 @@ private fun BoxScope.TrimHandle(x: Float, label: String) {
     val density = LocalDensity.current.density
     Box(
         Modifier.offset(x = (x / density - 7).dp).width(14.dp).fillMaxHeight()
-            .background(RiseGreen, RoundedCornerShape(4.dp)).semantics {
+            .background(RiseWhite, RoundedCornerShape(4.dp)).semantics {
                 contentDescription = label
             },
         contentAlignment = Alignment.Center

@@ -66,7 +66,8 @@ private fun beginGesture(
     density: Float,
     scrollY: Int
 ): GestureDraft {
-    val row = floor((down.position.y - 28 * density + scrollY) / (52 * density)).toInt()
+    val lane = floor((down.position.y - RULER_DP * density + scrollY) / (LANE_DP * density)).toInt()
+    val row = ui.lanes.getOrElse(lane) { -1 }
     val selected = entries.firstOrNull { it.row == row && it.selected && it.mainIndex != null }
     val edge = selected?.let { trimEdge(it, ui, down.position.x, 22 * density) }
     val time = ui.viewport.timeAtPx(down.position.x.toDouble())
@@ -79,7 +80,7 @@ private fun beginGesture(
             down.consume()
             GestureMode.TRIM
         }
-        down.position.y < 28 * density -> {
+        down.position.y < RULER_DP * density -> {
             actions.beginScrub()
             actions.seek(time)
             down.consume()
