@@ -43,3 +43,10 @@ Ordem sugerida: 1 + pedidos do Marce → 2 → 3; 4 em paralelo.
 - [ ] Exportar 9:16 e 16:9 do mesmo projeto.
 - [ ] Proxy automático pra 4K.
 - [ ] Abrir o projeto no PC (futuro).
+
+### 5. Por último (prioridade mais baixa)
+- [ ] Comparação de câmeras com sincronização automática pelo áudio (tela dividida / cortina deslizante).
+- [ ] Medidores: histograma, forma de onda e zebra de exposição no preview.
+
+---
+**Caderno fechado em 14/10/2026** para avaliação. Ordem de execução: pedidos do Marce + frente 1 → 2 → 3 → 4 (em paralelo quando couber) → 5.
