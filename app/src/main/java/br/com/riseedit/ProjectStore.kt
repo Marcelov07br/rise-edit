@@ -136,6 +136,16 @@ class ProjectStore(private val context: Context) {
             .put("keys", keys(c.keyframes))
             .put("sourceInfo", c.sourceInfo?.let(SourceMetadataJson::encode) ?: JSONObject.NULL)
             .put("proxyUri", c.proxyUri ?: JSONObject.NULL).put("proxyRequired", c.proxyRequired)
+            .put("muted", c.muted)
+            .put(
+                "orientation",
+                JSONObject()
+                    .put("turns", c.orientation.turns)
+                    .put("flipH", c.orientation.flipHorizontal)
+                    .put("flipV", c.orientation.flipVertical)
+                    .put("scale", c.orientation.scaleMode.name)
+            )
+            .put("tracks", TracksJson.encode(c.tracks))
             .put(
                 "stabilization",
                 JSONObject().put(
@@ -193,12 +203,28 @@ class ProjectStore(private val context: Context) {
             keyframes = readKeys(c.optJSONArray("keys")),
             sourceInfo = c.optJSONObject("sourceInfo")?.let(SourceMetadataJson::decode),
             proxyUri = if (c.isNull("proxyUri")) null else c.optString("proxyUri").ifBlank { null },
-            proxyRequired = c.optBoolean("proxyRequired")
+            proxyRequired = c.optBoolean("proxyRequired"),
+            muted = c.optBoolean("muted", false),
+            orientation = readOrientation(c.optJSONObject("orientation")),
+            tracks = TracksJson.decode(c.optJSONObject("tracks"))
+        )
+    }
+
+    private fun readOrientation(o: JSONObject?): br.com.riseedit.core.Orientation {
+        if (o == null) return br.com.riseedit.core.Orientation()
+        val mode = runCatching {
+            br.com.riseedit.core.ScaleMode.valueOf(o.optString("scale", "FILL"))
+        }.getOrDefault(br.com.riseedit.core.ScaleMode.FILL)
+        return br.com.riseedit.core.Orientation(
+            turns = o.optInt("turns", 0).coerceIn(0, 3),
+            flipHorizontal = o.optBoolean("flipH"),
+            flipVertical = o.optBoolean("flipV"),
+            scaleMode = mode
         )
     }
     private fun encode(p: Project) = JSONObject().put(
         "schema",
-        6
+        7
     ).put(
         "id",
         p.id
@@ -231,6 +257,7 @@ class ProjectStore(private val context: Context) {
                             "track",
                             a.track
                         ).put("volume", a.volume).put("fade", a.fadeMs).put("muted", a.muted)
+                        .put("linkedClipId", a.linkedClipId ?: JSONObject.NULL)
                 }
             )
         )
@@ -261,6 +288,7 @@ class ProjectStore(private val context: Context) {
                             "rotation",
                             t.rotation
                         ).put("keys", keys(t.keyframes)).put("style", StyleJson.text(t.style))
+                        .put("tracks", TracksJson.encode(t.tracks))
                 }
             )
         )
@@ -291,11 +319,12 @@ class ProjectStore(private val context: Context) {
                             "rotation",
                             o.rotation
                         ).put("keys", keys(o.keyframes)).put("look", StyleJson.look(o))
+                        .put("tracks", TracksJson.encode(o.tracks))
                 }
             )
         )
     private fun decode(j: JSONObject): Project {
-        require(j.getInt("schema") in 1..6) { "Formato de projeto não reconhecido" }
+        require(j.getInt("schema") in 1..7) { "Formato de projeto não reconhecido" }
         val e = j.optJSONArray("export")
         return Project(
             clips = objects(
@@ -345,7 +374,20 @@ class ProjectStore(private val context: Context) {
                     a.getInt(
                         "track"
                     ),
-                    a.getDouble("volume").toFloat(), a.getLong("fade"), a.optBoolean("muted", false)
+                    a.getDouble(
+                        "volume"
+                    ).toFloat(),
+                    a.getLong("fade"), a.optBoolean("muted", false),
+                    linkedClipId = if (a.isNull(
+                            "linkedClipId"
+                        )
+                    ) {
+                        null
+                    } else {
+                        a.optString("linkedClipId").ifBlank {
+                            null
+                        }
+                    }
                 )
             },
             texts = objects(j.optJSONArray("texts")).map { t ->
@@ -385,7 +427,7 @@ class ProjectStore(private val context: Context) {
                         t.optJSONArray("keys")
                     ),
                     StyleJson.readText(t.optJSONObject("style"), t.getBoolean("animated"))
-                )
+                ).copy(tracks = TracksJson.decode(t.optJSONObject("tracks")))
             },
             overlays = objects(j.optJSONArray("overlays")).map { o ->
                 VideoOverlay(
@@ -420,6 +462,7 @@ class ProjectStore(private val context: Context) {
                     readKeys(o.optJSONArray("keys"))
                 ).let {
                     StyleJson.withLook(it, o.optJSONObject("look"))
+                        .copy(tracks = TracksJson.decode(o.optJSONObject("tracks")))
                 }
             }
         )

@@ -3,6 +3,7 @@ package br.com.riseedit.editor
 import br.com.riseedit.core.Clip
 import br.com.riseedit.core.ExportSettings
 import br.com.riseedit.core.Stabilization
+import br.com.riseedit.core.editing.SeparateAudio
 
 internal class ProjectCommands(private val document: EditorDocument) {
     fun trimClip(original: Clip, trimmed: Clip): Boolean {
@@ -10,7 +11,19 @@ internal class ProjectCommands(private val document: EditorDocument) {
         val index = state.project.clips.indexOfFirst { it.id == original.id }
         if (index < 0 || state.project.clips[index] != original) return false
         if (trimmed != original.trim(trimmed.startMs, trimmed.endMs)) return false
-        return document.edit(state.project.replace(index, trimmed))
+        val project = SeparateAudio.sync(state.project.replace(index, trimmed), trimmed.id)
+        return document.edit(project)
+    }
+
+    fun separateAudio(track: Int = 0): Boolean {
+        val state = document.current
+        val index = state.selected
+        if (state.project.clips.getOrNull(index) == null) return false
+        if (SeparateAudio.alreadySeparated(state.project, state.project.clips[index].id)) {
+            document.message("Áudio já separado deste clipe.")
+            return false
+        }
+        return document.edit(SeparateAudio.apply(state.project, index, track))
     }
 
     fun moveClip(id: String, target: Int) {
@@ -18,7 +31,8 @@ internal class ProjectCommands(private val document: EditorDocument) {
         val index = state.project.clips.indexOfFirst { it.id == id }
         if (index < 0) return
         val destination = target.coerceIn(0, state.project.clips.lastIndex)
-        if (document.edit(state.project.move(index, destination - index))) {
+        val moved = state.project.move(index, destination - index)
+        if (document.edit(SeparateAudio.sync(moved, id))) {
             document.update { it.copy(selected = destination, selectionId = id) }
         }
     }

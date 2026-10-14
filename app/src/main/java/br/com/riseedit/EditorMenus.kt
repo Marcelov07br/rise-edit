@@ -2,6 +2,7 @@ package br.com.riseedit
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.CallSplit
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AddBox
 import androidx.compose.material.icons.outlined.Animation
@@ -118,6 +119,12 @@ private fun baseItems(
             ui.toolItem(EditorTool.Trim, enabled),
             ToolbarItem("Cor", Icons.Outlined.Palette, enabled) { ui.push(ToolMenu.COLOR) },
             ui.toolItem(EditorTool.ClipAnimation, enabled),
+            ui.toolItem(EditorTool.Orientation, enabled),
+            ToolbarItem(
+                "Separar áudio",
+                Icons.AutoMirrored.Outlined.CallSplit,
+                enabled && !separated(state)
+            ) { vm.separateAudio(ui.audioTrack) },
             delete
         )
         Base.TEXT -> {
@@ -198,4 +205,9 @@ private fun newText(state: EditorState): TextLayer {
     val start = state.positionMs.coerceIn(0, maxOf(0, project.durationMs - 1))
     val end = min(project.durationMs, start + 3000).coerceAtLeast(start + 1)
     return TextLayer(text = "", startMs = start, endMs = end, y = 0f)
+}
+
+private fun separated(state: EditorState): Boolean {
+    val clip = state.project.clips.getOrNull(state.selected) ?: return true
+    return br.com.riseedit.core.editing.SeparateAudio.alreadySeparated(state.project, clip.id)
 }

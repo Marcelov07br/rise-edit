@@ -12,6 +12,7 @@ import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Opacity
 import androidx.compose.material.icons.outlined.PhotoFilter
+import androidx.compose.material.icons.outlined.ScreenRotation
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Tune
@@ -45,13 +46,18 @@ sealed class EditorTool(
     data object OverlayTrim :
         EditorTool("CorteOverlay", "Cortar", Icons.Outlined.ContentCut, "Cortar overlay")
     data object TextTiming : EditorTool("Duração", "Duração", Icons.Outlined.Timer)
+    data object Orientation :
+        EditorTool("Orientação", "Orientação", Icons.Outlined.ScreenRotation)
+    data object Keyframe :
+        EditorTool("QuadroChave", "Quadro-chave", Icons.Outlined.Animation, "Quadro-chave")
 
     val title: String get() = panelTitle
 
     companion object {
         private val all = listOf(
             Trim, Stabilize, Format, Speed, Volume, Adjust, Filters, ClipAnimation, AudioLayer,
-            Record, OverlayOpacity, OverlayBlend, OverlayMask, OverlayTrim, TextTiming
+            Record, OverlayOpacity, OverlayBlend, OverlayMask, OverlayTrim, TextTiming,
+            Orientation, Keyframe
         )
         val saver =
             Saver<EditorTool?, String>(

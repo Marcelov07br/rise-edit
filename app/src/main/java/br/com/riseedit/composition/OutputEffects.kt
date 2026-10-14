@@ -11,10 +11,16 @@ import br.com.riseedit.text.StyledTextOverlay
 
 internal fun buildOutputEffects(project: Project, preview: Boolean): List<Effect> = buildList {
     if (project.aspectRatio > 0) {
+        val fill = project.clips.firstOrNull()?.orientation?.scaleMode !=
+            br.com.riseedit.core.ScaleMode.FIT
         add(
             Presentation.createForAspectRatio(
                 project.aspectRatio,
-                Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP
+                if (fill) {
+                    Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP
+                } else {
+                    Presentation.LAYOUT_SCALE_TO_FIT
+                }
             )
         )
     }

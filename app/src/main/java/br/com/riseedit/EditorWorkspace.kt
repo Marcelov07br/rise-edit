@@ -59,7 +59,12 @@ internal fun ColumnScope.EditorWorkspace(
             state,
             trackAreaHeight = if (ui.tool == null) 168.dp else 112.dp,
             onSelect = { ui.contextual = true },
-            onAddToLane = { lane -> addToLane(lane, ui, media) }
+            onAddToLane = { lane -> addToLane(lane, ui, media) },
+            onKeyframe = {
+                ui.contextual = true
+                ui.lastTool = br.com.riseedit.tools.EditorTool.Keyframe
+                ui.tool = br.com.riseedit.tools.EditorTool.Keyframe
+            }
         )
     }
     DockedToolPanel(vm, state, ui, media, sheetMax)

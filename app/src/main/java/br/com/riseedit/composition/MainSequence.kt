@@ -47,7 +47,9 @@ internal fun buildMainSequence(
         if (clip.speedPoints.isNotEmpty()) builder.setSpeed(ClipSpeed(clip))
         builder.setEffects(
             Effects(
-                listOf(AudioEnvelope(clip.volume, clip.durationMs, clip.fadeMs)),
+                listOf(
+                    AudioEnvelope(if (clip.muted) 0f else clip.volume, clip.durationMs, clip.fadeMs)
+                ),
                 effects
             )
         ).build()

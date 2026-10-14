@@ -65,6 +65,42 @@ internal class LayerCommands(private val document: EditorDocument) {
         if (document.edit(edited)) select(null)
     }
 
+    fun trimOverlay(
+        original: br.com.riseedit.core.VideoOverlay,
+        trimmed: br.com.riseedit.core.VideoOverlay
+    ): Boolean {
+        val project = document.current.project
+        if (project.overlays.none { it.id == original.id && it == original }) return false
+        return document.edit(
+            project.copy(
+                overlays = project.overlays.map {
+                    if (it.id ==
+                        original.id
+                    ) {
+                        trimmed
+                    } else {
+                        it
+                    }
+                }
+            )
+        )
+    }
+
+    fun trimAudio(
+        original: br.com.riseedit.core.AudioClip,
+        trimmed: br.com.riseedit.core.AudioClip
+    ): Boolean {
+        val project = document.current.project
+        if (project.audio.none { it.id == original.id && it == original }) return false
+        return document.edit(
+            project.copy(
+                audio = project.audio.map {
+                    if (it.id == original.id) trimmed.copy(linkedClipId = null) else it
+                }
+            )
+        )
+    }
+
     fun move(id: String, offset: Long, snapping: Boolean) {
         val project = document.current.project
         val boundaries =
@@ -74,7 +110,9 @@ internal class LayerCommands(private val document: EditorDocument) {
             .coerceIn(0, maxOf(0, project.durationMs - 1))
         document.edit(
             project.copy(
-                audio = project.audio.map { if (it.id == id) it.copy(offsetMs = time) else it },
+                audio = project.audio.map {
+                    if (it.id == id) it.copy(offsetMs = time, linkedClipId = null) else it
+                },
                 overlays = project.overlays.map {
                     if (it.id ==
                         id

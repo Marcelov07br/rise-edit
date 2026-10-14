@@ -75,7 +75,9 @@ internal fun BoxScope.TimelineClip(
             )
         )
     }
-    if (entry.selected && entry.mainIndex != null) {
+    if (entry.selected &&
+        (entry.mainIndex != null || entry.overlay != null || entry.audio != null)
+    ) {
         if (left in 0.0..ui.viewport.widthPx) TrimHandle(left.toFloat(), "Aresta inicial")
         if (right in 0.0..ui.viewport.widthPx) TrimHandle(right.toFloat(), "Aresta final")
     }

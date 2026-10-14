@@ -10,6 +10,7 @@ object Timeline {
     fun keyframe(clip: Clip, sourceMs: Long): TransformKeyframe = TransformPath.at(
         clip.keyframes,
         sourceMs,
-        domain = br.com.riseedit.core.keys.TimeDomain.SOURCE
+        domain = br.com.riseedit.core.keys.TimeDomain.SOURCE,
+        tracks = clip.tracks
     )
 }

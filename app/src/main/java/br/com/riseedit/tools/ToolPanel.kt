@@ -27,5 +27,7 @@ fun ToolPanel(
         EditorTool.OverlayMask -> OverlayMaskPanel(vm, state)
         EditorTool.OverlayTrim -> OverlayTrimPanel(vm, state)
         EditorTool.TextTiming -> TextTimingPanel(vm, state)
+        EditorTool.Orientation -> OrientationPanel(vm, state)
+        EditorTool.Keyframe -> KeyframePanel(vm, state)
     }
 }

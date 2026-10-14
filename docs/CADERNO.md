@@ -4,11 +4,11 @@ Lista viva de pedidos do Marce e ideias. Marque [x] quando entrar numa versão.
 
 ## Pedidos do Marce (14/10/2026, após 0.7.0)
 - [ ] **Bug:** Áudio → Gravar trava e fecha o app (crash).
-- [ ] **Keyframes por parâmetro:** ao tocar num item da timeline, ícone de keyframe abre mini janela flutuante (Substituir, Quadro-chave, Curva, Travar, Duplicar, Excluir — ref. CapCut).
+- [x] **Keyframes por parâmetro:** (**0.10.0**: mini janela com curva/excluir/navegar; Substituir/Travar/Duplicar ficam para depois) ao tocar num item da timeline, ícone de keyframe abre mini janela flutuante (Substituir, Quadro-chave, Curva, Travar, Duplicar, Excluir — ref. CapCut).
 - [ ] **Áudio:** nenhum áudio importado toca. Botão mute ao lado da faixa de áudio.
-- [ ] **Separar áudio do vídeo** (desvincular em faixa própria).
-- [ ] **Alças de borda (edge trim)** nas camadas de overlay e áudio, iguais às do vídeo principal. (Futuro: texto com animação pré-definida terá limite de duração.)
-- [ ] **Ferramenta Orientação** ao tocar no objeto: Girar 90°, Espelhar, Inverter vertical, Preencher.
+- [x] **Separar áudio do vídeo** (desvincular em faixa própria). **0.10.0**
+- [x] **Alças de borda (edge trim)** nas camadas de overlay e áudio (**0.10.0**), iguais às do vídeo principal. (Futuro: texto com animação pré-definida terá limite de duração.)
+- [x] **Ferramenta Orientação** ao tocar no objeto: Girar 90°, Espelhar, Inverter vertical, Preencher. **0.10.0** (clipe principal)
 
 ## Ideias do Dev Compose
 - [ ] Curvas de easing editáveis por keyframe (linear, suave, bounce travado).
@@ -72,10 +72,10 @@ Fonte: avaliação externa (Claude, via leitura do repo) e respostas do Dev Comp
 - [ ] Exportação em segundo plano com serviço em primeiro plano.
 
 ### P2: pedidos do Marce
-- [ ] Separar áudio do vídeo de forma não destrutiva (faixa vinculada, "mudo na fonte").
-- [ ] Edge trim em overlay e áudio (contrato de arestas da 0.4.3).
-- [ ] Keyframes por parâmetro com mini janela flutuante (depende do inspector e do modelo de keyframe).
-- [ ] Orientação: girar 90°, espelhar, inverter, **Preencher = cortar para cobrir o quadro** (como no CapCut); como parâmetro de transformação com keyframe.
+- [x] Separar áudio do vídeo de forma não destrutiva (faixa vinculada, "mudo na fonte").
+- [x] Edge trim em overlay e áudio (contrato de arestas da 0.4.3).
+- [x] Keyframes por parâmetro com mini janela flutuante (depende do inspector e do modelo de keyframe).
+- [x] Orientação: girar 90°, espelhar, inverter, **Preencher = cortar para cobrir o quadro** (como no CapCut); como parâmetro de transformação com keyframe.
 
 ### P3: edição pro e canal
 - [ ] Ripple delete, marcadores, cortes J/L, copiar/colar atributos.
@@ -122,3 +122,9 @@ Fonte: revisão do Codex na [issue #5](https://github.com/Marcelov07br/rise-edit
 - [x] Keyframes: `ParameterTrack<T>` + `TimeDomain` + `Easing` (Hold/Linear/Smooth/CubicBezier); migração Hermite com amostras de ouro; quantização por frame no lugar dos 40 ms.
 - [x] Proxies de prévia: `Compatibility.previewProxy` via `MediaPreparation` (proxyRequired=false) para Direct pesados.
 - [x] Exportação em serviço: `ExportService` foreground + `ExportBus`; editor permanece editável.
+
+### P2 — status (0.10.0, 14/10)
+- [x] Separar áudio: faixa vinculada (`linkedClipId`), "mudo na fonte" (`Clip.muted`); trim/mover/dividir do clipe sincronizam; editar o áudio desvincula.
+- [x] Edge trim em overlay e áudio (`OverlayTrimSession`, `AudioTrimSession`), mesmo contrato do vídeo principal.
+- [x] Orientação: `Orientation` (90°, espelhar, inverter, Ajustar/Preencher) no clipe principal, prévia Fiel = exportação. Ainda sem keyframe de orientação e sem orientação em overlays.
+- [x] Mini janela de quadro-chave (painel baixo): curva Manter/Linear/Suave/Bézier, excluir, anterior/próximo. Persistência por parâmetro (`tracks`, schema 7) com migração.

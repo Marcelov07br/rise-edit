@@ -38,6 +38,7 @@ internal data class TimelineEntry(
     val clip: Clip? = null,
     val audio: AudioClip? = null,
     val mainIndex: Int? = null,
+    val overlay: br.com.riseedit.core.VideoOverlay? = null,
     /** Keyframe times relative to the entry start, drawn as diamonds. */
     val keyOffsetsUs: List<Double> = emptyList()
 ) {
@@ -47,7 +48,9 @@ internal data class TimelineEntry(
 internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<TimelineEntry> =
     buildList {
         addAll(mainEntries(state, ui))
-        state.project.overlays.forEach {
+        state.project.overlays.forEach { live ->
+            val it = (ui.trimDraft as? TrimDraft.Overlay)?.draft?.takeIf { d -> d.id == live.id }
+                ?: live
             add(
                 TimelineEntry(
                     it.id,
@@ -58,6 +61,7 @@ internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<Time
                     state.layerId == it.id,
                     LaneOverlay,
                     it.clip,
+                    overlay = live,
                     keyOffsetsUs = it.keyframes.map { key -> key.sourceMs * 1000.0 }
                 )
             )
@@ -76,7 +80,9 @@ internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<Time
                 )
             )
         }
-        state.project.audio.forEach {
+        state.project.audio.forEach { live ->
+            val it = (ui.trimDraft as? TrimDraft.Audio)?.draft?.takeIf { d -> d.id == live.id }
+                ?: live
             add(
                 TimelineEntry(
                     it.id,
@@ -86,7 +92,7 @@ internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<Time
                     it.durationMs * 1000,
                     state.layerId == it.id,
                     LaneAudio,
-                    audio = it
+                    audio = live
                 )
             )
         }
@@ -115,7 +121,7 @@ private fun mainEntries(state: EditorState, ui: TimelineUiState): List<TimelineE
                 original.id, original.name, 0, offset * 1000.0 + leftDelta,
                 clip.durationMs * 1000, state.layerId == null && index == state.selected,
                 LaneVideo, original, mainIndex = index,
-                keyOffsetsUs = clip.keyframes.takeIf { it.size > 1 }.orEmpty()
+                keyOffsetsUs = clip.keyframes
                     .mapNotNull { outputMsOf(clip, it.sourceMs)?.times(1000.0) }
             )
         )

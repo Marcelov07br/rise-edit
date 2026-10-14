@@ -16,13 +16,13 @@
     <ID>CyclomaticComplexMethod:MediaProbe.kt$MediaProbe$suspend fun probe(context: Context, uri: Uri): ProbeResult</ID>
     <ID>CyclomaticComplexMethod:PreviewEditLayer.kt$@Composable internal fun BoxScope.PreviewEditLayer( vm: EditorViewModel, state: EditorState, edit: PreviewEditState, items: List&lt;PreviewItem&gt;, selectedId: String?, fast: Boolean, onSelect: (Boolean) -&gt; Unit, draftId: String? = null, onDraft: (TextLayer) -&gt; Unit = {}, pick: ((Float, Float) -&gt; Unit)? = null )</ID>
     <ID>CyclomaticComplexMethod:PreviewEngine.kt$PreviewEngine$fun update(project: Project, analyses: Map&lt;String, MotionAnalysis&gt;, faults: Map&lt;String, MediaFault&gt;, positionMs: Long, quality: PreviewQuality = this.quality)</ID>
-    <ID>CyclomaticComplexMethod:PreviewPanel.kt$@Composable fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = Modifier, editable: Boolean = false, mainSelected: Boolean = false, onSelect: (Boolean) -&gt; Unit = {}, textDraft: TextLayer? = null, onDraftTransform: (TextLayer) -&gt; Unit = {}, pickColor: ((Int) -&gt; Unit)? = null)</ID>
+    <ID>CyclomaticComplexMethod:PreviewPanel.kt$@Composable fun PreviewPanel( vm: EditorViewModel, state: EditorState, modifier: Modifier = Modifier, editable: Boolean = false, mainSelected: Boolean = false, onSelect: (Boolean) -&gt; Unit = {}, textDraft: TextLayer? = null, onDraftTransform: (TextLayer) -&gt; Unit = {}, pickColor: ((Int) -&gt; Unit)? = null )</ID>
     <ID>CyclomaticComplexMethod:RecordPanel.kt$@Composable internal fun RecordPanel(addAudio: (Uri) -&gt; Unit)</ID>
     <ID>CyclomaticComplexMethod:TextFonts.kt$TextFonts$private fun load(key: String, bold: Boolean, italic: Boolean): Typeface</ID>
     <ID>CyclomaticComplexMethod:ToolPanel.kt$@Composable fun ToolPanel( tool: EditorTool, vm: EditorViewModel, state: EditorState, addAudio: (android.net.Uri) -&gt; Unit )</ID>
     <ID>LargeClass:ProjectStore.kt$ProjectStore</ID>
     <ID>LongMethod:HomeScreen.kt$@Composable fun HomeScreen(projects: List&lt;Project&gt;, error: String?, library: ProjectLibrary, onOpen: (Project)-&gt;Unit, onSettings: ()-&gt;Unit, hasUpdate: Boolean)</ID>
-    <ID>LongMethod:PreviewPanel.kt$@Composable fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = Modifier, editable: Boolean = false, mainSelected: Boolean = false, onSelect: (Boolean) -&gt; Unit = {}, textDraft: TextLayer? = null, onDraftTransform: (TextLayer) -&gt; Unit = {}, pickColor: ((Int) -&gt; Unit)? = null)</ID>
+    <ID>LongMethod:PreviewPanel.kt$@Composable fun PreviewPanel( vm: EditorViewModel, state: EditorState, modifier: Modifier = Modifier, editable: Boolean = false, mainSelected: Boolean = false, onSelect: (Boolean) -&gt; Unit = {}, textDraft: TextLayer? = null, onDraftTransform: (TextLayer) -&gt; Unit = {}, pickColor: ((Int) -&gt; Unit)? = null )</ID>
     <ID>LongMethod:ProjectStore.kt$ProjectStore$private fun decode(j: JSONObject): Project</ID>
     <ID>LongMethod:ProjectStore.kt$ProjectStore$private fun encode(p: Project)</ID>
     <ID>LongMethod:VideoPipelineTest.kt$VideoPipelineTest$@Test fun analyzeSplitAndExportRealVideoWithAudio()</ID>

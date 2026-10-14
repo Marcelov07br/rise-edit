@@ -14,10 +14,13 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import br.com.riseedit.EditorState
+import br.com.riseedit.core.editing.AudioTrimSession
 import br.com.riseedit.core.editing.ClipTrimSession
+import br.com.riseedit.core.editing.OverlayTrimSession
 import br.com.riseedit.core.editing.TrimEdge
 import kotlin.math.abs
 import kotlin.math.floor
+import kotlin.math.roundToLong
 
 private const val SNAP_DP = 10f
 
@@ -82,26 +85,11 @@ private fun beginGesture(
 ): GestureDraft {
     val lane = floor((down.position.y - RULER_DP * density + scrollY) / (LANE_DP * density)).toInt()
     val row = ui.lanes.getOrElse(lane) { -1 }
-    val selected = entries.firstOrNull { it.row == row && it.selected && it.mainIndex != null }
+    val selected = entries.firstOrNull { it.row == row && it.selected && trimmable(it) }
     val edge = selected?.let { trimEdge(it, ui, down.position.x, 22 * density) }
     val time = ui.viewport.timeAtPx(down.position.x.toDouble())
     val entry = entries.lastOrNull { it.row == row && time >= it.startUs && time < it.endUs }
-    val mode = when {
-        edge != null -> {
-            ui.trim = ClipTrimSession(requireNotNull(selected?.clip), edge)
-            ui.draft = selected?.clip
-            actions.beginTrim()
-            down.consume()
-            GestureMode.TRIM
-        }
-        down.position.y < RULER_DP * density -> {
-            actions.beginScrub()
-            actions.seek(time)
-            down.consume()
-            GestureMode.SCRUB
-        }
-        else -> GestureMode.TAP
-    }
+    val mode = initialMode(down, selected, edge, entry, ui, actions, density, time)
     val trimmed = selected?.takeIf { mode == GestureMode.TRIM }
     val edgeUs = when {
         trimmed == null -> 0.0
@@ -122,6 +110,62 @@ private fun beginGesture(
         if (mode == GestureMode.SCRUB) targets - playheadUs else targets,
         SNAP_DP * density * 1_000_000 / pps
     )
+}
+
+@Suppress("LongParameterList")
+private fun initialMode(
+    down: PointerInputChange,
+    selected: TimelineEntry?,
+    edge: TrimEdge?,
+    entry: TimelineEntry?,
+    ui: TimelineUiState,
+    actions: TimelineActions,
+    density: Float,
+    time: Double
+): GestureMode {
+    val diamond = entry?.let { keyDiamond(it, ui, down.position.x, 14 * density) }
+    return when {
+        edge != null && selected != null -> {
+            ui.trimDraft = startTrim(selected, edge)
+            actions.beginTrim()
+            down.consume()
+            GestureMode.TRIM
+        }
+        diamond != null && entry != null -> {
+            actions.openKeyframe(entry, diamond, ui)
+            down.consume()
+            GestureMode.TAP
+        }
+        down.position.y < RULER_DP * density -> {
+            actions.beginScrub()
+            actions.seek(time)
+            down.consume()
+            GestureMode.SCRUB
+        }
+        else -> GestureMode.TAP
+    }
+}
+
+private fun trimmable(entry: TimelineEntry) =
+    entry.mainIndex != null || entry.overlay != null || entry.audio != null
+
+private fun startTrim(entry: TimelineEntry, edge: TrimEdge): TrimDraft = when {
+    entry.mainIndex != null && entry.clip != null ->
+        TrimDraft.Main(ClipTrimSession(entry.clip, edge), entry.clip)
+    entry.audio != null ->
+        TrimDraft.Audio(AudioTrimSession(entry.audio, edge), entry.audio)
+    entry.overlay != null ->
+        TrimDraft.Overlay(OverlayTrimSession(entry.overlay, edge), entry.overlay)
+    else -> error("not trimmable")
+}
+
+private fun keyDiamond(entry: TimelineEntry, ui: TimelineUiState, x: Float, radius: Float): Long? {
+    if (entry.keyOffsetsUs.isEmpty()) return null
+    return entry.keyOffsetsUs.minByOrNull { us ->
+        kotlin.math.abs(ui.viewport.pxAtTime(entry.startUs + us) - x)
+    }?.takeIf { us ->
+        kotlin.math.abs(ui.viewport.pxAtTime(entry.startUs + us) - x) <= radius
+    }?.let { (it / 1000).roundToLong() }
 }
 
 private fun trimEdge(
@@ -212,7 +256,13 @@ private fun applyMovement(
         GestureMode.TRIM -> {
             val raw = draft.edgeUs + delta.x * 1_000_000 / draft.scale
             val snapped = ui.magnet(raw, draft.targets, draft.thresholdUs)
-            ui.draft = ui.trim?.dragged(snapped - draft.edgeUs)
+            val deltaUs = snapped - draft.edgeUs
+            ui.trimDraft = when (val t = ui.trimDraft) {
+                is TrimDraft.Main -> t.copy(draft = t.session.dragged(deltaUs))
+                is TrimDraft.Overlay -> t.copy(draft = t.session.dragged(deltaUs))
+                is TrimDraft.Audio -> t.copy(draft = t.session.dragged(deltaUs))
+                null -> null
+            }
         }
         GestureMode.SCRUB -> actions.seek(
             ui.magnet(

@@ -9,6 +9,7 @@ import br.com.riseedit.core.Timeline
 import br.com.riseedit.core.TransformEdits
 import br.com.riseedit.core.TransformKeyframe
 import br.com.riseedit.core.VideoOverlay
+import br.com.riseedit.core.keys.TimeDomain
 import br.com.riseedit.text.TextRenderer
 import kotlin.math.abs
 import kotlin.math.cos
@@ -140,16 +141,34 @@ internal fun PreviewItem.reset(): PreviewEdit = when (this) {
 }
 
 internal fun PreviewItem.toggleKey(): PreviewEdit = when (this) {
-    is PreviewItem.Main -> PreviewEdit.ClipEdit(
-        index,
-        clip.copy(keyframes = TransformEdits.toggle(clip.keyframes, keyTimeMs, transform))
-    )
-    is PreviewItem.Overlay -> PreviewEdit.OverlayEdit(
-        layer.copy(keyframes = TransformEdits.toggle(layer.keyframes, keyTimeMs, transform))
-    )
-    is PreviewItem.Text -> PreviewEdit.TextEdit(
-        layer.copy(keyframes = TransformEdits.toggle(layer.keyframes, keyTimeMs, transform))
-    )
+    is PreviewItem.Main -> {
+        val keys = TransformEdits.toggle(clip.keyframes, keyTimeMs, transform)
+        PreviewEdit.ClipEdit(
+            index,
+            clip.copy(
+                keyframes = keys,
+                tracks = TransformEdits.syncTracks(clip.tracks, keys, TimeDomain.SOURCE)
+            )
+        )
+    }
+    is PreviewItem.Overlay -> {
+        val keys = TransformEdits.toggle(layer.keyframes, keyTimeMs, transform)
+        PreviewEdit.OverlayEdit(
+            layer.copy(
+                keyframes = keys,
+                tracks = TransformEdits.syncTracks(layer.tracks, keys, TimeDomain.LOCAL_OUTPUT)
+            )
+        )
+    }
+    is PreviewItem.Text -> {
+        val keys = TransformEdits.toggle(layer.keyframes, keyTimeMs, transform)
+        PreviewEdit.TextEdit(
+            layer.copy(
+                keyframes = keys,
+                tracks = TransformEdits.syncTracks(layer.tracks, keys, TimeDomain.LOCAL_OUTPUT)
+            )
+        )
+    }
 }
 
 internal sealed interface PreviewEdit {

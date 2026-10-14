@@ -26,14 +26,16 @@ fun TimelinePanel(
     state: EditorState,
     trackAreaHeight: Dp = 270.dp,
     onSelect: () -> Unit = {},
-    onAddToLane: (Int) -> Unit = {}
+    onAddToLane: (Int) -> Unit = {},
+    onKeyframe: () -> Unit = {}
 ) {
     val density = LocalDensity.current.density
     val ui = remember(state.project.id, density) { TimelineUiState(density) }
     val latest = rememberUpdatedState(state)
     val select = rememberUpdatedState(onSelect)
+    val keyframe = rememberUpdatedState(onKeyframe)
     val actions = remember(vm, state.project.id) {
-        TimelineActions(vm, { latest.value }) { select.value() }
+        TimelineActions(vm, { latest.value }, { select.value() }) { keyframe.value() }
     }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -54,9 +56,14 @@ fun TimelinePanel(
     }
 }
 
-private fun hint(ui: TimelineUiState): String {
-    val draft = ui.draft ?: return "Pinça para zoom · segure para mover"
-    return "Corte: ${draft.startMs}–${draft.endMs} ms · solte para salvar"
+private fun hint(ui: TimelineUiState): String = when (val d = ui.trimDraft) {
+    is br.com.riseedit.timeline.TrimDraft.Main ->
+        "Corte: ${d.draft.startMs}–${d.draft.endMs} ms · solte para salvar"
+    is br.com.riseedit.timeline.TrimDraft.Overlay ->
+        "Corte: ${d.draft.clip.startMs}–${d.draft.clip.endMs} ms · solte para salvar"
+    is br.com.riseedit.timeline.TrimDraft.Audio ->
+        "Corte: ${d.draft.startMs}–${d.draft.endMs} ms · solte para salvar"
+    null -> "Pinça para zoom · segure para mover"
 }
 
 private fun zoomTimeline(ui: TimelineUiState, factor: Double, durationMs: Long) {

@@ -80,6 +80,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         return true
     }
     fun moveClip(id: String, target: Int) = commands.moveClip(id, target)
+    fun separateAudio(track: Int = 0) = commands.separateAudio(track)
     fun split() = commands.split()
     fun remove() = commands.remove()
     fun move(delta: Int) = commands.move(delta)
@@ -92,6 +93,9 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun overlay(layer: VideoOverlay) = layers.overlay(layer)
     fun removeLayer() = layers.remove()
     fun moveLayer(id: String, offset: Long, snapping: Boolean) = layers.move(id, offset, snapping)
+    fun trimOverlay(original: VideoOverlay, trimmed: VideoOverlay) =
+        layers.trimOverlay(original, trimmed)
+    fun trimAudio(original: AudioClip, trimmed: AudioClip) = layers.trimAudio(original, trimmed)
 
     fun import(uris: List<Uri>) = importer.videos(uris)
     fun importAudio(uris: List<Uri>, track: Int) = importer.layers(uris, track, video = false)
