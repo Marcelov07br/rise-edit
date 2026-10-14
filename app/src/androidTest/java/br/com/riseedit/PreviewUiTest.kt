@@ -135,7 +135,7 @@ class PreviewUiTest {
             if (!bounds.intersect(0, 0, bitmap.width, bitmap.height)) return@waitUntil false
             (1..6).any { row -> (1..6).any { column ->
                 val pixel = bitmap.getPixel(bounds.left + column * bounds.width() / 7, bounds.top + row * bounds.height() / 7)
-                Color.green(pixel) > 180 && Color.red(pixel) > 100 && Color.blue(pixel) < 150
+                Color.green(pixel) > 200 && Color.red(pixel) > 200 && Color.blue(pixel) > 200
             } }
         } finally { bitmap.recycle() }
     }

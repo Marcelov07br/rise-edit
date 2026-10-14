@@ -77,7 +77,7 @@ internal fun StabilizePanel(vm: EditorViewModel, state: EditorState) {
         }
     }
     Text(
-        "Até 2 minutos por fonte. Confira o resultado: cenas com pouca textura ou objetos grandes em movimento podem exigir ajustes.",
+        "Até 20 minutos por fonte. Confira o resultado: cenas com pouca textura ou objetos grandes em movimento podem exigir ajustes.",
         style = MaterialTheme.typography.bodySmall
     )
 }
