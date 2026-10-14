@@ -50,3 +50,41 @@ Ordem sugerida: 1 + pedidos do Marce → 2 → 3; 4 em paralelo.
 
 ---
 **Caderno fechado em 14/10/2026** para avaliação. Ordem de execução: pedidos do Marce + frente 1 → 2 → 3 → 4 (em paralelo quando couber) → 5.
+
+---
+## Revisão do plano (14/10/2026) — análise do Claude + considerações do Dev Compose
+Fonte: avaliação externa (Claude, via leitura do repo) e respostas do Dev Compose. Tamanho do APK **não é restrição** (decisão do Marce).
+
+### P0: destravar
+- [ ] Relatório de crash no app (primeiro item).
+- [ ] Crash em Áudio → Gravar. Pista concreta: `RecordPanel` entrega `Uri.fromFile(...)` (file://) ao `addAudio`, mas o resto do app espera URIs do SAF com permissão persistida; provável exceção ao tentar persistir permissão/ler o arquivo. Confirmar com o stack trace.
+- [ ] Áudio importado não toca: provável que a prévia Rápida ignore faixas extras (também explica overlays aproximados). Mute como flag separada do volume, botão ao lado da faixa.
+- [ ] Testes de regressão de áudio e gravação (permissão de microfone concedida).
+
+### Decisão de arquitetura a avaliar
+- [ ] Três renderizadores (Rápida, Fiel, exportação) são a maior fonte de bugs. Proposta: **Fiel como prévia padrão**, Rápida só para scrub na timeline, em vez de duplicar áudio/overlay na Rápida.
+
+### P1: base
+- [ ] Inspector único ligado à seleção, **respeitando a barra de subcategorias da 0.7.0** (não voltar a painéis grandes).
+- [ ] Modelo de keyframe no `core` (tempo, valor, easing) com uma função única de avaliação para prévia e exportação.
+- [ ] Histórico de versões e `.bak` do projeto (autosave atômico já existe).
+- [ ] Reconectar mídia ausente (URIs do SAF).
+- [ ] Exportação em segundo plano com serviço em primeiro plano.
+
+### P2: pedidos do Marce
+- [ ] Separar áudio do vídeo de forma não destrutiva (faixa vinculada, "mudo na fonte").
+- [ ] Edge trim em overlay e áudio (contrato de arestas da 0.4.3).
+- [ ] Keyframes por parâmetro com mini janela flutuante (depende do inspector e do modelo de keyframe).
+- [ ] Orientação: girar 90°, espelhar, inverter, **Preencher = cortar para cobrir o quadro** (como no CapCut); como parâmetro de transformação com keyframe.
+
+### P3: edição pro e canal
+- [ ] Ripple delete, marcadores, cortes J/L, copiar/colar atributos.
+- [ ] Exportar 4K, 60 fps, HEVC, bitrate escolhido (hoje só 480/720/1080 H.264 SDR); 9:16 e 16:9 do mesmo projeto.
+- [ ] Proxy automático para 4K.
+- [ ] Legendas automáticas: Whisper on-device (modelo pode vir no APK ou baixado; tamanho não é problema).
+- [ ] Estabilização por giroscópio: validar com vídeos do S26 e de câmeras de ação; se o celular não gravar giroscópio, considerar modo de gravação próprio do app que salva os dados.
+- [ ] Cor com curvas e LUTs; log/HDR de celular.
+
+### Por último
+- [ ] Comparação de câmeras com sincronização pelo áudio; histograma, forma de onda e zebra.
+- [x] ~~README diz 0.3.0~~ → atualizar junto da próxima versão.
