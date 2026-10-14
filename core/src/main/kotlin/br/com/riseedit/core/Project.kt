@@ -70,10 +70,13 @@ data class Adjustments(val brightness: Float = 0f, val contrast: Float = 0f, val
 data class TransformKeyframe(val sourceMs: Long, val x: Float = 0f, val y: Float = 0f, val scale: Float = 1f, val rotation: Float = 0f, val opacity: Float = 1f)
 data class AudioClip(val id: String = UUID.randomUUID().toString(), val uri: String, val name: String,
     val sourceDurationMs: Long, val offsetMs: Long = 0, val startMs: Long = 0, val endMs: Long = sourceDurationMs,
-    val track: Int = 0, val volume: Float = 0.7f, val fadeMs: Long = 500) {
+    val track: Int = 0, val volume: Float = 0.7f, val fadeMs: Long = 500, val muted: Boolean = false) {
     init { require(offsetMs >= 0 && track in 0..2 && startMs >= 0 && endMs > startMs && endMs <= sourceDurationMs) }
     val durationMs get() = endMs - startMs
 }
+
+/** Audio layers that reach the mix (preview and export): not muted and starting inside the project. */
+fun Project.audibleAudio(): List<AudioClip> = audio.filter { !it.muted && it.offsetMs < durationMs }
 data class VideoOverlay(val id: String = UUID.randomUUID().toString(), val clip: Clip, val offsetMs: Long = 0,
     val track: Int = 0, val x: Float = 0.55f, val y: Float = 0.55f, val scale: Float = 0.35f, val opacity: Float = 1f,
     val rotation: Float = 0f, val keyframes: List<TransformKeyframe> = emptyList(),

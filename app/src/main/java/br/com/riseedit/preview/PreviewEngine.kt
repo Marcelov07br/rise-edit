@@ -40,7 +40,14 @@ class PreviewEngine(
     private val ticker = scope.launch(Dispatchers.Main.immediate) { while (isActive) { updatePlayback(); delay(50) } }
     var quality: PreviewQuality = PreviewQuality.Fast
         private set
-    var requestedQuality: PreviewQuality = PreviewQuality.Fast
+    /** Fiel is the default; Rápida is an optional scrub mode. */
+    var requestedQuality: PreviewQuality = PreviewQuality.Faithful
+        private set
+    /** Why Fiel is not running although it was requested; shown explicitly instead of silently dropping layers. */
+    var degraded: String? = null
+        private set
+    /** Number of CompositionPlayer instances created; lets tests prove edits reuse the player. */
+    var faithfulPlayersCreated = 0
         private set
     val player: Player get() = lastPlayer
     val positionMs: Long get() = runCatching { fast?.positionMs ?: faithful?.player?.currentPosition ?: lastPosition }
@@ -91,10 +98,16 @@ class PreviewEngine(
                     ensureActive()
                     if (requestedRevision != revision || released) return@launch
                     val resumeAt = this@PreviewEngine.positionMs
-                    releasePlayers()
-                    val next = FaithfulPreview(context)
+                    val reused = faithful
+                    val next = if (reused != null) {
+                        // An edit replaces the composition on the same player: no new decoders or surface.
+                        reused
+                    } else {
+                        releasePlayers()
+                        FaithfulPreview(context).also { faithfulPlayersCreated++; listen(it.player) }
+                    }
                     faithful = next; lastPlayer = next.player; this@PreviewEngine.quality = PreviewQuality.Faithful
-                    listen(lastPlayer)
+                    degraded = null
                     next.prepare(composition, resumeAt)
                     next.player.volume = if (muted) 0f else 1f
                     next.player.setScrubbingModeEnabled(scrubbing)
@@ -174,7 +187,10 @@ class PreviewEngine(
         fast!!.player.playWhenReady = playing
         if (changed) onChanged()
     }
+    fun clearDegraded() { degraded = null }
     private fun fallback(message: String) {
+        br.com.riseedit.diagnostics.Diagnostics.log("prévia", "fiel → rápida: $message")
+        degraded = message
         val position = positionMs
         pending?.cancel(); revision++
         requestedQuality = PreviewQuality.Fast
@@ -196,6 +212,7 @@ class PreviewEngine(
         catch (error: Exception) { failed(error) }
     }
     private fun failed(error: Exception) {
+        br.com.riseedit.diagnostics.Diagnostics.log("prévia", "erro do player (${quality.label})", error)
         if (faithful != null) { fallback("A prévia fiel falhou. Continuando na prévia rápida."); return }
         val clip = fast?.currentIndex?.let { project.clips.getOrNull(it) } ?: activeClip
         if (clip == null || fault != null) { playing = false; runCatching { player.pause() }; onMessage("A prévia está indisponível para este trecho."); return }

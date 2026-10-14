@@ -9,10 +9,11 @@ import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
 import br.com.riseedit.AudioEnvelope
 import br.com.riseedit.core.Project
+import br.com.riseedit.core.audibleAudio
 import kotlin.math.min
 
 internal fun buildAudioSequences(project: Project): List<EditedMediaItemSequence> =
-    project.audio.filter { it.offsetMs < project.durationMs }.map { audio ->
+    project.audibleAudio().map { audio ->
         val durationMs = min(audio.durationMs, project.durationMs - audio.offsetMs)
         val media = MediaItem.Builder()
             .setUri(audio.uri)

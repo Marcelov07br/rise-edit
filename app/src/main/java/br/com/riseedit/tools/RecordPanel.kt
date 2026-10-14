@@ -2,9 +2,7 @@ package br.com.riseedit.tools
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.media.MediaRecorder
 import android.net.Uri
-import android.os.Build
 import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,79 +23,56 @@ import androidx.core.content.ContextCompat
 import br.com.riseedit.RiseBlack
 import br.com.riseedit.RiseWhite
 import br.com.riseedit.time
-import java.io.File
 import kotlinx.coroutines.delay
 
 /** Voice-over: records AAC into app storage and inserts it at the playhead. */
 @Composable
 internal fun RecordPanel(addAudio: (Uri) -> Unit) {
     val context = LocalContext.current
-    var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
-    var file by remember { mutableStateOf<File?>(null) }
-    var started by remember { mutableLongStateOf(0L) }
+    val latestAdd = androidx.compose.runtime.rememberUpdatedState(addAudio)
+    val voice = remember { VoiceRecorder(context.applicationContext) }
+    var recording by remember { mutableStateOf(false) }
     var elapsed by remember { mutableLongStateOf(0L) }
     var error by remember { mutableStateOf<String?>(null) }
     fun start() {
-        val target = File(context.filesDir, "recordings").apply { mkdirs() }
-            .resolve("narracao-${System.currentTimeMillis()}.m4a")
-        error = runCatching {
-            @Suppress("DEPRECATION")
-            val created = if (Build.VERSION.SDK_INT >=
-                31
-            ) {
-                MediaRecorder(context)
-            } else {
-                MediaRecorder()
-            }
-            created.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioEncodingBitRate(128_000)
-                setAudioSamplingRate(44_100)
-                setOutputFile(target.absolutePath)
-                prepare()
-                start()
-            }
-            recorder = created
-            file = target
-            started = SystemClock.elapsedRealtime()
-        }.exceptionOrNull()?.let { "Não foi possível gravar: ${it.message}" }
+        error = voice.start()
+        recording = voice.recording
     }
-    fun stop() {
-        val active = recorder ?: return
-        recorder = null
-        val ok = runCatching { active.stop() }.isSuccess
-        active.release()
-        file?.takeIf { ok && it.length() > 0 }?.let { addAudio(Uri.fromFile(it)) }
+    fun finish(result: VoiceRecorder.Result?) {
+        recording = voice.recording
+        when (result) {
+            is VoiceRecorder.Result.Saved -> latestAdd.value(Uri.fromFile(result.file))
+            is VoiceRecorder.Result.Failed -> error = result.message
+            null -> Unit
+        }
     }
+    fun stop() = finish(voice.stop())
     val permission =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+            br.com.riseedit.diagnostics.Diagnostics.log("gravação", "permissão do microfone: $it")
             if (it) start() else error = "Permita o microfone para gravar."
         }
-    LaunchedEffect(recorder) {
-        while (recorder != null) {
-            elapsed = SystemClock.elapsedRealtime() - started
+    LaunchedEffect(recording) {
+        while (recording) {
+            elapsed = SystemClock.elapsedRealtime() - voice.startedAt
             delay(200)
         }
     }
-    DisposableEffect(Unit) {
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        // Leaving the app keeps what was recorded: stop, finalize and insert it.
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP && voice.recording) finish(voice.release())
+        }
+        lifecycle.addObserver(observer)
         onDispose {
-            recorder?.let {
-                runCatching { it.stop() }
-                it.release()
-            }
+            lifecycle.removeObserver(observer)
+            // Closing the panel also inserts the recording; release never throws.
+            finish(voice.release())
         }
     }
-    val recording = recorder != null
     Text(
-        if (recording) {
-            "Gravando · ${time(
-                elapsed
-            )}"
-        } else {
-            "A narração entra no cursor, na faixa de áudio."
-        },
+        if (recording) "Gravando · ${time(elapsed)}" else "A narração entra no cursor, na faixa de áudio.",
         style = MaterialTheme.typography.bodySmall
     )
     Button(

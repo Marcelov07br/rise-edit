@@ -147,6 +147,7 @@ class PreviewEngineTest {
             assertTrue(onMain { session.engine.player is ExoPlayer })
             session.assertPosition(450, stabilized, 850)
             assertTrue("Fallback needs an explanatory message", session.messages.any { it.isNotBlank() })
+            assertNotNull("Fallback must expose an explicit degraded state", onMain { session.engine.degraded })
             session.awaitFrame("Real Fast frame after Faithful construction failure", 0) { it.seek(600) }
             session.assertPosition(600, stabilized, 1_000)
             session.assertNoPlaybackErrors()
@@ -182,6 +183,62 @@ class PreviewEngineTest {
             session.assertTimelineDuration(changed.durationMs)
             session.assertNoPlaybackErrors()
         }
+    }
+
+    /** P0 gate for Fiel as the default: 2 audio + 2 overlays + a trimmed 2× clip; seek, resume, mute, player reuse. */
+    @Test
+    fun faithfulDefaultGateWithAudioOverlaysTrimAndSpeed() = withFixture { uri ->
+        val audioFile = File.createTempFile("preview-aac-", ".mp4", context.cacheDir)
+        instrumentation.context.assets.open("compatibility/h264_8bit_aac.mp4").use { input -> audioFile.outputStream().use { input.copyTo(it) } }
+        try {
+            val fast = clip(uri, "Trim 2x", 200, 2_800).copy(speedPoints = listOf(SpeedPoint(200, 2.0)))
+            val plain = clip(uri, "Plain", 0, 3_000)
+            val audioUri = Uri.fromFile(audioFile).toString()
+            val project = Project(listOf(fast, plain),
+                overlays = listOf(VideoOverlay(clip = clip(uri, "Overlay A", 0, 1_500), offsetMs = 0, track = 0),
+                    VideoOverlay(clip = clip(uri, "Overlay B", 500, 2_000), offsetMs = 800, track = 1)),
+                audio = listOf(AudioClip(uri = audioUri, name = "Voz", sourceDurationMs = 1_000, offsetMs = 100, track = 0),
+                    AudioClip(uri = audioUri, name = "Música", sourceDurationMs = 1_000, offsetMs = 1_500, track = 1)))
+            assertEquals(1_300L, fast.durationMs)
+            assertEquals(1 + 2 + 2, VideoEngine.composition(project, emptyMap(), preview = true).sequences.size)
+            PreviewSession().use { session ->
+                assertEquals("Fiel is the default request", PreviewQuality.Faithful, onMain { session.engine.requestedQuality })
+                session.awaitFrame("Faithful gate first frame", 0, PreviewQuality.Faithful) {
+                    it.update(project, emptyMap(), emptyMap(), 0, PreviewQuality.Faithful)
+                }
+                val player = onMain { session.engine.player }
+                assertTrue(player is CompositionPlayer)
+                // Seek inside the second main clip, after the speed-changed trim.
+                onMain { session.engine.seek(2_000) }
+                session.waitUntil("Faithful seek did not land") { onMain { abs(session.engine.positionMs - 2_000) <= 150 } }
+                onMain { session.engine.togglePlay() }
+                session.waitUntil("Faithful did not play from the seek") { onMain { session.engine.player.isPlaying && session.engine.positionMs >= 2_250 } }
+                onMain { session.engine.pause() }
+                val paused = onMain { session.engine.positionMs }
+                Thread.sleep(400)
+                assertTrue("Pause must hold the position", abs(onMain { session.engine.positionMs } - paused) <= 60)
+                onMain { session.engine.togglePlay() }
+                session.waitUntil("Faithful did not resume") { onMain { session.engine.player.isPlaying && session.engine.positionMs >= paused + 200 } }
+                // Global mute and per-clip mute.
+                onMain { session.engine.setMuted(true) }
+                assertEquals(0f, onMain { session.engine.player.volume })
+                val beforeEdit = onMain { session.engine.positionMs }
+                val muted = project.copy(audio = project.audio.mapIndexed { i, a -> if (i == 0) a.copy(muted = true) else a })
+                assertEquals(1 + 2 + 1, VideoEngine.composition(muted, emptyMap(), preview = true).sequences.size)
+                onMain { session.engine.update(muted, emptyMap(), emptyMap(), beforeEdit, PreviewQuality.Faithful) }
+                session.waitUntil("Edit did not reapply Fiel") { onMain { session.engine.quality == PreviewQuality.Faithful && session.engine.player.isPlaying } }
+                onMain {
+                    assertSame("An edit must reuse the CompositionPlayer", player, session.engine.player)
+                    assertEquals(1, session.engine.faithfulPlayersCreated)
+                    assertEquals("Mute survives an edit", 0f, session.engine.player.volume)
+                    assertTrue("Position survives an edit", session.engine.positionMs >= beforeEdit - 150)
+                    assertNull(session.engine.degraded)
+                    session.engine.setMuted(false)
+                    assertEquals(1f, session.engine.player.volume)
+                }
+                session.assertNoPlaybackErrors()
+            }
+        } finally { audioFile.delete() }
     }
 
     @Test

@@ -1,6 +1,6 @@
 # Rise Edit
 
-Editor Android nativo, em Kotlin e Jetpack Compose. Versão 0.3.0: editor com prévia e timeline fixas e barra de ferramentas inferior, importação de vídeos, reprodução da timeline, aparagem, divisão, reordenação, remoção, desfazer/refazer, estabilização global experimental e exportação MP4.
+Editor Android nativo, em Kotlin e Jetpack Compose. Versão 0.8.0: editor com prévia Fiel (CompositionPlayer, mesma composição da exportação) como padrão e prévia Rápida opcional para scrub, timeline com vídeo, overlays, texto e até três faixas de áudio (com mudo por faixa), narração pelo microfone, ferramentas por subcategoria, gestos de transformação na prévia com keyframes, cor, estabilização experimental, exportação MP4 e registro de erro exportável pelo app.
 
 Arquitetura, recursos e limites da evolução: [docs/EDITOR_ARCHITECTURE.md](docs/EDITOR_ARCHITECTURE.md).
 
@@ -13,6 +13,10 @@ Arquitetura, recursos e limites da evolução: [docs/EDITOR_ARCHITECTURE.md](doc
 5. Toque em **Exportar** e escolha um arquivo novo. Os originais nunca são editados.
 
 O projeto é salvo automaticamente no armazenamento privado do aparelho. Permissões de leitura dos vídeos são persistidas. Mover ou apagar o vídeo original, revogar acesso ou desinstalar o app pode impedir a recuperação do projeto. A Home gerencia vários projetos com busca, favoritos e ações de renomear, duplicar e excluir. Desfazer/refazer vale durante a sessão.
+
+## Registro de erro
+
+Em **Configurações → Exportar registro de erro**, o app gera um arquivo de texto e abre o menu de compartilhamento do Android. O arquivo reúne os crashes capturados (stack trace + registro do momento), os motivos das últimas saídas do processo (inclui crash nativo no Android 11+), o registro interno do app (buffer circular salvo em arquivo) e o logcat do próprio app. Não precisa de adb.
 
 ## Atualizações pelo GitHub
 

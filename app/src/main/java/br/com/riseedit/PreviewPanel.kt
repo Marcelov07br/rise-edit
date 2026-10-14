@@ -34,6 +34,23 @@ import br.com.riseedit.core.*
 import br.com.riseedit.preview.PreviewQuality
 import br.com.riseedit.media.displayMessage
 import kotlin.math.*
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+
+/**
+ * Transform applied on top of the decoded frame. Rápida draws the whole clip transform here. Fiel
+ * already renders the committed transform in its GL graph, so only the delta of an in-progress
+ * gesture draft is applied: live feedback without recreating the CompositionPlayer.
+ */
+internal fun mainTransform(fast: Boolean, clip: Clip?, draft: TransformKeyframe?, sourceMs: Long): TransformKeyframe {
+    if (clip == null) return TransformKeyframe(0)
+    if (fast) return draft ?: Timeline.keyframe(clip, sourceMs)
+    if (draft == null) return TransformKeyframe(0)
+    val committed = Timeline.keyframe(clip, sourceMs)
+    return TransformKeyframe(0, draft.x - committed.x, draft.y - committed.y,
+        if (committed.scale > 0f) draft.scale / committed.scale else 1f, draft.rotation - committed.rotation,
+        if (committed.opacity > 0f) (draft.opacity / committed.opacity).coerceIn(0f, 1f) else 1f)
+}
 
 /** TextureView lets the cheap preview transform decoded frames without the GL effect graph. */
 @Composable
@@ -50,7 +67,7 @@ fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = M
         ?.let { MotionSmoother.zoomAt(it, vm.previewSourceMs).toFloat() } ?: 1f
     val pose = if (fast && corrections.isNotEmpty()) MotionSmoother.interpolate(corrections, vm.previewSourceMs) else Pose()
     val edit = remember { PreviewEditState() }
-    val key = edit.draftFor(clip?.id)?.takeIf { fast } ?: if (fast && clip != null) Timeline.keyframe(clip, vm.previewSourceMs) else TransformKeyframe(0)
+    val key = mainTransform(fast, clip, edit.draftFor(clip?.id), vm.previewSourceMs)
     val density = LocalDensity.current.density
     val info = clip?.sourceInfo
     val rotated = info?.rotationDegrees in listOf(90,270)
@@ -118,6 +135,8 @@ fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = M
             }
         }
         if (state.comparing) Text("Original · sem estabilização",Modifier.align(Alignment.CenterStart).padding(8.dp),style=MaterialTheme.typography.labelSmall)
-        if (fast) Text("Prévia aproximada · camadas e áudio extra na Fiel",Modifier.align(Alignment.BottomCenter).background(Color.Black.copy(alpha=0.7f)).padding(6.dp),style=MaterialTheme.typography.labelSmall)
+        val notice = state.previewDegraded?.let { "Fiel indisponível · $it Camadas e áudio extra omitidos." }
+            ?: if (fast) "Rápida (scrub) · camadas e áudio extra só na Fiel" else null
+        if (notice != null) Text(notice,Modifier.align(Alignment.BottomCenter).background(Color.Black.copy(alpha=0.7f)).padding(6.dp).semantics { contentDescription = "Aviso da prévia" },style=MaterialTheme.typography.labelSmall)
     }
 }

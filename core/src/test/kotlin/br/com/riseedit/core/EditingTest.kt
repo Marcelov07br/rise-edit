@@ -43,3 +43,16 @@ class EditingTest {
         assertEquals(Pose(), result.last().pose)
     }
 }
+
+class AudioMuteTest {
+    @org.junit.Test
+    fun mutedAndOutOfRangeAudioIsExcludedFromTheMix() {
+        val clip = Clip(uri = "c", name = "c", sourceDurationMs = 2_000)
+        val a = AudioClip(uri = "a", name = "a", sourceDurationMs = 1_000)
+        val b = a.copy(id = "b", muted = true)
+        val late = a.copy(id = "late", offsetMs = 5_000)
+        val project = Project(listOf(clip), audio = listOf(a, b, late))
+        org.junit.Assert.assertEquals(listOf(a), project.audibleAudio())
+        org.junit.Assert.assertEquals(0.7f, b.volume) // mute keeps the volume
+    }
+}

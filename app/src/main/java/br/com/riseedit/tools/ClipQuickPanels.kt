@@ -41,6 +41,7 @@ internal fun VolumePanel(vm: EditorViewModel, state: EditorState) {
     val audio = state.project.audio.firstOrNull { it.id == state.selection }
     if (audio != null) {
         Text(audio.name, style = MaterialTheme.typography.bodySmall)
+        AudioMuteButton(vm, audio)
         ValueSlider("Volume", audio.volume, 0f..2f) { vm.audio(audio.copy(volume = it)) }
         return
     }

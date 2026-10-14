@@ -12,6 +12,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import br.com.riseedit.EditorState
 import br.com.riseedit.EditorViewModel
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 /** Volume, fade and trim of the selected audio layer. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -23,6 +25,7 @@ internal fun AudioPanel(vm: EditorViewModel, state: EditorState) {
         return
     }
     Text(a.name, style = MaterialTheme.typography.bodySmall)
+    AudioMuteButton(vm, a)
     ValueSlider("Volume", a.volume, 0f..2f) { vm.audio(a.copy(volume = it)) }
     ValueSlider("Fade de entrada e saída (s)", a.fadeMs / 1000f, 0f..3f) {
         vm.audio(a.copy(fadeMs = (it * 1000).toLong()))
@@ -38,4 +41,13 @@ internal fun AudioPanel(vm: EditorViewModel, state: EditorState) {
     Button(onClick = {
         vm.audio(a.copy(startMs = trim.start.toLong(), endMs = trim.endInclusive.toLong()))
     }) { Text("Aplicar corte de áudio") }
+}
+
+/** Mute is a flag separate from volume: preview and export skip a muted layer, volume is kept. */
+@Composable
+internal fun AudioMuteButton(vm: EditorViewModel, audio: br.com.riseedit.core.AudioClip) {
+    androidx.compose.material3.OutlinedButton(
+        onClick = { vm.audio(audio.copy(muted = !audio.muted)) },
+        modifier = androidx.compose.ui.Modifier.semantics { contentDescription = if (audio.muted) "Ativar som do áudio" else "Silenciar áudio" }
+    ) { Text(if (audio.muted) "Mudo · tocar para ativar" else "Som ativo · silenciar") }
 }

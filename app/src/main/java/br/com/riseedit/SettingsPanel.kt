@@ -53,6 +53,11 @@ fun UpdateSettings(vm: UpdateViewModel, state: UpdateState, canInstall: Boolean,
                     if (state.ready == null) Button(onClick = vm::download, enabled = !state.busy) { Text("Baixar ${release.tag}") }
                 }
                 if (state.ready != null) Button(onClick = install, enabled = canInstall) { Text("Instalar atualização") }
+                val context = androidx.compose.ui.platform.LocalContext.current
+                OutlinedButton(onClick = {
+                    runCatching { context.startActivity(br.com.riseedit.diagnostics.Diagnostics.shareIntent(context, state.installedVersion)) }
+                        .onFailure { br.com.riseedit.diagnostics.Diagnostics.log("diagnóstico", "falha ao compartilhar", it) }
+                }) { Text("Exportar registro de erro") }
                 Text("A primeira instalação usa um APK. As seguintes são baixadas aqui. O Android exige autorização para instalar; depois de concedê-la, toque em instalar novamente.", style = MaterialTheme.typography.bodySmall)
             }
         })

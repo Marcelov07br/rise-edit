@@ -57,7 +57,7 @@ class ProjectStore(context: Context) {
     private fun encode(p: Project) = JSONObject().put("schema", 5).put("id", p.id).put("name", p.name).put("modified", p.modifiedAt).put("favorite", p.favorite)
         .put("clips", JSONArray(p.clips.map(::clip))).put("ratio", p.aspectRatio).put("export", JSONArray(listOf(p.export.height, p.export.fps, p.export.bitrate)))
         .put("audio", JSONArray(p.audio.map { a -> JSONObject().put("id", a.id).put("uri", a.uri).put("name", a.name).put("duration", a.sourceDurationMs)
-            .put("offset", a.offsetMs).put("start", a.startMs).put("end", a.endMs).put("track", a.track).put("volume", a.volume).put("fade", a.fadeMs) }))
+            .put("offset", a.offsetMs).put("start", a.startMs).put("end", a.endMs).put("track", a.track).put("volume", a.volume).put("fade", a.fadeMs).put("muted", a.muted) }))
         .put("texts", JSONArray(p.texts.map { t -> JSONObject().put("id", t.id).put("text", t.text).put("start", t.startMs).put("end", t.endMs)
             .put("x", t.x).put("y", t.y).put("size", t.size).put("color", t.color).put("animated", t.animated).put("rotation", t.rotation).put("keys", keys(t.keyframes)).put("style", StyleJson.text(t.style)) }))
         .put("overlays", JSONArray(p.overlays.map { o -> JSONObject().put("id", o.id).put("clip", clip(o.clip)).put("offset", o.offsetMs)
@@ -68,7 +68,7 @@ class ProjectStore(context: Context) {
         return Project(clips = objects(j.getJSONArray("clips")).map(::readClip), id = j.optString("id", "legacy-project"), name = j.optString("name", "Meu projeto"),
             modifiedAt = j.optLong("modified", System.currentTimeMillis()), favorite = j.optBoolean("favorite"), aspectRatio = j.optDouble("ratio", 0.0).toFloat(),
             export = if (e == null) ExportSettings() else ExportSettings(e.getInt(0), e.getInt(1), e.getInt(2)),
-            audio = objects(j.optJSONArray("audio")).map { a -> AudioClip(a.getString("id"), a.getString("uri"), a.getString("name"), a.getLong("duration"), a.getLong("offset"), a.getLong("start"), a.getLong("end"), a.getInt("track"), a.getDouble("volume").toFloat(), a.getLong("fade")) },
+            audio = objects(j.optJSONArray("audio")).map { a -> AudioClip(a.getString("id"), a.getString("uri"), a.getString("name"), a.getLong("duration"), a.getLong("offset"), a.getLong("start"), a.getLong("end"), a.getInt("track"), a.getDouble("volume").toFloat(), a.getLong("fade"), a.optBoolean("muted", false)) },
             texts = objects(j.optJSONArray("texts")).map { t -> TextLayer(t.getString("id"), t.getString("text"), t.getLong("start"), t.getLong("end"), t.getDouble("x").toFloat(), t.getDouble("y").toFloat(), t.getDouble("size").toFloat(), t.getInt("color"), t.getBoolean("animated"), t.optDouble("rotation", 0.0).toFloat(), readKeys(t.optJSONArray("keys")), StyleJson.readText(t.optJSONObject("style"), t.getBoolean("animated"))) },
             overlays = objects(j.optJSONArray("overlays")).map { o -> VideoOverlay(o.getString("id"), readClip(o.getJSONObject("clip")), o.getLong("offset"), o.getInt("track"), o.getDouble("x").toFloat(), o.getDouble("y").toFloat(), o.getDouble("scale").toFloat(), o.getDouble("opacity").toFloat(), o.optDouble("rotation", 0.0).toFloat(), readKeys(o.optJSONArray("keys"))).let { StyleJson.withLook(it, o.optJSONObject("look")) } })
     }

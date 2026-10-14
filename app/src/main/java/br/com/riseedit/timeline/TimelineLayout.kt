@@ -80,7 +80,7 @@ internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<Time
             add(
                 TimelineEntry(
                     it.id,
-                    it.name,
+                    if (it.muted) "MUDO · ${it.name}" else it.name,
                     it.track + 4,
                     it.offsetMs * 1000.0,
                     it.durationMs * 1000,

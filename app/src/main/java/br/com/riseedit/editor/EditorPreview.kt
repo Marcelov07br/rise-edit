@@ -41,6 +41,7 @@ internal class EditorPreview(
         it.copy(
             previewQuality = engine.quality,
             previewRequested = engine.requestedQuality,
+            previewDegraded = engine.degraded,
             previewGeneration = it.previewGeneration + 1
         )
     }
@@ -71,6 +72,7 @@ internal class EditorPreview(
     }
 
     fun quality(value: PreviewQuality) {
+        engine.clearDegraded()
         document.update { it.copy(previewRequested = value) }
         rebuild()
     }

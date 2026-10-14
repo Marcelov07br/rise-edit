@@ -56,13 +56,13 @@ Ordem sugerida: 1 + pedidos do Marce → 2 → 3; 4 em paralelo.
 Fonte: avaliação externa (Claude, via leitura do repo) e respostas do Dev Compose. Tamanho do APK **não é restrição** (decisão do Marce).
 
 ### P0: destravar
-- [ ] Relatório de crash no app (primeiro item).
-- [ ] Crash em Áudio → Gravar. Pista concreta: `RecordPanel` entrega `Uri.fromFile(...)` (file://) ao `addAudio`, mas o resto do app espera URIs do SAF com permissão persistida; provável exceção ao tentar persistir permissão/ler o arquivo. Confirmar com o stack trace.
-- [ ] Áudio importado não toca: provável que a prévia Rápida ignore faixas extras (também explica overlays aproximados). Mute como flag separada do volume, botão ao lado da faixa.
-- [ ] Testes de regressão de áudio e gravação (permissão de microfone concedida).
+- [x] Relatório de crash no app (primeiro item). **Feito na 0.8.0**: captura de crash + registro circular em arquivo + Configurações → Exportar registro de erro.
+- [x] Crash em Áudio → Gravar (**0.8.0**: ciclo de vida do `MediaRecorder` robusto; causa real no S26 ainda a confirmar com o registro exportado). Pista original (retirada): `RecordPanel` entrega `Uri.fromFile(...)` (file://) ao `addAudio`, mas o resto do app espera URIs do SAF com permissão persistida; provável exceção ao tentar persistir permissão/ler o arquivo. Confirmar com o stack trace.
+- [x] Áudio importado não toca (**0.8.0**: Fiel como padrão toca as faixas; mudo por faixa na prévia e exportação): provável que a prévia Rápida ignore faixas extras (também explica overlays aproximados). Mute como flag separada do volume, botão ao lado da faixa.
+- [x] Testes de regressão de áudio e gravação (permissão de microfone concedida). **0.8.0**
 
 ### Decisão de arquitetura a avaliar
-- [ ] Três renderizadores (Rápida, Fiel, exportação) são a maior fonte de bugs. Proposta: **Fiel como prévia padrão**, Rápida só para scrub na timeline, em vez de duplicar áudio/overlay na Rápida.
+- [x] Três renderizadores (Rápida, Fiel, exportação) são a maior fonte de bugs. **0.8.0: Fiel é a prévia padrão.** Proposta: **Fiel como prévia padrão**, Rápida só para scrub na timeline, em vez de duplicar áudio/overlay na Rápida.
 
 ### P1: base
 - [ ] Inspector único ligado à seleção, **respeitando a barra de subcategorias da 0.7.0** (não voltar a painéis grandes).
@@ -87,7 +87,7 @@ Fonte: avaliação externa (Claude, via leitura do repo) e respostas do Dev Comp
 
 ### Por último
 - [ ] Comparação de câmeras com sincronização pelo áudio; histograma, forma de onda e zebra.
-- [ ] Atualizar o README (ainda diz 0.3.0) junto da próxima versão.
+- [x] Atualizar o README (ainda diz 0.3.0) junto da próxima versão. **0.8.0**
 
 ## Revisão cruzada (issue #5) — ordem final aprovada em 14/10
 
@@ -108,3 +108,10 @@ Fonte: revisão do Codex na [issue #5](https://github.com/Marcelov07br/rise-edit
 | P2 | Separar áudio → edge trim → orientação → mini janela de keyframes |
 | P3 | Edição pro → 4K/HEVC e formatos → cor/medidores → legendas → experimento com giroscópio |
 | Depois | Sincronização multicâmera e integração com PC |
+
+### P0 — status (0.8.0, 14/10)
+- [x] Diagnóstico mínimo: `Diagnostics` (crash não tratado → arquivo, buffer circular de 1000 linhas salvo em arquivo, `ApplicationExitInfo` para crash nativo/ANR, logcat do app) e **Configurações → Exportar registro de erro** (menu de compartilhar).
+- [x] Gravação: `VoiceRecorder` libera o recorder em toda falha de `prepare()/start()`, `release()` protegido e idempotente, `stop()` logo após `start()` vira mensagem, gravações repetidas, fechar o painel ou sair do app finaliza e insere. Causa real do S26: **não confirmada** — pedir o registro exportado.
+- [x] Áudio/mudo: `AudioClip.muted` (separado do volume), botão no painel de áudio/volume, "MUDO" na timeline; respeitado na Fiel e na exportação.
+- [x] Fiel como padrão, Rápida como scrub opcional; edição reaproveita o `CompositionPlayer` (posição, play e mudo preservados, debounce mantido); rascunho de gesto aplicado como delta na Fiel; falha da Fiel mostra aviso explícito na prévia.
+- [x] Regressões: gate instrumentado (2 áudios + 2 overlays + trim + 2×: seek, retomada, mudo, reuso do player), `VoiceRecorderTest`, `DiagnosticsTest`, `AudioMuteTest` (core).
