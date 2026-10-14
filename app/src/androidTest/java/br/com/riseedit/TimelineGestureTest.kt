@@ -125,11 +125,15 @@ class TimelineGestureTest {
         )
         val clamped = bounds("Aresta final").centerX() - bounds("Aresta inicial").centerX()
         assertTrue("Zoom out passed the fit limit", abs(clamped - before) < before * 0.05)
-        val focus = bounds("Aresta inicial").centerX() + spread + 12
-        touch.pinch(focus, left.centerY().toFloat(), spread, 1.6f)
-        assertTrue("Pinch over the clip did not zoom", !visible("Aresta final"))
-        ui.screenshot("timeline-pinch-clip")
         val density = context.resources.displayMetrics.density
+        val focus = bounds("Aresta inicial").centerX() + spread + 48 * density
+        touch.pinch(focus, left.centerY().toFloat(), spread, 1.6f)
+        val deadline = android.os.SystemClock.uptimeMillis() + 3000
+        while (visible("Aresta final") && android.os.SystemClock.uptimeMillis() < deadline) {
+            android.os.SystemClock.sleep(100)
+        }
+        assertFalse("Pinch over the clip did not zoom", visible("Aresta final"))
+        ui.screenshot("timeline-pinch-clip")
         touch.pinch(focus, left.bottom + 26 * density, spread, 1 / 2f)
         val reduced = bounds("Aresta final").centerX() - bounds("Aresta inicial").centerX()
         assertTrue(
