@@ -18,3 +18,28 @@ Lista viva de pedidos do Marce e ideias. Marque [x] quando entrar numa versão.
 - [ ] Formatos 9:16 / 16:9 / 1:1 com um toque; curva de velocidade; proxy automático pra 4K.
 - [ ] Estabilização com giroscópio + correção de rolling shutter.
 - [ ] Layout: inspector único ligado à seleção, playhead fixo no centro, divisória preview/timeline arrastável.
+
+## Plano diretor — frentes (rodada 2)
+Ordem sugerida: 1 + pedidos do Marce → 2 → 3; 4 em paralelo.
+
+### 1. Base sólida
+- [ ] Salvamento automático com histórico de versões do projeto.
+- [ ] Projeto à prova de corrupção + recuperação após crash.
+- [ ] Relatório de erro no app (como no Rise Musique).
+
+### 2. Edição pro
+- [ ] Ripple delete (apagar trecho e o resto encostar).
+- [ ] Marcadores na timeline; cortes J/L (áudio antes/depois do vídeo).
+- [ ] Copiar/colar atributos entre clipes.
+- [ ] Cor com curvas e LUTs.
+
+### 3. Diferencial do canal (mobile / câmeras)
+- [ ] Estabilização com giroscópio.
+- [ ] Suporte a log/HDR de celular com LUT de conversão.
+- [ ] Legendas automáticas estilo shorts.
+- [ ] Modelos de abertura e de comparação de câmeras (split/lado a lado).
+
+### 4. Fluxo de trabalho
+- [ ] Exportar 9:16 e 16:9 do mesmo projeto.
+- [ ] Proxy automático pra 4K.
+- [ ] Abrir o projeto no PC (futuro).
