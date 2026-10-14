@@ -108,7 +108,10 @@ class ToolPanelFlowTest {
         ui.click("Bebas Neue")
         ui.screenshot("text-editor-fonts")
         ui.click("Confirmar texto")
-        ui.await { ui.onMain { vm.state.value.project.texts.size == 1 } }
+        ui.await(description = {
+            ui.screenshot("text-failure")
+            ui.onMain { "Text not committed: busy=${vm.state.value.busy} texts=${vm.state.value.project.texts}" }
+        }) { ui.onMain { vm.state.value.project.texts.size == 1 } }
         val saved = ui.onMain { vm.state.value.project.texts.single() }
         assertEquals("Sua história começa aqui", saved.text)
         assertTrue(saved.style.strokeWidth > 0f)

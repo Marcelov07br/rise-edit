@@ -24,7 +24,7 @@ internal fun FormatPanel(vm: EditorViewModel, state: EditorState) {
         }
     }
     Text(
-        "O enquadramento preenche o formato escolhido. Ajuste posição e escala em Movimento.",
+        "O enquadramento preenche o formato escolhido. Ajuste posição e escala direto na prévia.",
         style = MaterialTheme.typography.bodySmall
     )
 }
