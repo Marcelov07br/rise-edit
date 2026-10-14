@@ -122,7 +122,18 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         await {
             val root = root()
             val closing = find(root) { matchesLabel(it, "Concluir") && it.isVisibleToUser }
-            if (closing != null) return@await false
+            if (closing != null) {
+                clickableParent(closing)?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                SystemClock.sleep(300)
+                return@await false
+            }
+            // A sub-toolbar is open: "Voltar" pops one level back toward the root tools.
+            val back = find(root) { matchesLabel(it, "Voltar") && it.isVisibleToUser }
+            if (back != null) {
+                clickableParent(back)?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                SystemClock.sleep(300)
+                return@await false
+            }
             toolbarBounds(root)?.let {
                 toolbar = it
                 return@await true

@@ -110,7 +110,10 @@ class ToolPanelFlowTest {
         ui.click("Confirmar texto")
         ui.await(description = {
             ui.screenshot("text-failure")
-            ui.onMain { "Text not committed: busy=${vm.state.value.busy} texts=${vm.state.value.project.texts}" }
+            ui.onMain {
+                val state = vm.state.value
+                "Text not committed: busy=${state.busy} texts=${state.project.texts}"
+            }
         }) { ui.onMain { vm.state.value.project.texts.size == 1 } }
         val saved = ui.onMain { vm.state.value.project.texts.single() }
         assertEquals("Sua história começa aqui", saved.text)
