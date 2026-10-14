@@ -21,11 +21,13 @@ internal class ProjectVideoCompositor(
             ?: return StaticOverlaySettings.Builder().build()
         val timeMs = presentationTimeUs / 1000
         val endMs = min(durationMs, overlay.offsetMs + overlay.clip.durationMs)
-        val alpha = if (timeMs in overlay.offsetMs until endMs) overlay.opacity else 0f
+        val t = overlay.transformAt((timeMs - overlay.offsetMs).coerceAtLeast(0))
+        val alpha = if (timeMs in overlay.offsetMs until endMs) t.opacity else 0f
         return StaticOverlaySettings.Builder()
             .setAlphaScale(alpha)
-            .setScale(overlay.scale, overlay.scale)
-            .setBackgroundFrameAnchor(overlay.x, overlay.y)
+            .setScale(t.scale, t.scale)
+            .setRotationDegrees(t.rotation)
+            .setBackgroundFrameAnchor(t.x, t.y)
             .build()
     }
 }

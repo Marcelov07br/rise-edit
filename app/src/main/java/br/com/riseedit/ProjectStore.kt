@@ -38,7 +38,7 @@ class ProjectStore(context: Context) {
         .put("duration", c.sourceDurationMs).put("start", c.startMs).put("end", c.endMs).put("volume", c.volume).put("fade", c.fadeMs)
         .put("speed", JSONArray(c.speedPoints.map { JSONArray(listOf(it.sourceMs, it.speed)) }))
         .put("adjust", JSONArray(listOf(c.adjustments.brightness, c.adjustments.contrast, c.adjustments.saturation, c.adjustments.warmth)))
-        .put("keys", JSONArray(c.keyframes.map { JSONArray(listOf(it.sourceMs, it.x, it.y, it.scale, it.rotation, it.opacity)) }))
+        .put("keys", keys(c.keyframes))
         .put("sourceInfo", c.sourceInfo?.let(SourceMetadataJson::encode) ?: JSONObject.NULL)
         .put("proxyUri", c.proxyUri ?: JSONObject.NULL).put("proxyRequired", c.proxyRequired)
         .put("stabilization", JSONObject().put("enabled", c.stabilization.enabled).put("goal", c.stabilization.goal.name)
@@ -49,29 +49,44 @@ class ProjectStore(context: Context) {
             stabilization = Stabilization(s.getBoolean("enabled"), MotionGoal.valueOf(s.getString("goal")), s.getDouble("strength"), s.getDouble("smooth"), s.getDouble("zoom")),
             volume = c.optDouble("volume", 1.0).toFloat(), fadeMs = c.optLong("fade"), speedPoints = rows(c.optJSONArray("speed")).map { SpeedPoint(it.getLong(0), it.getDouble(1)) },
             adjustments = if (a == null) Adjustments() else Adjustments(a.getDouble(0).toFloat(), a.getDouble(1).toFloat(), a.getDouble(2).toFloat(), a.getDouble(3).toFloat()),
-            keyframes = rows(c.optJSONArray("keys")).map { TransformKeyframe(it.getLong(0), it.getDouble(1).toFloat(), it.getDouble(2).toFloat(), it.getDouble(3).toFloat(), it.getDouble(4).toFloat(), it.getDouble(5).toFloat()) },
+            keyframes = readKeys(c.optJSONArray("keys")),
             sourceInfo = c.optJSONObject("sourceInfo")?.let(SourceMetadataJson::decode),
             proxyUri = if (c.isNull("proxyUri")) null else c.optString("proxyUri").ifBlank { null },
             proxyRequired = c.optBoolean("proxyRequired"))
     }
-    private fun encode(p: Project) = JSONObject().put("schema", 3).put("id", p.id).put("name", p.name).put("modified", p.modifiedAt).put("favorite", p.favorite)
+    private fun encode(p: Project) = JSONObject().put("schema", 4).put("id", p.id).put("name", p.name).put("modified", p.modifiedAt).put("favorite", p.favorite)
         .put("clips", JSONArray(p.clips.map(::clip))).put("ratio", p.aspectRatio).put("export", JSONArray(listOf(p.export.height, p.export.fps, p.export.bitrate)))
         .put("audio", JSONArray(p.audio.map { a -> JSONObject().put("id", a.id).put("uri", a.uri).put("name", a.name).put("duration", a.sourceDurationMs)
             .put("offset", a.offsetMs).put("start", a.startMs).put("end", a.endMs).put("track", a.track).put("volume", a.volume).put("fade", a.fadeMs) }))
         .put("texts", JSONArray(p.texts.map { t -> JSONObject().put("id", t.id).put("text", t.text).put("start", t.startMs).put("end", t.endMs)
-            .put("x", t.x).put("y", t.y).put("size", t.size).put("color", t.color).put("animated", t.animated) }))
+            .put("x", t.x).put("y", t.y).put("size", t.size).put("color", t.color).put("animated", t.animated).put("rotation", t.rotation).put("keys", keys(t.keyframes)) }))
         .put("overlays", JSONArray(p.overlays.map { o -> JSONObject().put("id", o.id).put("clip", clip(o.clip)).put("offset", o.offsetMs)
-            .put("track", o.track).put("x", o.x).put("y", o.y).put("scale", o.scale).put("opacity", o.opacity) }))
+            .put("track", o.track).put("x", o.x).put("y", o.y).put("scale", o.scale).put("opacity", o.opacity).put("rotation", o.rotation).put("keys", keys(o.keyframes)) }))
     private fun decode(j: JSONObject): Project {
-        require(j.getInt("schema") in 1..3) { "Formato de projeto não reconhecido" }
+        require(j.getInt("schema") in 1..4) { "Formato de projeto não reconhecido" }
         val e = j.optJSONArray("export")
         return Project(clips = objects(j.getJSONArray("clips")).map(::readClip), id = j.optString("id", "legacy-project"), name = j.optString("name", "Meu projeto"),
             modifiedAt = j.optLong("modified", System.currentTimeMillis()), favorite = j.optBoolean("favorite"), aspectRatio = j.optDouble("ratio", 0.0).toFloat(),
             export = if (e == null) ExportSettings() else ExportSettings(e.getInt(0), e.getInt(1), e.getInt(2)),
             audio = objects(j.optJSONArray("audio")).map { a -> AudioClip(a.getString("id"), a.getString("uri"), a.getString("name"), a.getLong("duration"), a.getLong("offset"), a.getLong("start"), a.getLong("end"), a.getInt("track"), a.getDouble("volume").toFloat(), a.getLong("fade")) },
-            texts = objects(j.optJSONArray("texts")).map { t -> TextLayer(t.getString("id"), t.getString("text"), t.getLong("start"), t.getLong("end"), t.getDouble("x").toFloat(), t.getDouble("y").toFloat(), t.getDouble("size").toFloat(), t.getInt("color"), t.getBoolean("animated")) },
-            overlays = objects(j.optJSONArray("overlays")).map { o -> VideoOverlay(o.getString("id"), readClip(o.getJSONObject("clip")), o.getLong("offset"), o.getInt("track"), o.getDouble("x").toFloat(), o.getDouble("y").toFloat(), o.getDouble("scale").toFloat(), o.getDouble("opacity").toFloat()) })
+            texts = objects(j.optJSONArray("texts")).map { t -> TextLayer(t.getString("id"), t.getString("text"), t.getLong("start"), t.getLong("end"), t.getDouble("x").toFloat(), t.getDouble("y").toFloat(), t.getDouble("size").toFloat(), t.getInt("color"), t.getBoolean("animated"), t.optDouble("rotation", 0.0).toFloat(), readKeys(t.optJSONArray("keys"))) },
+            overlays = objects(j.optJSONArray("overlays")).map { o -> VideoOverlay(o.getString("id"), readClip(o.getJSONObject("clip")), o.getLong("offset"), o.getInt("track"), o.getDouble("x").toFloat(), o.getDouble("y").toFloat(), o.getDouble("scale").toFloat(), o.getDouble("opacity").toFloat(), o.optDouble("rotation", 0.0).toFloat(), readKeys(o.optJSONArray("keys"))) })
     }
+    /** Schema 4: rotation and keyframes for texts/overlays; older files load with defaults. */
+    private fun keys(keys: List<TransformKeyframe>) =
+        JSONArray(keys.map { JSONArray(listOf(it.sourceMs, it.x, it.y, it.scale, it.rotation, it.opacity)) })
+
+    private fun readKeys(a: JSONArray?) =
+        rows(a).map {
+            TransformKeyframe(
+                it.getLong(0),
+                it.getDouble(1).toFloat(),
+                it.getDouble(2).toFloat(),
+                it.getDouble(3).toFloat(),
+                it.getDouble(4).toFloat(),
+                it.getDouble(5).toFloat()
+            )
+        }
     private fun objects(a: JSONArray?) = (0 until (a?.length() ?: 0)).map { a!!.getJSONObject(it) }
     private fun rows(a: JSONArray?) = (0 until (a?.length() ?: 0)).map { a!!.getJSONArray(it) }
     private fun analysisFile(uri: String) = AtomicFile(File(root, "motion-v2-${MessageDigest.getInstance("SHA-256").digest(uri.toByteArray()).joinToString("") { "%02x".format(it) }}.json"))

@@ -40,7 +40,10 @@ internal fun ColumnScope.EditorWorkspace(
         PreviewPanel(
             vm,
             state,
-            Modifier.weight(1f).fillMaxWidth().heightIn(min = 120.dp).padding(horizontal = 12.dp)
+            Modifier.weight(1f).fillMaxWidth().heightIn(min = 120.dp).padding(horizontal = 12.dp),
+            editable = true,
+            mainSelected = ui.contextual,
+            onSelect = { main -> ui.contextual = main }
         )
     }
     TransportBar(vm, state, enabled, onFullscreen = { ui.full = true })

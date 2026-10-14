@@ -1,5 +1,6 @@
 package br.com.riseedit.timeline
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
@@ -63,6 +66,7 @@ internal fun BoxScope.TimelineClip(
             modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()
                 .background(Color.Black.copy(alpha = 0.6f)).padding(3.dp)
         )
+        KeyDiamonds(entry, left - visibleLeft, ui.viewport.pixelsPerSecond)
         Box(
             Modifier.fillMaxSize().border(
                 if (entry.selected) 2.dp else 1.dp,
@@ -109,5 +113,27 @@ private fun BoxScope.TrimHandle(x: Float, label: String) {
                 3.dp
             ).fillMaxHeight(0.55f).background(Color.Black, RoundedCornerShape(2.dp))
         )
+    }
+}
+
+@Composable
+private fun KeyDiamonds(entry: TimelineEntry, shiftPx: Double, pixelsPerSecond: Double) {
+    if (entry.keyOffsetsUs.isEmpty()) return
+    Canvas(Modifier.fillMaxSize()) {
+        val r = 4.5f * density
+        val y = r + 2 * density
+        entry.keyOffsetsUs.forEach { us ->
+            val x = (shiftPx + us * pixelsPerSecond / 1_000_000).toFloat()
+            if (x < -r || x > size.width + r) return@forEach
+            val path = Path().apply {
+                moveTo(x, y - r)
+                lineTo(x + r, y)
+                lineTo(x, y + r)
+                lineTo(x - r, y)
+                close()
+            }
+            drawPath(path, RiseWhite)
+            drawPath(path, Color.Black, style = Stroke(density))
+        }
     }
 }

@@ -11,49 +11,35 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import br.com.riseedit.core.editing.TimelineViewport
+import br.com.riseedit.core.editing.TimelineZoom
 import kotlin.math.ceil
 import kotlin.math.floor
-import kotlin.math.log10
-import kotlin.math.pow
 
 @Composable
 internal fun TimelineRuler(viewport: TimelineViewport, durationUs: Long) {
     val density = LocalDensity.current.density
     Canvas(Modifier.fillMaxWidth().height(28.dp)) {
-        val step = tickStep(viewport.pixelsPerSecond, density)
-        val first = (floor(viewport.originUs / step) * step).coerceAtLeast(0.0)
+        val stepUs = TimelineZoom.tickStepUs(viewport.pixelsPerSecond, 64.0 * density)
+        val step = stepUs.toDouble()
+        val minor = step / 5
+        val first = (floor(viewport.originUs / minor) * minor).coerceAtLeast(0.0)
         val last = minOf(durationUs.toDouble(), viewport.timeAtPx(size.width.toDouble()))
         val paint = android.graphics.Paint().apply {
             color = android.graphics.Color.LTGRAY
             textSize = 9 * density
             isAntiAlias = true
         }
-        val count = ceil((last - first) / step).toInt().coerceIn(0, 100)
+        val count = ceil((last - first) / minor).toInt().coerceIn(0, 400)
         repeat(count + 1) { i ->
-            val time = first + i * step
+            val time = first + i * minor
             val x = viewport.pxAtTime(time).toFloat()
-            drawLine(Color.Gray, Offset(x, 16 * density), Offset(x, 25 * density), density)
-            val text = if (step >=
-                1_000_000
-            ) {
-                "${(time / 1_000_000).toLong()}s"
-            } else {
-                "${(time / 1000).toLong()}ms"
+            val major = Math.floorMod((time / minor).toLong() + 0, 5L) == 0L
+            val top = if (major) 16 * density else 21 * density
+            drawLine(Color.Gray, Offset(x, top), Offset(x, 25 * density), density)
+            if (major) {
+                val text = TimelineZoom.label(time, stepUs)
+                drawContext.canvas.nativeCanvas.drawText(text, x + 3 * density, 12 * density, paint)
             }
-            drawContext.canvas.nativeCanvas.drawText(text, x + 3 * density, 12 * density, paint)
         }
     }
-}
-
-private fun tickStep(scale: Double, density: Float): Double {
-    val desired = 65 * density / scale
-    val magnitude = 10.0.pow(floor(log10(desired)))
-    val normalized = desired / magnitude
-    val multiple = when {
-        normalized <= 1 -> 1
-        normalized <= 2 -> 2
-        normalized <= 5 -> 5
-        else -> 10
-    }
-    return multiple * magnitude * 1_000_000
 }

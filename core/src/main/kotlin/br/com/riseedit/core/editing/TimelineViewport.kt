@@ -23,10 +23,23 @@ data class TimelineViewport(
 
     fun zoomed(factor: Double, focusPx: Double, durationUs: Long): TimelineViewport {
         require(factor.isFinite() && factor > 0 && focusPx.isFinite())
-        val anchor = timeAtPx(focusPx)
-        val scale = (pixelsPerSecond * factor).coerceIn(minPixelsPerSecond, maxPixelsPerSecond)
-        return copy(pixelsPerSecond = scale, originUs = anchor - focusPx * 1_000_000 / scale)
+        val limits = fitted(durationUs)
+        val anchor = limits.timeAtPx(focusPx)
+        val scale = (limits.pixelsPerSecond * factor)
+            .coerceIn(limits.minPixelsPerSecond, limits.maxPixelsPerSecond)
+        return limits.copy(pixelsPerSecond = scale, originUs = anchor - focusPx * 1_000_000 / scale)
             .bounded(durationUs)
+    }
+
+    /** Zoom-out limit follows the project: whole timeline fits, capped at 10 minutes visible. */
+    fun fitted(durationUs: Long): TimelineViewport {
+        val usable = (widthPx - 2 * edgeInsetPx).coerceAtLeast(widthPx / 2)
+        val minimum = TimelineZoom.minPixelsPerSecond(usable, durationUs)
+            .coerceAtMost(maxPixelsPerSecond)
+        return copy(
+            minPixelsPerSecond = minimum,
+            pixelsPerSecond = pixelsPerSecond.coerceIn(minimum, maxPixelsPerSecond)
+        )
     }
 
     fun panned(deltaPx: Double, durationUs: Long): TimelineViewport {
@@ -35,7 +48,7 @@ data class TimelineViewport(
     }
 
     fun resized(width: Double, durationUs: Long): TimelineViewport =
-        copy(widthPx = width.coerceAtLeast(1.0)).bounded(durationUs)
+        copy(widthPx = width.coerceAtLeast(1.0)).fitted(durationUs).bounded(durationUs)
 
     fun bounded(durationUs: Long): TimelineViewport {
         require(durationUs >= 0)

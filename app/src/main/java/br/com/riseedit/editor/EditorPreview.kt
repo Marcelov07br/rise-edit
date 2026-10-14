@@ -99,6 +99,12 @@ internal class EditorPreview(
         seek(document.current.project.clips.take(index).sumOf { it.durationMs })
     }
 
+    /** Selects a main clip without moving the playhead (used by direct preview manipulation). */
+    fun focus(index: Int) {
+        if (document.current.busy != null) return
+        document.update { it.copy(selected = index, selection = null) }
+    }
+
     fun togglePlay() {
         if (document.current.busy == null) engine.togglePlay()
     }

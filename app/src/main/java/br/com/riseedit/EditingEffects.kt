@@ -58,9 +58,10 @@ class TimedText(private val layer: TextLayer) : TextOverlay() {
         val ms = presentationTimeUs / 1000
         val alpha = if (ms < layer.startMs || ms >= layer.endMs) 0f else if (!layer.animated) 1f
             else min(1f, min((ms-layer.startMs)/250f, (layer.endMs-ms)/250f)).coerceAtLeast(0f)
-        val scale=min(layer.size*frameHeight/720f,frameWidth*0.9f/getBitmap(presentationTimeUs).width.coerceAtLeast(1))
-        return StaticOverlaySettings.Builder().setAlphaScale(alpha).setBackgroundFrameAnchor(layer.x,layer.y)
-            .setScale(scale,scale).build()
+        val t = layer.transformAt(ms - layer.startMs)
+        val scale = min(t.scale * frameHeight / 720f, frameWidth * 0.9f / getBitmap(presentationTimeUs).width.coerceAtLeast(1))
+        return StaticOverlaySettings.Builder().setAlphaScale(alpha).setBackgroundFrameAnchor(t.x, t.y)
+            .setScale(scale, scale).setRotationDegrees(t.rotation).build()
     }
 }
 

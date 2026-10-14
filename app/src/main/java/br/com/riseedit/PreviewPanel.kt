@@ -7,6 +7,9 @@ import android.view.View
 import androidx.core.view.doOnPreDraw
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import br.com.riseedit.edit.PreviewEditLayer
+import br.com.riseedit.edit.PreviewEditState
+import br.com.riseedit.edit.previewItems
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -29,7 +32,7 @@ import kotlin.math.*
 
 /** TextureView lets the cheap preview transform decoded frames without the GL effect graph. */
 @Composable
-fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = Modifier) {
+fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = Modifier, editable: Boolean = false, mainSelected: Boolean = false, onSelect: (Boolean) -> Unit = {}) {
     val previewPlayer = vm.player
     val fast = previewPlayer is ExoPlayer
     val clip = vm.previewClip
@@ -41,7 +44,8 @@ fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = M
     val zoom = corrections.takeIf { it.isNotEmpty() }
         ?.let { MotionSmoother.zoomAt(it, vm.previewSourceMs).toFloat() } ?: 1f
     val pose = if (fast && corrections.isNotEmpty()) MotionSmoother.interpolate(corrections, vm.previewSourceMs) else Pose()
-    val key = if (fast && clip != null) Timeline.keyframe(clip, vm.previewSourceMs) else TransformKeyframe(0)
+    val edit = remember { PreviewEditState() }
+    val key = edit.draftFor(clip?.id)?.takeIf { fast } ?: if (fast && clip != null) Timeline.keyframe(clip, vm.previewSourceMs) else TransformKeyframe(0)
     val density = LocalDensity.current.density
     val info = clip?.sourceInfo
     val rotated = info?.rotationDegrees in listOf(90,270)
@@ -55,7 +59,7 @@ fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = M
     val fade = clip?.let { min(it.fadeMs,it.durationMs/2) } ?: 0
     val gain = if (!fast || fade <= 0 || clip == null) 1f else min(1f,min(local.toFloat()/fade,(clip.durationMs-local).toFloat()/fade)).coerceIn(0f,1f)
 
-    BoxWithConstraints(modifier.background(Color.Black).clip(RoundedCornerShape(16.dp)).clickable { vm.togglePlay() }, contentAlignment = Alignment.Center) {
+    BoxWithConstraints(modifier.background(Color.Black).clip(RoundedCornerShape(16.dp)).then(if (editable) Modifier else Modifier.clickable { vm.togglePlay() }), contentAlignment = Alignment.Center) {
         val outWidth = min(maxWidth.value,maxHeight.value*outputRatio)
         val outHeight = outWidth/outputRatio
         val videoWidth = if (!fast) outWidth else max(outWidth,outHeight*sourceRatio)
@@ -92,6 +96,11 @@ fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = M
                     },
                     onRelease={ it.player=null }
                 ) }
+            }
+            if (editable) {
+                val items = previewItems(state, index.takeIf { it >= 0 }, vm.previewSourceMs, outputRatio)
+                val selectedId = state.selection ?: clip?.id?.takeIf { mainSelected }
+                PreviewEditLayer(vm, state, edit, items, selectedId, fast, onSelect)
             }
         }
         Surface(Modifier.align(Alignment.TopStart).padding(6.dp),color=Color.Black.copy(alpha=0.7f),shape=RoundedCornerShape(6.dp)) {

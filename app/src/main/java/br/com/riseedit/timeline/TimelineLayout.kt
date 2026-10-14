@@ -37,7 +37,9 @@ internal data class TimelineEntry(
     val color: Color,
     val clip: Clip? = null,
     val audio: AudioClip? = null,
-    val mainIndex: Int? = null
+    val mainIndex: Int? = null,
+    /** Keyframe times relative to the entry start, drawn as diamonds. */
+    val keyOffsetsUs: List<Double> = emptyList()
 ) {
     val endUs get() = startUs + durationUs
 }
@@ -55,7 +57,8 @@ internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<Time
                     it.clip.durationMs * 1000,
                     state.selection == it.id,
                     LaneOverlay,
-                    it.clip
+                    it.clip,
+                    keyOffsetsUs = it.keyframes.map { key -> key.sourceMs * 1000.0 }
                 )
             )
         }
@@ -68,7 +71,8 @@ internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<Time
                     it.startMs * 1000.0,
                     (it.endMs - it.startMs) * 1000,
                     state.selection == it.id,
-                    LaneText
+                    LaneText,
+                    keyOffsetsUs = it.keyframes.map { key -> key.sourceMs * 1000.0 }
                 )
             )
         }
@@ -110,7 +114,9 @@ private fun mainEntries(state: EditorState, ui: TimelineUiState): List<TimelineE
             TimelineEntry(
                 original.id, original.name, 0, offset * 1000.0 + leftDelta,
                 clip.durationMs * 1000, state.selection == null && index == state.selected,
-                LaneVideo, original, mainIndex = index
+                LaneVideo, original, mainIndex = index,
+                keyOffsetsUs = clip.keyframes.takeIf { it.size > 1 }.orEmpty()
+                    .mapNotNull { outputMsOf(clip, it.sourceMs)?.times(1000.0) }
             )
         )
         offset +=
@@ -122,4 +128,16 @@ private fun mainEntries(state: EditorState, ui: TimelineUiState): List<TimelineE
                 original.durationMs
             }
     }
+}
+
+/** Output time inside [clip] that maps to [sourceMs] (speed curves are monotonic). */
+private fun outputMsOf(clip: br.com.riseedit.core.Clip, sourceMs: Long): Long? {
+    if (sourceMs < clip.startMs || sourceMs > clip.endMs) return null
+    var low = 0L
+    var high = clip.durationMs
+    while (low < high) {
+        val mid = (low + high) / 2
+        if (clip.sourceAt(mid) < sourceMs) low = mid + 1 else high = mid
+    }
+    return low
 }

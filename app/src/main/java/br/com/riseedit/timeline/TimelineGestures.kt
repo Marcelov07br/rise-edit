@@ -19,6 +19,8 @@ import br.com.riseedit.core.editing.TrimEdge
 import kotlin.math.abs
 import kotlin.math.floor
 
+private const val SNAP_DP = 10f
+
 private enum class GestureMode { TAP, TRIM, SCRUB, PAN, MOVE, VERTICAL, TRANSFORM }
 
 private class GestureDraft(
@@ -26,7 +28,10 @@ private class GestureDraft(
     val entry: TimelineEntry?,
     var mode: GestureMode,
     val scale: Double,
-    val origin: Double
+    val origin: Double,
+    val edgeUs: Double = 0.0,
+    val targets: List<Double> = emptyList(),
+    val thresholdUs: Double = 0.0
 )
 
 internal fun Modifier.timelineGestures(
@@ -41,7 +46,15 @@ internal fun Modifier.timelineGestures(
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
             if (state.value.busy == null) {
-                val draft = beginGesture(down, entries.value, ui, actions, density, scrollY())
+                val draft = beginGesture(
+                    down,
+                    entries.value,
+                    ui,
+                    actions,
+                    density,
+                    scrollY(),
+                    state.value.positionMs * 1000.0
+                )
                 var event: PointerEvent
                 do {
                     event = awaitPointerEvent(PointerEventPass.Initial)
@@ -64,7 +77,8 @@ private fun beginGesture(
     ui: TimelineUiState,
     actions: TimelineActions,
     density: Float,
-    scrollY: Int
+    scrollY: Int,
+    playheadUs: Double
 ): GestureDraft {
     val lane = floor((down.position.y - RULER_DP * density + scrollY) / (LANE_DP * density)).toInt()
     val row = ui.lanes.getOrElse(lane) { -1 }
@@ -88,7 +102,26 @@ private fun beginGesture(
         }
         else -> GestureMode.TAP
     }
-    return GestureDraft(down, entry, mode, ui.viewport.pixelsPerSecond, ui.viewport.originUs)
+    val trimmed = selected?.takeIf { mode == GestureMode.TRIM }
+    val edgeUs = when {
+        trimmed == null -> 0.0
+        edge == TrimEdge.START -> trimmed.startUs
+        else -> trimmed.endUs
+    }
+    val exclude = trimmed?.id ?: entry?.id
+    val targets = entries.filter { it.id != exclude }.flatMap { listOf(it.startUs, it.endUs) } +
+        listOf(0.0, playheadUs)
+    val pps = ui.viewport.pixelsPerSecond
+    return GestureDraft(
+        down,
+        entry,
+        mode,
+        pps,
+        ui.viewport.originUs,
+        edgeUs,
+        if (mode == GestureMode.SCRUB) targets - playheadUs else targets,
+        SNAP_DP * density * 1_000_000 / pps
+    )
 }
 
 private fun trimEdge(
@@ -176,9 +209,23 @@ private fun applyMovement(
     durationUs: Long
 ) {
     when (draft.mode) {
-        GestureMode.TRIM -> ui.draft = ui.trim?.dragged(delta.x * 1_000_000 / draft.scale)
-        GestureMode.SCRUB -> actions.seek(ui.viewport.timeAtPx(change.position.x.toDouble()))
-        GestureMode.MOVE -> ui.movingUs = delta.x * 1_000_000 / draft.scale
+        GestureMode.TRIM -> {
+            val raw = draft.edgeUs + delta.x * 1_000_000 / draft.scale
+            val snapped = ui.magnet(raw, draft.targets, draft.thresholdUs)
+            ui.draft = ui.trim?.dragged(snapped - draft.edgeUs)
+        }
+        GestureMode.SCRUB -> actions.seek(
+            ui.magnet(
+                ui.viewport.timeAtPx(change.position.x.toDouble()),
+                draft.targets,
+                draft.thresholdUs
+            )
+        )
+        GestureMode.MOVE -> draft.entry?.let {
+            val raw = it.startUs + delta.x * 1_000_000 / draft.scale
+            val length = it.durationUs.toDouble()
+            ui.movingUs = ui.magnet(raw, draft.targets, draft.thresholdUs, length) - it.startUs
+        }
         GestureMode.PAN -> ui.viewport = ui.viewport.copy(
             originUs = draft.origin - delta.x * 1_000_000 / draft.scale
         ).bounded(durationUs)
@@ -191,7 +238,7 @@ private fun finishGesture(draft: GestureDraft, ui: TimelineUiState, actions: Tim
         GestureMode.TRIM -> actions.commitTrim(ui)
         GestureMode.TAP -> draft.entry?.let(actions::select)
         GestureMode.MOVE -> draft.entry?.let {
-            actions.move(it, it.startUs + ui.movingUs, ui.snapping)
+            actions.move(it, it.startUs + ui.movingUs, false)
         }
         else -> Unit
     }

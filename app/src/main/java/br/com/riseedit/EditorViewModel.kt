@@ -62,6 +62,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun compare() = preview.compare()
     fun mute() = preview.mute()
     fun select(index: Int) = preview.select(index)
+    fun focus(index: Int) = preview.focus(index)
     fun seek(ms: Long) = preview.seek(ms)
     fun togglePlay() = preview.togglePlay()
 

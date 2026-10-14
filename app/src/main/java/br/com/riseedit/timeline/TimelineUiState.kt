@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import br.com.riseedit.core.Clip
 import br.com.riseedit.core.editing.ClipTrimSession
+import br.com.riseedit.core.editing.Snapping
 import br.com.riseedit.core.editing.TimelineViewport
 
 internal class TimelineUiState(density: Float) {
@@ -24,6 +25,33 @@ internal class TimelineUiState(density: Float) {
     var movingUs by mutableStateOf(0.0)
     var snapping by mutableStateOf(true)
 
+    /** Time the current drag is magnetized to, drawn as a guide line; null when free. */
+    var snapUs by mutableStateOf<Double?>(null)
+
+    /** Light haptic tick fired when a drag engages a new magnet. */
+    var onSnap: () -> Unit = {}
+
+    /** Snaps [valueUs] (or a span when [lengthUs] > 0) to [targets]; returns the snapped start. */
+    fun magnet(
+        valueUs: Double,
+        targets: List<Double>,
+        thresholdUs: Double,
+        lengthUs: Double = 0.0
+    ): Double {
+        if (!snapping) {
+            snapUs = null
+            return valueUs
+        }
+        val result = if (lengthUs > 0) {
+            Snapping.snapSpan(valueUs, lengthUs, targets, thresholdUs)
+        } else {
+            Snapping.snap(valueUs, targets, thresholdUs)
+        }
+        if (result.target != null && result.target != snapUs) onSnap()
+        snapUs = result.target
+        return result.value
+    }
+
     /** Logical rows currently shown, top to bottom (see [trackNames]). */
     var lanes by mutableStateOf(BASE_LANES)
 
@@ -35,5 +63,6 @@ internal class TimelineUiState(density: Float) {
         draft = null
         movingId = null
         movingUs = 0.0
+        snapUs = null
     }
 }

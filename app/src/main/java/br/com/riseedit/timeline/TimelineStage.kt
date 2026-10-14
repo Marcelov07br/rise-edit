@@ -33,8 +33,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -45,6 +47,8 @@ import br.com.riseedit.RiseMuted
 import br.com.riseedit.RiseSurface
 import br.com.riseedit.RiseSurfaceHigh
 import br.com.riseedit.RiseWhite
+
+private val SnapGuide = androidx.compose.ui.graphics.Color(0xFFFFD54F)
 
 @Composable
 internal fun TimelineStage(
@@ -60,7 +64,9 @@ internal fun TimelineStage(
     val lanes = visibleLanes(entries.value, ui.extraLanes)
     ui.lanes = lanes
     val duration = state.value.project.durationMs * 1000
-    LaunchedEffect(duration) { ui.viewport = ui.viewport.bounded(duration) }
+    LaunchedEffect(duration) { ui.viewport = ui.viewport.fitted(duration).bounded(duration) }
+    val haptic = LocalHapticFeedback.current
+    ui.onSnap = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
     Row(Modifier.fillMaxWidth().height(height)) {
         Column(Modifier.width(64.dp)) {
             Box(Modifier.height(RULER_DP.dp))
@@ -98,6 +104,10 @@ internal fun TimelineStage(
                 val x = ui.viewport.pxAtTime(state.value.positionMs * 1000.0).toFloat()
                 drawLine(RiseWhite, Offset(x, 0f), Offset(x, size.height), 2 * density)
                 drawCircle(RiseWhite, 5 * density, Offset(x, 5 * density))
+                ui.snapUs?.let {
+                    val snapX = ui.viewport.pxAtTime(it).toFloat()
+                    drawLine(SnapGuide, Offset(snapX, 0f), Offset(snapX, size.height), density)
+                }
             }
         }
     }
