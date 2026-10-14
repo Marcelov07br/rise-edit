@@ -132,7 +132,13 @@ class TimelineGestureTest {
         while (visible("Aresta final") && android.os.SystemClock.uptimeMillis() < deadline) {
             android.os.SystemClock.sleep(100)
         }
-        assertFalse("Pinch over the clip did not zoom", visible("Aresta final"))
+        val clipNode = Rect().also { ui.waitFor("Clipe Timeline real, selecionado").getBoundsInScreen(it) }
+        assertFalse(
+            "Pinch over the clip did not zoom: before=$left/$right focus=$focus spread=$spread " +
+                "clip=$clipNode start=${if (visible("Aresta inicial")) bounds("Aresta inicial") else null} " +
+                "end=${bounds("Aresta final")}",
+            visible("Aresta final")
+        )
         ui.screenshot("timeline-pinch-clip")
         touch.pinch(focus, left.bottom + 26 * density, spread, 1 / 2f)
         val reduced = bounds("Aresta final").centerX() - bounds("Aresta inicial").centerX()
