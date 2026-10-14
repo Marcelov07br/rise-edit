@@ -47,7 +47,7 @@ internal fun rememberEditorUiState(): EditorUiState {
     return remember(tool) { EditorUiState(tool) }
 }
 
-internal enum class ToolMenu { TEXT, AUDIO, OVERLAY, COLOR }
+internal enum class ToolMenu { TEXT, AUDIO, OVERLAY, COLOR, MARKERS }
 
 internal enum class TextTab(val label: String) {
     TEMPLATES("Modelos"),

@@ -28,6 +28,7 @@ internal fun StabilizePanel(vm: EditorViewModel, state: EditorState) {
     val clip = p.clips.getOrNull(state.selected) ?: return
     val enabled = state.busy == null
     Text("✦ De tremido a suave", color = RiseWhite, fontWeight = FontWeight.Bold)
+    TelemetryReadout(state)
     Text(
         "1. Escolha um modo  2. Analise  3. Compare e ajuste",
         style = MaterialTheme.typography.bodySmall

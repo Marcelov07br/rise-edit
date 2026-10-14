@@ -43,9 +43,7 @@ object SeparateAudio {
         var changed = false
         val audio = project.audio.map { a ->
             if (a.linkedClipId != clipId) return@map a
-            val end = clip.endMs.coerceIn(clip.startMs + 1, a.sourceDurationMs)
-            val start = clip.startMs.coerceIn(0, end - 1)
-            val next = a.copy(startMs = start, endMs = end, offsetMs = offset)
+            val next = a.syncedTo(clip, offset)
             if (next != a) changed = true
             next
         }

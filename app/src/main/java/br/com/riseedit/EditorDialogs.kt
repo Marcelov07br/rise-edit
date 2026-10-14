@@ -33,7 +33,7 @@ internal fun EditorDialogs(
     if (ui.full) FullscreenPreview(vm, state, onClose = { ui.full = false })
     if (ui.exportDialog) {
         ExportDialog(
-            state.project.export,
+            state.project,
             onClose = { ui.exportDialog = false },
             onExport = media.export
         )

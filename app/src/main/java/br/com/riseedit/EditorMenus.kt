@@ -7,8 +7,13 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AddBox
 import androidx.compose.material.icons.outlined.Animation
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Bookmark
+import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material.icons.outlined.BorderColor
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FilterNone
 import androidx.compose.material.icons.outlined.FontDownload
@@ -16,6 +21,8 @@ import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.SkipNext
+import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material.icons.outlined.SpaceDashboard
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.VerticalSplit
@@ -48,7 +55,14 @@ internal fun toolbarLevel(
     val nested = ui.menu.lastOrNull()
     val base = base(state, ui)
     val items = if (nested != null) {
-        menuItems(nested, state, ui, media, enabled)
+        menuItems(
+            nested,
+            state,
+            ui,
+            media,
+            enabled,
+            MarkerActions(vm::toggleMarker, vm::jumpMarker)
+        )
     } else {
         baseItems(base, vm, state, ui, media, enabled)
     }
@@ -85,6 +99,7 @@ internal fun EditorUiState.openTool(tool: EditorTool) {
 private fun EditorUiState.toolItem(tool: EditorTool, enabled: Boolean, label: String = tool.label) =
     ToolbarItem(label, tool.icon, enabled, active = this.tool == tool) { openTool(tool) }
 
+@Suppress("LongMethod")
 private fun baseItems(
     base: Base,
     vm: EditorViewModel,
@@ -109,7 +124,10 @@ private fun baseItems(
                 ui.push(ToolMenu.OVERLAY)
             },
             ToolbarItem("Cor", Icons.Outlined.Palette, enabled) { ui.push(ToolMenu.COLOR) },
-            ui.toolItem(EditorTool.Format, enabled)
+            ui.toolItem(EditorTool.Format, enabled),
+            ToolbarItem("Marcadores", Icons.Outlined.Bookmark, enabled) {
+                ui.push(ToolMenu.MARKERS)
+            }
         )
         Base.CLIP -> listOf(
             ToolbarItem("Dividir", Icons.Outlined.VerticalSplit, enabled, onClick = vm::split),
@@ -125,7 +143,25 @@ private fun baseItems(
                 Icons.AutoMirrored.Outlined.CallSplit,
                 enabled && !separated(state)
             ) { vm.separateAudio(ui.audioTrack) },
-            delete
+            ToolbarItem(
+                "Copiar atributos",
+                Icons.Outlined.ContentCopy,
+                enabled,
+                onClick = vm::copyAttributes
+            ),
+            ToolbarItem(
+                "Colar atributos",
+                Icons.Outlined.ContentPaste,
+                enabled && vm.hasClipboard
+            ) {
+                vm.pasteAttributes()
+            },
+            delete,
+            ToolbarItem("Excluir com ripple", Icons.Outlined.DeleteSweep, enabled) {
+                vm.rippleDelete()
+                ui.tool = null
+                ui.contextual = false
+            }
         )
         Base.TEXT -> {
             val layer = state.project.texts.first { it.id == state.layerId }
@@ -152,12 +188,14 @@ private fun menuItems(
     state: EditorState,
     ui: EditorUiState,
     media: EditorMediaActions,
-    enabled: Boolean
+    enabled: Boolean,
+    markers: MarkerActions
 ): List<ToolbarItem> = when (menu) {
     ToolMenu.TEXT -> listOf(
         ToolbarItem("Adicionar texto", Icons.Outlined.AddBox, enabled) {
             ui.editText(newText(state), TextTab.STYLES)
-        }
+        },
+        ui.toolItem(EditorTool.Subtitles, enabled)
     ) + textTabItems(ui, enabled) {
         state.project.texts.firstOrNull { it.id == state.layerId } ?: newText(state)
     }
@@ -173,9 +211,23 @@ private fun menuItems(
     )
     ToolMenu.COLOR -> listOf(
         ui.toolItem(EditorTool.Adjust, enabled),
-        ui.toolItem(EditorTool.Filters, enabled)
+        ui.toolItem(EditorTool.Filters, enabled),
+        ui.toolItem(EditorTool.Grade, enabled),
+        ui.toolItem(EditorTool.Meters, enabled)
+    )
+    ToolMenu.MARKERS -> listOf(
+        ToolbarItem(
+            "Marcar / desmarcar",
+            Icons.Outlined.BookmarkAdd,
+            enabled,
+            onClick = markers.toggle
+        ),
+        ToolbarItem("Anterior", Icons.Outlined.SkipPrevious, enabled) { markers.jump(false) },
+        ToolbarItem("Próximo", Icons.Outlined.SkipNext, enabled) { markers.jump(true) }
     )
 }
+
+private class MarkerActions(val toggle: () -> Unit, val jump: (Boolean) -> Unit)
 
 private fun textTabItems(
     ui: EditorUiState,

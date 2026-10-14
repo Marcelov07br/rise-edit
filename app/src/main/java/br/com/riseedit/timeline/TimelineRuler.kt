@@ -16,7 +16,11 @@ import kotlin.math.ceil
 import kotlin.math.floor
 
 @Composable
-internal fun TimelineRuler(viewport: TimelineViewport, durationUs: Long) {
+internal fun TimelineRuler(
+    viewport: TimelineViewport,
+    durationUs: Long,
+    markersMs: List<Long> = emptyList()
+) {
     val density = LocalDensity.current.density
     Canvas(Modifier.fillMaxWidth().height(28.dp)) {
         val stepUs = TimelineZoom.tickStepUs(viewport.pixelsPerSecond, 64.0 * density)
@@ -40,6 +44,11 @@ internal fun TimelineRuler(viewport: TimelineViewport, durationUs: Long) {
                 val text = TimelineZoom.label(time, stepUs)
                 drawContext.canvas.nativeCanvas.drawText(text, x + 3 * density, 12 * density, paint)
             }
+        }
+        markersMs.forEach { ms ->
+            val x = viewport.pxAtTime(ms * 1000.0).toFloat()
+            drawLine(Color.White, Offset(x, 0f), Offset(x, size.height), 2 * density)
+            drawCircle(Color.White, 3 * density, Offset(x, 3 * density))
         }
     }
 }

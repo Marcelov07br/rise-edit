@@ -146,6 +146,7 @@ class ProjectStore(private val context: Context) {
                     .put("scale", c.orientation.scaleMode.name)
             )
             .put("tracks", TracksJson.encode(c.tracks))
+            .put("grade", GradeJson.encode(c.grade))
             .put(
                 "stabilization",
                 JSONObject().put(
@@ -206,7 +207,8 @@ class ProjectStore(private val context: Context) {
             proxyRequired = c.optBoolean("proxyRequired"),
             muted = c.optBoolean("muted", false),
             orientation = readOrientation(c.optJSONObject("orientation")),
-            tracks = TracksJson.decode(c.optJSONObject("tracks"))
+            tracks = TracksJson.decode(c.optJSONObject("tracks")),
+            grade = GradeJson.decode(c.optJSONObject("grade"))
         )
     }
 
@@ -224,7 +226,7 @@ class ProjectStore(private val context: Context) {
     }
     private fun encode(p: Project) = JSONObject().put(
         "schema",
-        7
+        8
     ).put(
         "id",
         p.id
@@ -235,7 +237,18 @@ class ProjectStore(private val context: Context) {
         ).put(
             "ratio",
             p.aspectRatio
-        ).put("export", JSONArray(listOf(p.export.height, p.export.fps, p.export.bitrate)))
+        ).put(
+            "export",
+            JSONArray(listOf(p.export.height, p.export.fps, p.export.bitrate, p.export.codec.name))
+        )
+        .put(
+            "markers",
+            JSONArray(
+                p.markers.map {
+                    JSONObject().put("id", it.id).put("t", it.timeMs).put("label", it.label)
+                }
+            )
+        )
         .put(
             "audio",
             JSONArray(
@@ -258,6 +271,7 @@ class ProjectStore(private val context: Context) {
                             a.track
                         ).put("volume", a.volume).put("fade", a.fadeMs).put("muted", a.muted)
                         .put("linkedClipId", a.linkedClipId ?: JSONObject.NULL)
+                        .put("lead", a.leadMs).put("tail", a.tailMs)
                 }
             )
         )
@@ -324,7 +338,7 @@ class ProjectStore(private val context: Context) {
             )
         )
     private fun decode(j: JSONObject): Project {
-        require(j.getInt("schema") in 1..7) { "Formato de projeto não reconhecido" }
+        require(j.getInt("schema") in 1..8) { "Formato de projeto não reconhecido" }
         val e = j.optJSONArray("export")
         return Project(
             clips = objects(
@@ -346,7 +360,17 @@ class ProjectStore(private val context: Context) {
             ) {
                 ExportSettings()
             } else {
-                ExportSettings(e.getInt(0), e.getInt(1), e.getInt(2))
+                ExportSettings(
+                    e.getInt(0),
+                    e.getInt(1),
+                    e.getInt(2).coerceIn(ExportSettings.MIN_BITRATE, ExportSettings.MAX_BITRATE),
+                    runCatching {
+                        VideoCodec.valueOf(e.optString(3, "H264"))
+                    }.getOrDefault(VideoCodec.H264)
+                )
+            },
+            markers = objects(j.optJSONArray("markers")).map {
+                Marker(it.getString("id"), it.getLong("t"), it.optString("label"))
             },
             audio = objects(j.optJSONArray("audio")).map { a ->
                 AudioClip(
@@ -387,7 +411,9 @@ class ProjectStore(private val context: Context) {
                         a.optString("linkedClipId").ifBlank {
                             null
                         }
-                    }
+                    },
+                    leadMs = a.optLong("lead"),
+                    tailMs = a.optLong("tail")
                 )
             },
             texts = objects(j.optJSONArray("texts")).map { t ->

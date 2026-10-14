@@ -69,6 +69,7 @@ private fun buildClipEffects(
         add(StabilizationEffect(clip, analysis, offsetMs))
     }
     add(ClipTransform(clip, offsetMs))
+    br.com.riseedit.color.GradeLuts.effect(clip.grade)?.let(::add)
     add(Brightness(clip.adjustments.brightness))
     add(Contrast(clip.adjustments.contrast))
     add(HslAdjustment.Builder().adjustSaturation(clip.adjustments.saturation * 100).build())

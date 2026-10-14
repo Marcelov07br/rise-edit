@@ -51,13 +51,23 @@ sealed class EditorTool(
     data object Keyframe :
         EditorTool("QuadroChave", "Quadro-chave", Icons.Outlined.Animation, "Quadro-chave")
 
+    data object Grade : EditorTool("CorPro", "Log/LUT", Icons.Outlined.Contrast, "Log, LUT e curva")
+    data object Meters : EditorTool(
+        "Medidores",
+        "Medidores",
+        Icons.Outlined.Tune,
+        "Histograma, forma de onda e zebra"
+    )
+    data object Subtitles :
+        EditorTool("Legendas", "Legendas", Icons.Outlined.Timer, "Legendas automáticas (Whisper)")
+
     val title: String get() = panelTitle
 
     companion object {
         private val all = listOf(
             Trim, Stabilize, Format, Speed, Volume, Adjust, Filters, ClipAnimation, AudioLayer,
             Record, OverlayOpacity, OverlayBlend, OverlayMask, OverlayTrim, TextTiming,
-            Orientation, Keyframe
+            Orientation, Keyframe, Grade, Meters, Subtitles
         )
         val saver =
             Saver<EditorTool?, String>(

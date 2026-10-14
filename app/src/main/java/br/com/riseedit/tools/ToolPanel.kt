@@ -29,5 +29,8 @@ fun ToolPanel(
         EditorTool.TextTiming -> TextTimingPanel(vm, state)
         EditorTool.Orientation -> OrientationPanel(vm, state)
         EditorTool.Keyframe -> KeyframePanel(vm, state)
+        EditorTool.Grade -> GradePanel(vm, state)
+        EditorTool.Meters -> MetersPanel(vm, state)
+        EditorTool.Subtitles -> SubtitlesPanel(vm, state)
     }
 }

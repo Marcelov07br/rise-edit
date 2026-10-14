@@ -39,7 +39,8 @@ data class Clip(
     val muted: Boolean = false,
     val orientation: Orientation = Orientation(),
     /** Per-parameter tracks; null means evaluate [keyframes] via legacy migration. */
-    val tracks: br.com.riseedit.core.keys.TransformTracks? = null
+    val tracks: br.com.riseedit.core.keys.TransformTracks? = null,
+    val grade: br.com.riseedit.core.color.ColorGrade = br.com.riseedit.core.color.ColorGrade()
 ) {
     init {
         require(
@@ -116,7 +117,11 @@ data class AudioClip(
     val fadeMs: Long = 500,
     val muted: Boolean = false,
     /** Main clip this audio was detached from; trims stay in sync when set. */
-    val linkedClipId: String? = null
+    val linkedClipId: String? = null,
+    /** J-cut: linked audio starts this long before its clip. */
+    val leadMs: Long = 0,
+    /** L-cut: linked audio keeps playing this long after its clip. */
+    val tailMs: Long = 0
 ) {
     init {
         require(
@@ -188,15 +193,35 @@ data class TextLayer(
         tracks = tracks
     )
 }
-data class ExportSettings(val height: Int = 720, val fps: Int = 30, val bitrate: Int = 8_000_000) {
+enum class VideoCodec(val label: String) { H264("H.264"), HEVC("HEVC") }
+
+/** Export target. 2160 = 4K; bitrate is free (1–150 Mbps); fps is a cap, never upsampled. */
+data class ExportSettings(
+    val height: Int = 720,
+    val fps: Int = 30,
+    val bitrate: Int = 8_000_000,
+    val codec: VideoCodec = VideoCodec.H264
+) {
     init {
         require(
-            height in listOf(480, 720, 1080) &&
+            height in HEIGHTS &&
                 fps in listOf(24, 30, 60) &&
-                bitrate in 2_000_000..24_000_000
+                bitrate in MIN_BITRATE..MAX_BITRATE
         )
     }
+
+    companion object {
+        val HEIGHTS = listOf(480, 720, 1080, 1440, 2160)
+        const val MIN_BITRATE = 1_000_000
+        const val MAX_BITRATE = 150_000_000
+    }
 }
+
+data class Marker(
+    val id: String = UUID.randomUUID().toString(),
+    val timeMs: Long,
+    val label: String = ""
+)
 data class Project(
     val clips: List<Clip> = emptyList(),
     val id: String = UUID.randomUUID().toString(),
@@ -207,7 +232,8 @@ data class Project(
     val texts: List<TextLayer> = emptyList(),
     val overlays: List<VideoOverlay> = emptyList(),
     val aspectRatio: Float = 0f,
-    val export: ExportSettings = ExportSettings()
+    val export: ExportSettings = ExportSettings(),
+    val markers: List<Marker> = emptyList()
 ) {
     val durationMs get() = clips.sumOf { it.durationMs }
     fun replace(index: Int, clip: Clip) =

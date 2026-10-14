@@ -85,6 +85,22 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun remove() = commands.remove()
     fun move(delta: Int) = commands.move(delta)
     fun settings(settings: Stabilization) = commands.settings(settings)
+    fun copyAttributes() = commands.copyAttributes()
+    fun pasteAttributes() = commands.pasteAttributes()
+    val hasClipboard get() = commands.hasClipboard
+    fun rippleDelete() = commands.rippleDelete()
+    fun toggleMarker() = commands.toggleMarker()
+    fun jumpMarker(forward: Boolean) {
+        val s = state.value
+        val target = if (forward) {
+            br.com.riseedit.core.editing.Markers.next(s.project, s.positionMs)
+        } else {
+            br.com.riseedit.core.editing.Markers.previous(s.project, s.positionMs)
+        }
+        if (target != null) preview.seek(target) else message("Nenhum marcador nessa direção.")
+    }
+    fun jlCut(audioId: String, leadMs: Long, tailMs: Long) = commands.jlCut(audioId, leadMs, tailMs)
+    fun addSubtitles(layers: List<TextLayer>) = commands.addTexts(layers)
 
     fun selectLayer(id: String) = layers.select(id)
     fun clearLayer() = layers.select(null)

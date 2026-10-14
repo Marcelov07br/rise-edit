@@ -26,5 +26,11 @@ internal fun buildOutputEffects(project: Project, preview: Boolean): List<Effect
     }
     add(Presentation.createForHeight(if (preview) 480 else project.export.height))
     if (project.texts.isNotEmpty()) add(OverlayEffect(project.texts.map(::StyledTextOverlay)))
-    if (!preview) add(FrameDropEffect.createDefaultFrameDropEffect(project.export.fps.toFloat()))
+    if (!preview) {
+        add(
+            FrameDropEffect.createDefaultFrameDropEffect(
+                br.com.riseedit.core.ExportPlan.effectiveFps(project).toFloat()
+            )
+        )
+    }
 }

@@ -7,5 +7,6 @@ class RiseApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Diagnostics.install(this)
+        br.com.riseedit.color.GradeLuts.install(this)
     }
 }

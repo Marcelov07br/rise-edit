@@ -106,7 +106,7 @@ Fonte: revisão do Codex na [issue #5](https://github.com/Marcelov07br/rise-edit
 | P0 | Diagnóstico mínimo com exportar logcat pelo app → gravação → áudio/mute e validar Fiel como padrão → regressões |
 | P1 | Recuperação e mídia ausente → seleção única → keyframes/migração → desempenho/proxies → exportação em serviço |
 | P2 | Separar áudio → edge trim → orientação → mini janela de keyframes |
-| P3 | Edição pro → 4K/HEVC e formatos → cor/medidores → legendas → experimento com giroscópio |
+| P3 | Edição pro → 4K/HEVC e formatos → cor/medidores → legendas → experimento com giroscópio (**feito na 0.11.0**) |
 | Depois | Sincronização multicâmera e integração com PC |
 
 ### P0 — status (0.8.0, 14/10)
@@ -128,3 +128,18 @@ Fonte: revisão do Codex na [issue #5](https://github.com/Marcelov07br/rise-edit
 - [x] Edge trim em overlay e áudio (`OverlayTrimSession`, `AudioTrimSession`), mesmo contrato do vídeo principal.
 - [x] Orientação: `Orientation` (90°, espelhar, inverter, Ajustar/Preencher) no clipe principal, prévia Fiel = exportação. Ainda sem keyframe de orientação e sem orientação em overlays.
 - [x] Mini janela de quadro-chave (painel baixo): curva Manter/Linear/Suave/Bézier, excluir, anterior/próximo. Persistência por parâmetro (`tracks`, schema 7) com migração.
+
+### P3 — status (0.11.0, 14/10)
+- [x] Edição pro: **Excluir com ripple** (clipe sai e textos, overlays, áudios e marcadores depois dele encostam; áudio vinculado sai junto), **marcadores** (Raiz → Marcadores: marcar/desmarcar no cursor, anterior/próximo; traço branco na régua), **cortes J/L** no áudio separado (Ajustar áudio → J 0–2 s antes, L 0–2 s depois; sobrevive a corte/mover do clipe), **copiar/colar atributos** (cor, log/LUT/curva, orientação, estabilização, volume, fade; nunca corte/velocidade). Projeto schema 8.
+- [x] Exportação: 1440p e **4K**, **HEVC**, taxa de bits livre (2–150 Mbps em passos) + presets Leve/Boa/Alta calculados por resolução/fps/codec. **60 fps só aparece se alguma fonte tiver ≥ 59 fps**; o limite efetivo nunca passa da fonte (`ExportPlan`). Aviso quando a resolução amplia a fonte.
+- [x] Cor: **Cor → Log/LUT**: perfil log (S-Log3, V-Log, Apple Log com fórmulas publicadas; Log genérico aproximado) → LUT .cube importado (copiado para o app, intensidade 25–100%) → curva fixa (S suave/forte, Desbotado, Sombras +, Altas −). Tudo assado num LUT 33³ na GPU (`SingleColorLut`), igual na Fiel e na exportação. **Cor → Medidores**: histograma, forma de onda e zebra (≥95%) do quadro no cursor com a cor aplicada (CPU, 240 px), % estourado.
+- [x] Legendas: **Texto → Legendas** com whisper.cpp nativo (JNI, CPU). Modelos Tiny → Large v3 baixados sob demanda (sem limite de tamanho), idioma PT/auto/EN/ES, job sobrevive ao fechar o painel, cancelar/apagar modelo. Respeita corte e velocidade; vira camadas de texto editáveis.
+- [x] Giroscópio (experimento): flag em Configurações. Com ela, Estabilizar mostra se o arquivo tem telemetria (`TelemetryProbe`: CAMM, GoPro GPMF, Sony rtmd, DJI djmd, mett, Samsung SEF). Só investigação; nada usa os dados ainda.
+
+**Ficou para depois (P3)**
+- Exportar 9:16 e 16:9 do mesmo projeto numa vez; proxy automático para 4K (proxies P1 continuam).
+- HDR na saída (HEVC 10 bits/HLG): a composição ainda converte HDR para SDR. Samsung Log sem fórmula pública: usar o LUT oficial.
+- Curvas editáveis por ponto e por canal; cor em overlays; zebra sobre a prévia (hoje no painel).
+- Legendas: estilo/animação por palavra (shorts), aceleração GPU/NNAPI, áudio de faixas extras. Velocidade em ARM ainda não medida no S26.
+- Giroscópio: confirmar com arquivos reais do S26 (ligar a flag e exportar o registro: lista as caixas do MP4). Referências públicas (Gyroflow) não listam a câmera nativa da Samsung como fonte de giroscópio; GoPro (GPMF), Sony, DJI, Insta360 (CAMM) e apps Android como MotionCam Pro/Open Camera Sensors/FilmIt (CAMM/mett) gravam; Gear 360 usa `udta/acgy`. Próximo passo, se houver ganho: leitor GPMF/CAMM → `MotionAnalysis`. Modo de gravação próprio continua fora do editor.
+

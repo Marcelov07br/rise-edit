@@ -1,6 +1,6 @@
 # Rise Edit
 
-Editor Android nativo, em Kotlin e Jetpack Compose. Versão 0.10.0: separar áudio, edge trim em overlay/áudio, orientação (girar/espelhar/Ajustar×Preencher), mini janela de quadro-chave com curvas; prévia Fiel padrão, seleção tipada (clip/áudio/overlay/texto), keyframes por parâmetro, recuperação de mídia ausente, proxies leves de prévia, exportação em segundo plano, timeline com overlays/texto/áudio (mudo por faixa), estabilização experimental e registro de erro exportável.
+Editor Android nativo, em Kotlin e Jetpack Compose. Versão 0.11.0: excluir com ripple, marcadores, cortes J/L, copiar/colar atributos, exportação 4K/HEVC com bitrate livre, log/LUT/curvas com histograma/forma de onda/zebra, legendas automáticas com Whisper no aparelho, experimento de telemetria de giroscópio; 0.10.0: separar áudio, edge trim em overlay/áudio, orientação (girar/espelhar/Ajustar×Preencher), mini janela de quadro-chave com curvas; prévia Fiel padrão, seleção tipada (clip/áudio/overlay/texto), keyframes por parâmetro, recuperação de mídia ausente, proxies leves de prévia, exportação em segundo plano, timeline com overlays/texto/áudio (mudo por faixa), estabilização experimental e registro de erro exportável.
 
 Arquitetura, recursos e limites da evolução: [docs/EDITOR_ARCHITECTURE.md](docs/EDITOR_ARCHITECTURE.md).
 

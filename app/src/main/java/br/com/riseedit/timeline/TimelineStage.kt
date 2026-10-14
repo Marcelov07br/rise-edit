@@ -86,7 +86,7 @@ internal fun TimelineStage(
                 .timelineGestures(ui, state, entries, actions, density) { scroll.value }
         ) {
             Column {
-                TimelineRuler(ui.viewport, duration)
+                TimelineRuler(ui.viewport, duration, state.value.project.markers.map { it.timeMs })
                 Column(Modifier.verticalScroll(scroll)) {
                     lanes.forEach { row ->
                         Box(

@@ -41,7 +41,13 @@ internal class ExportRenderer(private val context: Context) {
                     )
                     .build()
             )
-            .setVideoMimeType(MimeTypes.VIDEO_H264)
+            .setVideoMimeType(
+                if (project.export.codec == br.com.riseedit.core.VideoCodec.HEVC) {
+                    MimeTypes.VIDEO_H265
+                } else {
+                    MimeTypes.VIDEO_H264
+                }
+            )
             .setAudioMimeType(MimeTypes.AUDIO_AAC)
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
