@@ -33,6 +33,10 @@ android {
         }
     }
     buildTypes {
+        getByName("debug") {
+            // Debug APKs only need real phones (arm64) and the emulator (x86_64).
+            ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        }
         getByName("release") {
             signingConfig = signingConfigs.findByName("distribution")
             isMinifyEnabled = true

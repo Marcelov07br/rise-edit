@@ -26,6 +26,8 @@ A chave local de distribuição fica em `.signing/`, ignorada pelo Git. **Preser
 
 ## Compilar
 
+**Compile sempre localmente** com `./build-local.sh` (debug), `./build-local.sh check` (detekt/ktlint/lint, igual ao CI) ou `./build-local.sh release` (exige `.signing/signing.properties`). Não faça push só para esperar o GitHub Actions compilar. O CI no push roda só checagens + APK debug; os testes no emulador rodam manualmente, à noite e em tags `v*`. Veja `AGENTS.md`.
+
 Requisitos: JDK 17, Android SDK 35, Build Tools 35.0.0, acesso aos repositórios oficiais Google/Maven Central.
 
 ```sh

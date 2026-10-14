@@ -17,7 +17,7 @@ directory="artifacts/runtime/$variant"
 mkdir -p "$directory"
 adb logcat -c || true
 status=0
-./gradlew ":app:connected${variant}AndroidTest" "${args[@]}" --no-daemon || status=$?
+./gradlew ":app:connected${variant}AndroidTest" "${args[@]}" || status=$?
 for shot in home-test home-failure-test editor-empty-test editor-timeline-test preview-fast-test preview-faithful-test preview-ui-failure tool-0 tool-1 tool-2 tool-3 tool-4 tool-5 tool-6 tool-text tool-failure timeline-pinch-clip timeline-trim-left timeline-trim-both timeline-preview-trimmed timeline-export-complete; do
   adb pull "/sdcard/Download/$shot.png" "$directory/$shot.png" || true
 done
