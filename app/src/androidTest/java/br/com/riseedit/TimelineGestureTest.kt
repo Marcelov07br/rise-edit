@@ -149,6 +149,8 @@ class TimelineGestureTest {
             if (node.isVisibleToUser && node.contentDescription?.toString() == label) return true
             return (0 until node.childCount).any { search(node.getChild(it)) }
         }
+        // UiAutomation caches Compose virtual nodes; refresh before reading.
+        if (android.os.Build.VERSION.SDK_INT >= 33) instrumentation.uiAutomation.clearCache()
         return search(instrumentation.uiAutomation.rootInActiveWindow)
     }
 
