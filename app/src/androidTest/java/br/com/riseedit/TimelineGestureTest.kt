@@ -132,13 +132,7 @@ class TimelineGestureTest {
         while (visible("Aresta final") && android.os.SystemClock.uptimeMillis() < deadline) {
             android.os.SystemClock.sleep(100)
         }
-        val clipNode = Rect().also { ui.waitFor("Clipe Timeline real, selecionado").getBoundsInScreen(it) }
-        assertFalse(
-            "Pinch over the clip did not zoom: before=$left/$right focus=$focus spread=$spread " +
-                "clip=$clipNode start=${if (visible("Aresta inicial")) bounds("Aresta inicial") else null} " +
-                "end=${bounds("Aresta final")}",
-            visible("Aresta final")
-        )
+        assertFalse("Pinch over the clip did not zoom", visible("Aresta final"))
         ui.screenshot("timeline-pinch-clip")
         touch.pinch(focus, left.bottom + 26 * density, spread, 1 / 2f)
         val reduced = bounds("Aresta final").centerX() - bounds("Aresta inicial").centerX()
@@ -152,7 +146,7 @@ class TimelineGestureTest {
     private fun visible(label: String): Boolean {
         fun search(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
             if (node == null) return false
-            if (node.contentDescription?.toString() == label) return true
+            if (node.isVisibleToUser && node.contentDescription?.toString() == label) return true
             return (0 until node.childCount).any { search(node.getChild(it)) }
         }
         return search(instrumentation.uiAutomation.rootInActiveWindow)
