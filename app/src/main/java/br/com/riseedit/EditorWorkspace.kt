@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -71,8 +72,8 @@ internal fun ColumnScope.EditorWorkspace(
                 fadeOut(tween(90))
         },
         label = "toolbar"
-    ) { _ ->
-        BottomToolbar(level.items, leading = level.leading)
+    ) { target ->
+        key(target) { BottomToolbar(level.items, leading = level.leading) }
     }
 }
 
