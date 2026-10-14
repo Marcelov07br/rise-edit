@@ -1,11 +1,16 @@
 package br.com.riseedit.editor
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import br.com.riseedit.core.Project
+import br.com.riseedit.core.ProjectRecovery
 import br.com.riseedit.media.displayMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal class ProjectLoader(
+    private val context: Context,
     private val document: EditorDocument,
     private val operations: EditorOperations,
     private val media: EditorMedia
@@ -35,9 +40,60 @@ internal class ProjectLoader(
                 }
             )
             if (usable != project) withContext(Dispatchers.IO) { document.store.save(usable) }
-            document.update { it.copy(project = usable, analyzed = analyses.keys) }
-            document.faults.values.firstOrNull()?.let { document.message(it.displayMessage()) }
+            val missing = withContext(Dispatchers.IO) {
+                ProjectRecovery.missing(usable, document.store::readable)
+            }
+            document.update {
+                it.copy(project = usable, analyzed = analyses.keys, missingMedia = missing)
+            }
+            when {
+                missing.isNotEmpty() -> document.message(
+                    "${missing.size} arquivo(s) ausente(s). Use Recuperar mídia para reconectar."
+                )
+                else -> document.faults.values.firstOrNull()?.let {
+                    document.message(it.displayMessage())
+                }
+            }
             media.trimCache()
+        }
+    }
+
+    fun reconnect(oldUri: String, newUri: Uri) {
+        if (document.current.busy != null) return
+        operations.start("Reconectando mídia…", media::report) {
+            val project = withContext(Dispatchers.IO) {
+                if (newUri.scheme == "content") {
+                    runCatching {
+                        context.contentResolver.takePersistableUriPermission(
+                            newUri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    }
+                }
+                val updated = ProjectRecovery.reconnect(
+                    document.current.project,
+                    oldUri,
+                    newUri.toString()
+                )
+                document.store.save(updated)
+                updated
+            }
+            open(project)
+        }
+    }
+
+    fun restoreVersion(stamp: Long) {
+        if (document.current.busy != null) return
+        operations.start("Recuperando versão…", media::report) {
+            val restored = withContext(Dispatchers.IO) {
+                document.store.restoreVersion(document.current.project.id, stamp)
+            }
+            if (restored == null) {
+                document.message("Não foi possível recuperar essa versão.")
+            } else {
+                document.message("Versão recuperada como \"${restored.name}\".")
+                open(restored)
+            }
         }
     }
 }

@@ -16,16 +16,13 @@ import br.com.riseedit.EditorState
 import br.com.riseedit.EditorViewModel
 import br.com.riseedit.core.OverlayBlend
 import br.com.riseedit.core.OverlayMask
+import br.com.riseedit.core.Selection
 import br.com.riseedit.core.VideoOverlay
 
-/** The selected overlay, else the one under the playhead, else the newest. */
+/** The selected overlay only — never falls back to "last under playhead" or "newest". */
 internal fun overlayTarget(state: EditorState): VideoOverlay? {
-    val overlays = state.project.overlays
-    return overlays.firstOrNull { it.id == state.selection }
-        ?: overlays.lastOrNull {
-            state.positionMs in it.offsetMs until it.offsetMs + it.clip.durationMs
-        }
-        ?: overlays.lastOrNull()
+    val id = (state.selection as? Selection.Overlay)?.id ?: return null
+    return state.project.overlays.firstOrNull { it.id == id }
 }
 
 @Composable
@@ -33,7 +30,7 @@ private fun withOverlay(state: EditorState, content: @Composable (VideoOverlay) 
     val overlay = overlayTarget(state)
     if (overlay == null) {
         Text(
-            "Adicione um overlay primeiro (Overlay › Adicionar overlay).",
+            "Selecione um overlay na timeline para editar (ou Overlay › Adicionar overlay).",
             style = MaterialTheme.typography.bodySmall
         )
     } else {

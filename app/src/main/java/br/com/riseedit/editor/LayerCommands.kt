@@ -7,7 +7,7 @@ import br.com.riseedit.core.VideoOverlay
 
 internal class LayerCommands(private val document: EditorDocument) {
     fun select(id: String?) {
-        if (document.current.busy == null) document.update { it.copy(selection = id) }
+        if (document.current.busy == null) document.update { it.copy(selectionId = id) }
     }
 
     fun text(layer: TextLayer) {
@@ -56,7 +56,7 @@ internal class LayerCommands(private val document: EditorDocument) {
 
     fun remove() {
         val project = document.current.project
-        val id = document.current.selection
+        val id = document.current.layerId
         val edited = project.copy(
             audio = project.audio.filter { it.id != id },
             texts = project.texts.filter { it.id != id },

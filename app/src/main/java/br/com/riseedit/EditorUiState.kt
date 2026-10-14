@@ -23,6 +23,8 @@ internal class EditorUiState(toolState: MutableState<EditorTool?>) {
     /** Keeps the closing panel rendered during its exit animation. */
     var lastTool by mutableStateOf<EditorTool?>(null)
     var exportDialog by mutableStateOf(false)
+    var recoveryDialog by mutableStateOf(false)
+    var reconnectUri by mutableStateOf<String?>(null)
 
     /** Sub-toolbar stack (CapCut-style): back pops one level. */
     var menu by mutableStateOf(emptyList<ToolMenu>())

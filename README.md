@@ -1,6 +1,6 @@
 # Rise Edit
 
-Editor Android nativo, em Kotlin e Jetpack Compose. Versão 0.8.0: editor com prévia Fiel (CompositionPlayer, mesma composição da exportação) como padrão e prévia Rápida opcional para scrub, timeline com vídeo, overlays, texto e até três faixas de áudio (com mudo por faixa), narração pelo microfone, ferramentas por subcategoria, gestos de transformação na prévia com keyframes, cor, estabilização experimental, exportação MP4 e registro de erro exportável pelo app.
+Editor Android nativo, em Kotlin e Jetpack Compose. Versão 0.9.0: prévia Fiel padrão, seleção tipada (clip/áudio/overlay/texto), keyframes por parâmetro, recuperação de mídia ausente, proxies leves de prévia, exportação em segundo plano, timeline com overlays/texto/áudio (mudo por faixa), estabilização experimental e registro de erro exportável.
 
 Arquitetura, recursos e limites da evolução: [docs/EDITOR_ARCHITECTURE.md](docs/EDITOR_ARCHITECTURE.md).
 

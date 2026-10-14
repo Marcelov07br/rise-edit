@@ -10,7 +10,7 @@ import kotlin.math.max
 /** When the selected text appears and for how long (position/size live in the preview). */
 @Composable
 internal fun TextTimingPanel(vm: EditorViewModel, state: EditorState) {
-    val layer = state.project.texts.firstOrNull { it.id == state.selection }
+    val layer = state.project.texts.firstOrNull { it.id == state.layerId }
     val durationMs = state.project.durationMs
     if (layer == null) {
         Text("Selecione um texto na timeline.", style = MaterialTheme.typography.bodySmall)

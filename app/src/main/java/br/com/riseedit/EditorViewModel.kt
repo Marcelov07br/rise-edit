@@ -42,7 +42,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private val commands = ProjectCommands(document)
     private val layers = LayerCommands(document)
     private val media = EditorMedia(application, document)
-    private val loader = ProjectLoader(document, operations, media)
+    private val loader = ProjectLoader(application, document, operations, media)
     private val importer = ImportCoordinator(document, operations, media)
     private val motion = MotionCoordinator(application, document, operations)
     private val exporter = ExportCoordinator(application, document, operations)
@@ -99,6 +99,12 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun analyze() = motion.analyze()
     fun export(destination: Uri) = exporter.export(destination)
     fun cancel() = operations.cancel()
+    fun reconnectMedia(oldUri: String, newUri: Uri) = loader.reconnect(oldUri, newUri)
+    fun clearMissing() = document.update { it.copy(missingMedia = emptyList()) }
+    fun restoreProjectVersion(stamp: Long) = loader.restoreVersion(stamp)
+    fun projectVersions(): List<Long> = document.store.versions(state.value.project.id).map {
+        it.first
+    }
 
     override fun onCleared() {
         operations.cancel()

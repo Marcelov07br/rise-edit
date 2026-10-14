@@ -55,7 +55,7 @@ internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<Time
                     it.track + 1,
                     it.offsetMs * 1000.0,
                     it.clip.durationMs * 1000,
-                    state.selection == it.id,
+                    state.layerId == it.id,
                     LaneOverlay,
                     it.clip,
                     keyOffsetsUs = it.keyframes.map { key -> key.sourceMs * 1000.0 }
@@ -70,7 +70,7 @@ internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<Time
                     3,
                     it.startMs * 1000.0,
                     (it.endMs - it.startMs) * 1000,
-                    state.selection == it.id,
+                    state.layerId == it.id,
                     LaneText,
                     keyOffsetsUs = it.keyframes.map { key -> key.sourceMs * 1000.0 }
                 )
@@ -84,7 +84,7 @@ internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<Time
                     it.track + 4,
                     it.offsetMs * 1000.0,
                     it.durationMs * 1000,
-                    state.selection == it.id,
+                    state.layerId == it.id,
                     LaneAudio,
                     audio = it
                 )
@@ -113,7 +113,7 @@ private fun mainEntries(state: EditorState, ui: TimelineUiState): List<TimelineE
         add(
             TimelineEntry(
                 original.id, original.name, 0, offset * 1000.0 + leftDelta,
-                clip.durationMs * 1000, state.selection == null && index == state.selected,
+                clip.durationMs * 1000, state.layerId == null && index == state.selected,
                 LaneVideo, original, mainIndex = index,
                 keyOffsetsUs = clip.keyframes.takeIf { it.size > 1 }.orEmpty()
                     .mapNotNull { outputMsOf(clip, it.sourceMs)?.times(1000.0) }

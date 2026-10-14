@@ -38,7 +38,7 @@ internal fun SpeedPanel(vm: EditorViewModel, state: EditorState) {
 /** Original sound of the selected main clip, or the selected audio layer. */
 @Composable
 internal fun VolumePanel(vm: EditorViewModel, state: EditorState) {
-    val audio = state.project.audio.firstOrNull { it.id == state.selection }
+    val audio = state.project.audio.firstOrNull { it.id == state.layerId }
     if (audio != null) {
         Text(audio.name, style = MaterialTheme.typography.bodySmall)
         AudioMuteButton(vm, audio)

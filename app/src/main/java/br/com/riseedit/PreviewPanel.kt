@@ -121,7 +121,7 @@ fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = M
             }
             if (editable) {
                 val items = previewItems(state, index.takeIf { it >= 0 }, vm.previewSourceMs, outputRatio, textDraft)
-                val selectedId = textDraft?.id ?: state.selection ?: clip?.id?.takeIf { mainSelected }
+                val selectedId = textDraft?.id ?: state.layerId ?: clip?.id?.takeIf { mainSelected }
                 val context = LocalContext.current
                 val scope = rememberCoroutineScope()
                 val pick = pickColor?.let { done -> { u: Float, v: Float -> clip?.let { c -> scope.launch { FrameSampler.sample(context, c, vm.previewSourceMs, u, v)?.let(done) } }; Unit } }

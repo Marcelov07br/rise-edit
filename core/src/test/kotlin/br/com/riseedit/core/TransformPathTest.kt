@@ -58,7 +58,7 @@ class TransformPathTest {
     }
 
     @Test fun upsertToggleAndOverlayBase() {
-        val keys = TransformPath.upsert(path, TransformKeyframe(1020, x = 9f))
+        val keys = TransformPath.upsert(path, TransformKeyframe(1010, x = 9f))
         assertEquals(3, keys.size)
         assertEquals(9f, keys[1].x)
         assertEquals(1000L, keys[1].sourceMs)

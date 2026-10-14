@@ -19,7 +19,7 @@ import androidx.compose.ui.semantics.semantics
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AudioPanel(vm: EditorViewModel, state: EditorState) {
-    val a = state.project.audio.firstOrNull { it.id == state.selection }
+    val a = state.project.audio.firstOrNull { it.id == state.layerId }
     if (a == null) {
         Text("Selecione um áudio na timeline.", style = MaterialTheme.typography.bodySmall)
         return

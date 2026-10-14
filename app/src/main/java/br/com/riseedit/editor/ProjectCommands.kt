@@ -19,7 +19,7 @@ internal class ProjectCommands(private val document: EditorDocument) {
         if (index < 0) return
         val destination = target.coerceIn(0, state.project.clips.lastIndex)
         if (document.edit(state.project.move(index, destination - index))) {
-            document.update { it.copy(selected = destination, selection = null) }
+            document.update { it.copy(selected = destination, selectionId = id) }
         }
     }
 

@@ -76,9 +76,8 @@ class ToolPanelFlowTest {
         ui.click("Voltar")
         ui.click("Overlay", scroll = true)
         ui.waitFor("Adicionar overlay")
-        ui.click("Máscara")
-        ui.waitFor("Adicione um overlay primeiro (Overlay › Adicionar overlay).")
-        ui.click("Concluir")
+        // Overlay tools require a typed Overlay selection; the submenu only adds.
+        assertTrue(listOf("Opacidade", "Máscara", "Mistura").none { ui.isVisible(it) })
         ui.click("Voltar")
         ui.click("Cor", scroll = true)
         ui.click("Filtros")

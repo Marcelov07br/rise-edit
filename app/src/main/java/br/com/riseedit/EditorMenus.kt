@@ -28,17 +28,13 @@ internal class ToolbarLevel(val leading: ToolbarItem?, val items: List<ToolbarIt
 
 private enum class Base { ROOT, CLIP, TEXT, OVERLAY, AUDIO }
 
-private fun base(state: EditorState, ui: EditorUiState): Base {
-    val id = state.selection
-    val project = state.project
-    return when {
-        project.clips.isEmpty() -> Base.ROOT
-        id != null && project.texts.any { it.id == id } -> Base.TEXT
-        id != null && project.overlays.any { it.id == id } -> Base.OVERLAY
-        id != null && project.audio.any { it.id == id } -> Base.AUDIO
-        ui.contextual -> Base.CLIP
-        else -> Base.ROOT
-    }
+private fun base(state: EditorState, ui: EditorUiState): Base = when {
+    state.project.clips.isEmpty() -> Base.ROOT
+    state.selection is br.com.riseedit.core.Selection.Text -> Base.TEXT
+    state.selection is br.com.riseedit.core.Selection.Overlay -> Base.OVERLAY
+    state.selection is br.com.riseedit.core.Selection.Audio -> Base.AUDIO
+    ui.contextual -> Base.CLIP
+    else -> Base.ROOT
 }
 
 internal fun toolbarLevel(
@@ -97,7 +93,7 @@ private fun baseItems(
     enabled: Boolean
 ): List<ToolbarItem> {
     val delete = ToolbarItem("Excluir", Icons.Outlined.DeleteOutline, enabled) {
-        if (state.selection != null) vm.removeLayer() else vm.remove()
+        if (state.layerId != null) vm.removeLayer() else vm.remove()
         ui.tool = null
         ui.contextual = false
     }
@@ -125,7 +121,7 @@ private fun baseItems(
             delete
         )
         Base.TEXT -> {
-            val layer = state.project.texts.first { it.id == state.selection }
+            val layer = state.project.texts.first { it.id == state.layerId }
             listOf(
                 ToolbarItem("Editar", Icons.Outlined.Edit, enabled) {
                     ui.editText(layer, TextTab.STYLES)
@@ -156,7 +152,7 @@ private fun menuItems(
             ui.editText(newText(state), TextTab.STYLES)
         }
     ) + textTabItems(ui, enabled) {
-        state.project.texts.firstOrNull { it.id == state.selection } ?: newText(state)
+        state.project.texts.firstOrNull { it.id == state.layerId } ?: newText(state)
     }
     ToolMenu.AUDIO -> listOf(
         ToolbarItem("Música", Icons.Outlined.LibraryMusic, enabled, onClick = media.audio),
@@ -165,10 +161,8 @@ private fun menuItems(
         ToolbarItem("Extrair", Icons.Outlined.VideoLibrary, enabled, onClick = media.extract)
     )
     ToolMenu.OVERLAY -> listOf(
-        ToolbarItem("Adicionar overlay", Icons.Outlined.AddBox, enabled, onClick = media.overlay),
-        ui.toolItem(EditorTool.OverlayOpacity, enabled),
-        ui.toolItem(EditorTool.OverlayBlend, enabled),
-        ui.toolItem(EditorTool.OverlayMask, enabled)
+        // Overlay tools live on the overlay's own toolbar: they need a selected target.
+        ToolbarItem("Adicionar overlay", Icons.Outlined.AddBox, enabled, onClick = media.overlay)
     )
     ToolMenu.COLOR -> listOf(
         ui.toolItem(EditorTool.Adjust, enabled),

@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import br.com.riseedit.core.Clip
 import br.com.riseedit.core.Project
+import br.com.riseedit.editor.ExportBus
+import br.com.riseedit.editor.ExportService
 import java.io.File
 import java.security.MessageDigest
 import org.junit.Assert.assertArrayEquals
@@ -15,14 +17,14 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Verifies the real ViewModel owner across cancellation, cleanup and a subsequent export. */
+/** Background export: editor stays free; cancel cleans temp files; a later export succeeds. */
 class EditorOperationTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext
     private val ui = ToolTestUi(instrumentation)
 
     @Test
-    fun cancelledExportKeepsOwnerUntilCleanupThenAllowsAnotherExport() {
+    fun backgroundExportAllowsEditingAndCancelThenCompletesAnother() {
         val source = File.createTempFile("operation-source-", ".mp4", context.cacheDir)
         instrumentation.context.assets.open("compatibility/h264_720p_scrub.mp4").use { input ->
             source.outputStream().use { input.copyTo(it) }
@@ -44,10 +46,14 @@ class EditorOperationTest {
             val vm = ui.onMain { ViewModelProvider(host).get(EditorViewModel::class.java) }
             ui.onMain { vm.open(project) }
             ui.await { ui.onMain { vm.state.value.busy == null } }
-            cancelAndVerifyOwner(vm, cancelled, complete)
+            cancelBackgroundExport(vm, cancelled)
             ui.onMain { vm.export(Uri.fromFile(complete)) }
-            ui.await(90000) { ui.onMain { vm.state.value.busy == null } }
-            assertTrue(ui.onMain { vm.state.value.message?.startsWith("Vídeo exportado.") == true })
+            ui.await(90000) {
+                ui.onMain {
+                    !ExportBus.state.value.active &&
+                        vm.state.value.message?.startsWith("Vídeo exportado.") == true
+                }
+            }
             verifyExport(complete)
             assertArrayEquals(digest, hash(source))
         } finally {
@@ -57,36 +63,30 @@ class EditorOperationTest {
         }
     }
 
-    private fun cancelAndVerifyOwner(vm: EditorViewModel, destination: File, other: File) {
+    private fun cancelBackgroundExport(vm: EditorViewModel, destination: File) {
         val initial = temporaryExports()
         ui.onMain { vm.export(Uri.fromFile(destination)) }
         ui.await(30000) {
             ui.onMain {
-                val rendering = vm.state.value.busy?.startsWith("Exportando MP4") == true &&
+                val rendering = ExportBus.state.value.active &&
                     (temporaryExports() - initial).isNotEmpty()
                 if (rendering) {
-                    // Observe and cancel in the same main-thread action, before completion can race us.
-                    assertNotNull(vm.state.value.busy)
-                    vm.cancel()
-                    if (vm.state.value.busy != null) {
-                        vm.trim(1, 2999)
-                        vm.export(Uri.fromFile(other))
-                        assertEquals(0L, vm.state.value.project.clips.first().startMs)
-                    } else {
-                        // Synchronous cleanup may release ownership before cancel returns.
-                        assertTrue(
-                            "Owner released before cleanup",
-                            (temporaryExports() - initial).isEmpty()
-                        )
-                    }
+                    // Editor stays free while the service owns the encode.
+                    assertEquals(null, vm.state.value.busy)
+                    assertTrue(vm.trim(1, 2999))
+                    ExportService.cancel(context)
                 }
                 rendering
             }
         }
-        ui.await(30000) { ui.onMain { vm.state.value.busy == null } }
-        assertEquals("Operação cancelada.", ui.onMain { vm.state.value.message })
+        ui.await(30000) { ui.onMain { !ExportBus.state.value.active } }
+        assertTrue(
+            ui.onMain {
+                vm.state.value.message?.contains("cancelad", ignoreCase = true) == true
+            }
+        )
         assertTrue("Temporary export survived cleanup", (temporaryExports() - initial).isEmpty())
-        assertEquals(0L, other.length())
+        assertEquals(0L, destination.length())
     }
 
     private fun verifyExport(file: File) {

@@ -38,6 +38,7 @@ internal fun EditorDialogs(
             onExport = media.export
         )
     }
+    if (ui.recoveryDialog) RecoveryDialog(vm, state, ui)
 }
 
 @Composable

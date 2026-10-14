@@ -115,3 +115,10 @@ Fonte: revisão do Codex na [issue #5](https://github.com/Marcelov07br/rise-edit
 - [x] Áudio/mudo: `AudioClip.muted` (separado do volume), botão no painel de áudio/volume, "MUDO" na timeline; respeitado na Fiel e na exportação.
 - [x] Fiel como padrão, Rápida como scrub opcional; edição reaproveita o `CompositionPlayer` (posição, play e mudo preservados, debounce mantido); rascunho de gesto aplicado como delta na Fiel; falha da Fiel mostra aviso explícito na prévia.
 - [x] Regressões: gate instrumentado (2 áudios + 2 overlays + trim + 2×: seek, retomada, mudo, reuso do player), `VoiceRecorderTest`, `DiagnosticsTest`, `AudioMuteTest` (core).
+
+### P1 — status (0.9.0, 14/10)
+- [x] Recuperação e mídia ausente: snapshots de versão no `ProjectStore`, `ProjectRecovery` (missing/reconnect), diálogo Recuperar mídia, banner no editor.
+- [x] Seleção tipada: `Selection` = None / Clip / Audio / Overlay / Text; tools só no alvo; submenu Overlay só adiciona; painéis fecham ao perder o alvo.
+- [x] Keyframes: `ParameterTrack<T>` + `TimeDomain` + `Easing` (Hold/Linear/Smooth/CubicBezier); migração Hermite com amostras de ouro; quantização por frame no lugar dos 40 ms.
+- [x] Proxies de prévia: `Compatibility.previewProxy` via `MediaPreparation` (proxyRequired=false) para Direct pesados.
+- [x] Exportação em serviço: `ExportService` foreground + `ExportBus`; editor permanece editável.
