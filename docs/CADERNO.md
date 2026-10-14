@@ -88,3 +88,23 @@ Fonte: avaliação externa (Claude, via leitura do repo) e respostas do Dev Comp
 ### Por último
 - [ ] Comparação de câmeras com sincronização pelo áudio; histograma, forma de onda e zebra.
 - [ ] Atualizar o README (ainda diz 0.3.0) junto da próxima versão.
+
+## Revisão cruzada (issue #5) — ordem final aprovada em 14/10
+
+Fonte: revisão do Codex na [issue #5](https://github.com/Marcelov07br/rise-edit/issues/5) + resposta do Dev Compose. Esta seção substitui a ordem P0–P3 anterior.
+
+**Correções acordadas**
+- Crash em Áudio → Gravar: hipótese `Uri.fromFile` **retirada** (o importador só persiste permissão para `content`). Investigar a liberação do `MediaRecorder` (`release()` fora de proteção, falha em `prepare()/start()`) com logcat real do S26.
+- Prévia: Fiel como padrão só após passar no teste instrumentado (2 áudios + 2 overlays + trim + 2×, seek/retomada/mute). Rápida fica para scrub. Feedback tátil precisa de um caminho de rascunho na Fiel sem recriar o player.
+- Seleção tipada por ID (`None / Clip / Audio / Overlay / Text`), sem edição implícita do último overlay. A barra de subcategorias continua.
+- Keyframes: `ParameterTrack<T>` por parâmetro com `TimeDomain` e `Easing` (Hold, Linear, Smooth, CubicBezier). A migração preserva as curvas Hermite antigas com teste de ouro, e a tolerância de 40 ms vira quantização por frame.
+- Exportação: 60 fps e três presets de bitrate já existem. Faltam 4K, HEVC e bitrate livre.
+- Giroscópio: experimento em P3, só segue se houver ganho medido.
+
+| Prioridade | Ordem |
+|---|---|
+| P0 | Diagnóstico mínimo com exportar logcat pelo app → gravação → áudio/mute e validar Fiel como padrão → regressões |
+| P1 | Recuperação e mídia ausente → seleção única → keyframes/migração → desempenho/proxies → exportação em serviço |
+| P2 | Separar áudio → edge trim → orientação → mini janela de keyframes |
+| P3 | Edição pro → 4K/HEVC e formatos → cor/medidores → legendas → experimento com giroscópio |
+| Depois | Sincronização multicâmera e integração com PC |
