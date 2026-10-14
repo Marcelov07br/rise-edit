@@ -6,6 +6,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
+import androidx.media3.transformer.Effects
 import br.com.riseedit.core.Project
 import br.com.riseedit.core.VideoOverlay
 import kotlin.math.min
@@ -38,6 +39,10 @@ internal fun buildOverlaySequences(
         EditedMediaItem.Builder(media)
             .setDurationUs(clip.sourceDurationMs * 1000)
             .setRemoveAudio(true)
+            .apply {
+                val look = OverlayLookEffect(overlay)
+                if (look.needed) setEffects(Effects(emptyList(), listOf(look)))
+            }
             .build()
     )
     val tailMs = project.durationMs - overlay.offsetMs - durationMs

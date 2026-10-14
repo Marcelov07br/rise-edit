@@ -1,6 +1,7 @@
 package br.com.riseedit.edit
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,23 +25,29 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,9 +56,13 @@ import br.com.riseedit.EditorViewModel
 import br.com.riseedit.MediaThumbnail
 import br.com.riseedit.RiseBlack
 import br.com.riseedit.RiseWhite
+import br.com.riseedit.core.OverlayMask
+import br.com.riseedit.core.TextLayer
 import br.com.riseedit.core.TransformKeyframe
 import br.com.riseedit.core.TransformPath
+import br.com.riseedit.core.VideoOverlay
 import br.com.riseedit.core.editing.FrameSnap
+import br.com.riseedit.text.TextRenderer
 import kotlin.math.roundToInt
 
 /** Live state of a direct manipulation; the main-clip draft also drives the video transform. */
@@ -85,7 +96,10 @@ internal fun BoxScope.PreviewEditLayer(
     items: List<PreviewItem>,
     selectedId: String?,
     fast: Boolean,
-    onSelect: (Boolean) -> Unit
+    onSelect: (Boolean) -> Unit,
+    draftId: String? = null,
+    onDraft: (TextLayer) -> Unit = {},
+    pick: ((Float, Float) -> Unit)? = null
 ) {
     val density = LocalDensity.current.density
     val haptic = LocalHapticFeedback.current
@@ -104,10 +118,12 @@ internal fun BoxScope.PreviewEditLayer(
             when (result) {
                 is PreviewEdit.ClipEdit -> vm.clipSettings(result.clip)
                 is PreviewEdit.OverlayEdit -> vm.overlay(result.layer)
-                is PreviewEdit.TextEdit -> vm.text(result.layer)
+                is PreviewEdit.TextEdit ->
+                    if (result.layer.id == draftId) onDraft(result.layer) else vm.text(result.layer)
             }
         },
         togglePlay = vm::togglePlay,
+        pick = pick,
         tick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) },
         resetTick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
     ).let { rememberUpdatedState(it) }
@@ -117,7 +133,7 @@ internal fun BoxScope.PreviewEditLayer(
             .previewTaps(enabled, latestItems, latestSelected) { actions.value }
             .previewTransforms(enabled, latestItems, latestSelected, edit) { actions.value }
     ) {
-        items.filter { it !is PreviewItem.Main && (fast || edit.draftId == it.id) }
+        items.filter { it !is PreviewItem.Main && (fast || edit.draftId == it.id || it.isEditing) }
             .forEach { StandIn(it, edit.draftFor(it.id) ?: it.transform) }
         items.firstOrNull { it.id == selectedId }?.let { item ->
             SelectionBox(item, edit.draftFor(item.id) ?: item.transform)
@@ -159,34 +175,66 @@ private fun snap(
 
 @Composable
 private fun BoxScope.StandIn(item: PreviewItem, t: TransformKeyframe) {
-    ItemFrame(item, t) { _, h ->
-        when (item) {
-            is PreviewItem.Overlay -> MediaThumbnail(
+    when (item) {
+        is PreviewItem.Overlay -> ItemFrame(item, t) { _, _ ->
+            MediaThumbnail(
                 item.layer.clip.effectiveUri(true),
                 item.layer.clip.sourceAt((item.keyTimeMs / 500) * 500),
-                Modifier.fillMaxSize().graphicsLayer { alpha = t.opacity }
+                Modifier.fillMaxSize().overlayMask(item.layer).graphicsLayer { alpha = t.opacity }
             )
-            is PreviewItem.Text -> {
-                val lineHeightPx = h / PreviewItem.wrappedLines(item.layer.text).size
-                Text(
-                    PreviewItem.wrappedLines(item.layer.text).joinToString("\n"),
-                    color = Color(item.layer.color),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = (
-                        lineHeightPx / 1.2f / LocalDensity.current.fontScale /
-                            LocalDensity.current.density
-                        ).sp,
-                    lineHeight = (
-                        lineHeightPx / LocalDensity.current.fontScale /
-                            LocalDensity.current.density
-                        ).sp,
-                    maxLines = 12,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-            is PreviewItem.Main -> Unit
         }
+        is PreviewItem.Text -> TextStandIn(item, t)
+        is PreviewItem.Main -> Unit
     }
+}
+
+/** Draws the exact export bitmap (same renderer) with the in/out motion at the playhead. */
+@Composable
+private fun BoxScope.TextStandIn(item: PreviewItem.Text, t: TransformKeyframe) {
+    val motion = item.motion
+    if (motion.alpha <= 0f) return
+    val moved = t.copy(y = t.y + motion.offsetY, scale = t.scale * motion.scale)
+    ItemFrame(item, moved) { w, h ->
+        val (fw, fh) = item.baseSize
+        val frameW = (w / (fw * moved.scale)).toInt().coerceAtLeast(1)
+        val frameH = (h / (fh * moved.scale)).toInt().coerceAtLeast(1)
+        val bitmap = remember(item.layer, frameW, frameH, motion.reveal) {
+            TextRenderer.render(item.layer, frameW, frameH, motion.reveal).asImageBitmap()
+        }
+        Image(
+            bitmap,
+            null,
+            Modifier.fillMaxSize().graphicsLayer {
+                alpha = motion.alpha * item.layer.style.opacity
+            },
+            contentScale = ContentScale.FillBounds
+        )
+    }
+}
+
+/** Fast-preview approximation of the overlay mask (Fiel renders the exact shader). */
+private fun Modifier.overlayMask(layer: VideoOverlay): Modifier = when (layer.mask) {
+    OverlayMask.NONE -> this
+    OverlayMask.CIRCLE -> if (layer.maskInvert) this else clip(CircleShape)
+    OverlayMask.ROUNDED -> if (layer.maskInvert) this else clip(RoundedCornerShape(15))
+    OverlayMask.LINEAR -> graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val stops = if (layer.maskInvert) {
+                listOf(Color.White, Color.Transparent)
+            } else {
+                listOf(Color.Transparent, Color.White)
+            }
+            val f = (layer.maskFeather * 0.5f).coerceAtLeast(0.01f)
+            drawRect(
+                Brush.verticalGradient(
+                    stops,
+                    startY = size.height * (0.5f - f),
+                    endY = size.height * (0.5f + f)
+                ),
+                blendMode = BlendMode.DstIn
+            )
+        }
 }
 
 /** Positions content at the item's transform: center, scaled size and rotation. */
@@ -318,6 +366,7 @@ private class PreviewActions(
     val select: (PreviewItem) -> Unit,
     val commit: (PreviewEdit) -> Unit,
     val togglePlay: () -> Unit,
+    val pick: ((Float, Float) -> Unit)?,
     val tick: () -> Unit,
     val resetTick: () -> Unit
 )
@@ -331,6 +380,10 @@ private fun Modifier.previewTaps(
     if (!enabled) return@pointerInput
     detectTapGestures(
         onTap = { p ->
+            actionsOf().pick?.let { pick ->
+                pick(p.x / size.width, p.y / size.height)
+                return@detectTapGestures
+            }
             val hit = hitTest(items.value, p, size.width, size.height)
             if (hit != null) actionsOf().select(hit) else actionsOf().togglePlay()
         },
@@ -405,3 +458,5 @@ private fun grabTarget(
     return items.firstOrNull { it.id == selectedId && it.contains(x, y, aspect) }
         ?: hitTest(items, p, width, height)
 }
+
+private val PreviewItem.isEditing get() = this is PreviewItem.Text && editing

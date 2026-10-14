@@ -1,10 +1,12 @@
 package br.com.riseedit
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -13,16 +15,11 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.VerticalSplit
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import br.com.riseedit.tools.EditorTool
+import br.com.riseedit.text.TextEditorSheet
 import br.com.riseedit.tools.ToolPanel
 
 @Composable
@@ -34,6 +31,7 @@ internal fun ColumnScope.EditorWorkspace(
     sheetMax: Dp
 ) {
     val enabled = state.busy == null
+    val draft = ui.textDraft
     if (ui.full) {
         Box(Modifier.weight(1f))
     } else {
@@ -43,8 +41,15 @@ internal fun ColumnScope.EditorWorkspace(
             Modifier.weight(1f).fillMaxWidth().heightIn(min = 120.dp).padding(horizontal = 12.dp),
             editable = true,
             mainSelected = ui.contextual,
-            onSelect = { main -> ui.contextual = main }
+            onSelect = { main -> ui.contextual = main },
+            textDraft = draft,
+            onDraftTransform = { ui.textDraft = it },
+            pickColor = ui.eyedropper
         )
+    }
+    if (draft != null) {
+        TextEditorSheet(vm, ui, draft)
+        return
     }
     TransportBar(vm, state, enabled, onFullscreen = { ui.full = true })
     Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
@@ -57,18 +62,18 @@ internal fun ColumnScope.EditorWorkspace(
         )
     }
     DockedToolPanel(vm, state, ui, media, sheetMax)
-    val contextual = ui.contextual && state.project.clips.isNotEmpty()
-    BottomToolbar(
-        if (contextual) contextualItems(vm, state, ui, enabled) else mainItems(ui, media, enabled),
-        leading = if (contextual) {
-            ToolbarItem("Voltar", Icons.AutoMirrored.Outlined.ArrowBack) {
-                ui.contextual = false
-                ui.tool = null
-            }
-        } else {
-            null
-        }
-    )
+    val level = toolbarLevel(vm, state, ui, media)
+    BackHandler(enabled = level.leading != null) { ui.back(vm) }
+    AnimatedContent(
+        ui.menu.size to (level.leading != null),
+        transitionSpec = {
+            (slideInHorizontally(risePanelSpring) { it / 6 } + fadeIn(tween(160))) togetherWith
+                fadeOut(tween(90))
+        },
+        label = "toolbar"
+    ) { _ ->
+        BottomToolbar(level.items, leading = level.leading)
+    }
 }
 
 @Composable
@@ -92,15 +97,7 @@ private fun DockedToolPanel(
         ) { tool ->
             if (tool != null) {
                 ToolSheet(tool.title, sheetMax, onClose = { ui.tool = null }) {
-                    ToolPanel(
-                        tool,
-                        vm,
-                        state,
-                        chooseAudioTrack = { ui.audioTrack = it },
-                        chooseOverlayTrack = { ui.overlayTrack = it },
-                        addAudio = media.audio,
-                        addOverlay = media.overlay
-                    )
+                    ToolPanel(tool, vm, state, addAudio = media.audioFile)
                 }
             }
         }
@@ -114,55 +111,10 @@ private fun addToLane(lane: Int, ui: EditorUiState, media: EditorMediaActions) {
             ui.overlayTrack = lane - 1
             media.overlay()
         }
-        3 -> ui.openTool(EditorTool.Text)
+        3 -> ui.menu = listOf(ToolMenu.TEXT)
         else -> {
             ui.audioTrack = lane - 4
             media.audio()
         }
     }
-}
-
-private fun EditorUiState.openTool(tool: EditorTool) {
-    lastTool = tool
-    this.tool = if (this.tool == tool) null else tool
-}
-
-private fun EditorUiState.toolItem(tool: EditorTool, enabled: Boolean) =
-    ToolbarItem(tool.label, tool.icon, enabled, active = this.tool == tool) { openTool(tool) }
-
-private fun mainItems(ui: EditorUiState, media: EditorMediaActions, enabled: Boolean) =
-    listOf(ToolbarItem("Vídeo", Icons.Outlined.Add, enabled, onClick = media.videos)) +
-        EditorTool.main.map { ui.toolItem(it, enabled) }
-
-private fun contextualItems(
-    vm: EditorViewModel,
-    state: EditorState,
-    ui: EditorUiState,
-    enabled: Boolean
-): List<ToolbarItem> {
-    val selection = state.selection
-    val delete = ToolbarItem("Excluir", Icons.Outlined.DeleteOutline, enabled) {
-        if (selection != null) vm.removeLayer() else vm.remove()
-        ui.tool = null
-        ui.contextual = false
-    }
-    val project = state.project
-    val layerTools = when {
-        selection == null -> null
-        project.audio.any { it.id == selection } -> listOf(EditorTool.Volume, EditorTool.Audio)
-        project.overlays.any { it.id == selection } -> listOf(EditorTool.Overlay)
-        project.texts.any { it.id == selection } -> listOf(EditorTool.Text)
-        else -> emptyList()
-    }
-    if (layerTools != null) return layerTools.map { ui.toolItem(it, enabled) } + delete
-    val split = ToolbarItem("Dividir", Icons.Outlined.VerticalSplit, enabled, onClick = vm::split)
-    val clipTools = listOf(
-        EditorTool.Speed,
-        EditorTool.Stabilize,
-        EditorTool.Volume,
-        EditorTool.Trim,
-        EditorTool.Color,
-        EditorTool.Movement
-    )
-    return listOf(split) + clipTools.map { ui.toolItem(it, enabled) } + delete
 }

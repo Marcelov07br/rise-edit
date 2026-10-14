@@ -31,8 +31,8 @@ class VideoPipelineTest {
         val stabilized = clip.copy(stabilization = Stabilization(enabled = true, strength = 1.0, maxZoom = 1.15))
         val project = Project(listOf(stabilized)).split(0, 1000).copy(
             audio = listOf(AudioClip(uri = clip.uri, name = "Music", sourceDurationMs = 3000, offsetMs = 300, endMs = 1500, track = 2, volume = 0.25f)),
-            texts = listOf(TextLayer(text = "RISE", startMs = 100, endMs = 1800)),
-            overlays = listOf(VideoOverlay(clip = clip.copy(startMs = 500, endMs = 1500), offsetMs = 500, track = 1)))
+            texts = listOf(TextLayer(text = "RISE", startMs = 100, endMs = 1800, style = TextStyle(font = "bebas", strokeWidth = 0.12f, shadow = 0.6f, animationIn = TextAnimation.TYPEWRITER))),
+            overlays = listOf(VideoOverlay(clip = clip.copy(startMs = 500, endMs = 1500), offsetMs = 500, track = 1, mask = OverlayMask.CIRCLE, blend = OverlayBlend.LIGHTEN)))
         store.save(project); assertEquals(project, store.load())
         val failures = mutableListOf<String>()
         val variants = listOf("base" to project.copy(audio=emptyList(),texts=emptyList(),overlays=emptyList()),

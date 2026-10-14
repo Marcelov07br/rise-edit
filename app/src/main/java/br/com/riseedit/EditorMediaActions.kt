@@ -9,7 +9,11 @@ internal data class EditorMediaActions(
     val videos: () -> Unit,
     val audio: () -> Unit,
     val overlay: () -> Unit,
-    val export: (ExportSettings) -> Unit
+    val export: (ExportSettings) -> Unit,
+    /** Audio track of a picked video ("Extrair"). */
+    val extract: () -> Unit = {},
+    /** Inserts a recorded/local audio file at the playhead. */
+    val audioFile: (android.net.Uri) -> Unit = {}
 )
 
 @Composable
@@ -28,6 +32,9 @@ internal fun rememberEditorMediaActions(
     val overlayPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
     ) { vm.importOverlay(it, ui.overlayTrack) }
+    val extractPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { vm.importAudio(it, ui.audioTrack) }
     val exportPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("video/mp4")
     ) { it?.let(vm::export) }
@@ -40,6 +47,8 @@ internal fun rememberEditorMediaActions(
             ui.exportDialog = false
             val name = state.project.name.replace(Regex("[^\\p{L}\\p{N} _-]"), "")
             exportPicker.launch("$name.mp4")
-        }
+        },
+        extract = { extractPicker.launch(arrayOf("video/*")) },
+        audioFile = { vm.importAudio(listOf(it), ui.audioTrack) }
     )
 }

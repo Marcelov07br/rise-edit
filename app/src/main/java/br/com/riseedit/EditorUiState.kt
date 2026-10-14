@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import br.com.riseedit.core.TextLayer
 import br.com.riseedit.tools.EditorTool
 
 @Stable
@@ -22,6 +23,16 @@ internal class EditorUiState(toolState: MutableState<EditorTool?>) {
     /** Keeps the closing panel rendered during its exit animation. */
     var lastTool by mutableStateOf<EditorTool?>(null)
     var exportDialog by mutableStateOf(false)
+
+    /** Sub-toolbar stack (CapCut-style): back pops one level. */
+    var menu by mutableStateOf(emptyList<ToolMenu>())
+
+    /** Text being created/edited in the text sheet; null when the sheet is closed. */
+    var textDraft by mutableStateOf<TextLayer?>(null)
+    var textTab by mutableStateOf(TextTab.STYLES)
+
+    /** Set while the eyedropper waits for a tap on the preview. */
+    var eyedropper by mutableStateOf<((Int) -> Unit)?>(null)
     var audioTrack by mutableIntStateOf(0)
     var overlayTrack by mutableIntStateOf(0)
 }
@@ -32,4 +43,14 @@ internal fun rememberEditorUiState(): EditorUiState {
         mutableStateOf<EditorTool?>(null)
     }
     return remember(tool) { EditorUiState(tool) }
+}
+
+internal enum class ToolMenu { TEXT, AUDIO, OVERLAY, COLOR }
+
+internal enum class TextTab(val label: String) {
+    TEMPLATES("Modelos"),
+    FONTS("Fontes"),
+    STYLES("Estilos"),
+    EFFECTS("Efeitos"),
+    ANIMATIONS("Animações")
 }

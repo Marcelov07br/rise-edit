@@ -2,14 +2,7 @@
 package br.com.riseedit
 
 import android.graphics.Matrix
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.style.ForegroundColorSpan
-import android.text.style.StyleSpan
-import android.text.style.AbsoluteSizeSpan
-import android.graphics.Typeface
 import androidx.media3.common.C
-import androidx.media3.common.OverlaySettings
 import androidx.media3.common.audio.*
 import androidx.media3.effect.*
 import br.com.riseedit.core.*
@@ -41,27 +34,6 @@ class ClipColor(private val clip: Clip, private val offset: Long) : RgbMatrix {
         val warmth = clip.adjustments.warmth * 0.18f
         val alpha = Timeline.keyframe(clip, clip.sourceAt(time)).opacity
         return floatArrayOf(gain*(1+warmth),0f,0f,0f, 0f,gain,0f,0f, 0f,0f,gain*(1-warmth),0f, 0f,0f,0f,alpha)
-    }
-}
-
-class TimedText(private val layer: TextLayer) : TextOverlay() {
-    private var frameHeight = 720
-    private var frameWidth = 1280
-    override fun configure(videoSize: androidx.media3.common.util.Size) { super.configure(videoSize); frameHeight=videoSize.height; frameWidth=videoSize.width }
-    private val text = SpannableString(layer.text.split('\n').joinToString("\n") { line -> line.chunked(24).joinToString("\n") }).apply {
-        setSpan(ForegroundColorSpan(layer.color),0,length,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        setSpan(StyleSpan(Typeface.BOLD),0,length,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        setSpan(AbsoluteSizeSpan(42),0,length,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-    }
-    override fun getText(presentationTimeUs: Long) = text
-    override fun getOverlaySettings(presentationTimeUs: Long): OverlaySettings {
-        val ms = presentationTimeUs / 1000
-        val alpha = if (ms < layer.startMs || ms >= layer.endMs) 0f else if (!layer.animated) 1f
-            else min(1f, min((ms-layer.startMs)/250f, (layer.endMs-ms)/250f)).coerceAtLeast(0f)
-        val t = layer.transformAt(ms - layer.startMs)
-        val scale = min(t.scale * frameHeight / 720f, frameWidth * 0.9f / getBitmap(presentationTimeUs).width.coerceAtLeast(1))
-        return StaticOverlaySettings.Builder().setAlphaScale(alpha).setBackgroundFrameAnchor(t.x, t.y)
-            .setScale(scale, scale).setRotationDegrees(t.rotation).build()
     }
 }
 

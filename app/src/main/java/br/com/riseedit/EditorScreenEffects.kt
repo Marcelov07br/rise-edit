@@ -2,19 +2,16 @@ package br.com.riseedit
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import br.com.riseedit.tools.EditorTool
 import kotlinx.coroutines.delay
 
 @Composable
 internal fun EditorScreenEffects(vm: EditorViewModel, state: EditorState, ui: EditorUiState) {
     LaunchedEffect(state.selection) {
-        state.selection?.let { id ->
-            ui.tool = when {
-                state.project.audio.any { it.id == id } -> EditorTool.Audio
-                state.project.texts.any { it.id == id } -> EditorTool.Text
-                state.project.overlays.any { it.id == id } -> EditorTool.Overlay
-                else -> ui.tool
-            }
+        // A newly selected layer gets its own contextual toolbar (no panel opens by itself).
+        if (state.selection != null) {
+            ui.contextual = true
+            ui.tool = null
+            ui.menu = emptyList()
         }
     }
     LaunchedEffect(state.message) {

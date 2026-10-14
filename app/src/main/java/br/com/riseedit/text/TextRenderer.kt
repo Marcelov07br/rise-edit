@@ -1,0 +1,190 @@
+package br.com.riseedit.text
+
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import android.text.Layout
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.StaticLayout
+import android.text.TextPaint
+import android.text.style.ForegroundColorSpan
+import br.com.riseedit.core.TextAlign
+import br.com.riseedit.core.TextLayer
+import br.com.riseedit.core.TextStyle
+import kotlin.math.ceil
+import kotlin.math.max
+import kotlin.math.min
+
+/**
+ * Draws a text layer into a bitmap. Export (Media3 overlay) and the editor preview both call
+ * this, so what you see while editing is what gets exported. All metrics scale with the frame
+ * height: at size 1 the font is [FONT_FRACTION] of the frame height.
+ */
+object TextRenderer {
+    const val FONT_FRACTION = 42f / 720f
+    private const val WRAP_FRACTION = 0.9f
+    private const val BG_PAD_X = 0.3f
+    private const val BG_PAD_Y = 0.12f
+
+    private data class Key(
+        val text: String,
+        val style: TextStyle,
+        val color: Int,
+        val width: Int,
+        val height: Int,
+        val chars: Int
+    )
+
+    private val cache = object : LinkedHashMap<Key, Bitmap>(8, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Key, Bitmap>) = size > 12
+    }
+
+    /** Size of the rendered text as fractions of the frame (width, height), at scale 1. */
+    fun measure(layer: TextLayer, frameAspect: Float): Pair<Float, Float> {
+        val height = 720
+        val width = (height * frameAspect).toInt().coerceAtLeast(1)
+        val plan = plan(layer.text, layer.style, layer.color, width, height, layer.text.length)
+        return plan.bitmapWidth.toFloat() / width to plan.bitmapHeight.toFloat() / height
+    }
+
+    /** Bitmap for [layer] on a [frameWidth]×[frameHeight] frame showing [reveal] of the chars. */
+    fun render(layer: TextLayer, frameWidth: Int, frameHeight: Int, reveal: Float = 1f): Bitmap {
+        val chars = ceil(layer.text.length * reveal.coerceIn(0f, 1f)).toInt()
+        val key = Key(layer.text, layer.style, layer.color, frameWidth, frameHeight, chars)
+        synchronized(cache) { cache[key]?.let { return it } }
+        val plan = plan(layer.text, layer.style, layer.color, frameWidth, frameHeight, chars)
+        val bitmap = Bitmap.createBitmap(
+            plan.bitmapWidth,
+            plan.bitmapHeight,
+            Bitmap.Config.ARGB_8888
+        )
+        draw(Canvas(bitmap), plan, layer.style, layer.color)
+        synchronized(cache) { cache[key] = bitmap }
+        return bitmap
+    }
+
+    private class Plan(
+        val layout: StaticLayout,
+        val paint: TextPaint,
+        val fontPx: Float,
+        val pad: Float,
+        val bitmapWidth: Int,
+        val bitmapHeight: Int
+    )
+
+    private fun plan(
+        text: String,
+        style: TextStyle,
+        color: Int,
+        frameWidth: Int,
+        frameHeight: Int,
+        chars: Int
+    ): Plan {
+        val fontPx = FONT_FRACTION * frameHeight
+        val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = TextFonts.typeface(style.font, style.bold, style.italic)
+            textSize = fontPx
+            letterSpacing = style.letterSpacing
+            this.color = color
+        }
+        val content = SpannableString(text.ifEmpty { " " })
+        if (chars < text.length) {
+            content.setSpan(
+                ForegroundColorSpan(Color.TRANSPARENT),
+                chars,
+                text.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        val wrap = (frameWidth * WRAP_FRACTION).toInt().coerceAtLeast(1)
+        val desired = text.ifEmpty { " " }.split('\n')
+            .maxOf { ceil(Layout.getDesiredWidth(it, paint)).toInt() }
+        val width = min(wrap, max(1, desired))
+        val alignment = when (style.align) {
+            TextAlign.LEFT -> Layout.Alignment.ALIGN_NORMAL
+            TextAlign.CENTER -> Layout.Alignment.ALIGN_CENTER
+            TextAlign.RIGHT -> Layout.Alignment.ALIGN_OPPOSITE
+        }
+        val layout = StaticLayout.Builder.obtain(content, 0, content.length, paint, width)
+            .setAlignment(alignment)
+            .setLineSpacing(0f, style.lineHeight / 1.2f)
+            .setIncludePad(true)
+            .build()
+        val effects = maxOf(
+            style.strokeWidth,
+            if (style.glow > 0) style.glow * 0.6f else 0f,
+            if (style.shadow > 0) style.shadowBlur + style.shadowDistance else 0f
+        )
+        val background = if (style.background > 0) BG_PAD_X else 0f
+        val pad = ceil(fontPx * (effects + background) + 2)
+        return Plan(
+            layout,
+            paint,
+            fontPx,
+            pad,
+            (width + 2 * pad).toInt(),
+            (layout.height + 2 * pad).toInt()
+        )
+    }
+
+    private fun draw(canvas: Canvas, plan: Plan, style: TextStyle, color: Int) {
+        val paint = plan.paint
+        val layout = plan.layout
+        val fontPx = plan.fontPx
+        canvas.translate(plan.pad, plan.pad)
+        if (style.background > 0) drawBackground(canvas, plan, style)
+        if (style.glow > 0) {
+            paint.style = Paint.Style.FILL
+            paint.color = style.glowColor
+            paint.setShadowLayer(style.glow * fontPx * 0.5f, 0f, 0f, style.glowColor)
+            repeat(2) { layout.draw(canvas) }
+        }
+        if (style.shadow > 0) {
+            val distance = style.shadowDistance * fontPx * 0.7071f
+            val shadow = withAlpha(style.shadowColor, style.shadow)
+            paint.style = Paint.Style.FILL
+            paint.color = color
+            paint.setShadowLayer(max(0.5f, style.shadowBlur * fontPx), distance, distance, shadow)
+            layout.draw(canvas)
+        }
+        paint.clearShadowLayer()
+        if (style.strokeWidth > 0) {
+            paint.style = Paint.Style.STROKE
+            paint.strokeJoin = Paint.Join.ROUND
+            paint.strokeWidth = 2 * style.strokeWidth * fontPx
+            paint.color = style.strokeColor
+            layout.draw(canvas)
+        }
+        paint.style = Paint.Style.FILL
+        paint.color = color
+        layout.draw(canvas)
+    }
+
+    private fun drawBackground(canvas: Canvas, plan: Plan, style: TextStyle) {
+        val layout = plan.layout
+        val padX = BG_PAD_X * plan.fontPx
+        val padY = BG_PAD_Y * plan.fontPx
+        val radius = style.backgroundRadius * plan.fontPx
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = withAlpha(style.backgroundColor, style.background)
+        }
+        for (line in 0 until layout.lineCount) {
+            val left = layout.getLineLeft(line)
+            val right = layout.getLineRight(line)
+            if (right - left < 1) continue
+            val rect = RectF(
+                left - padX,
+                layout.getLineTop(line) - padY,
+                right + padX,
+                layout.getLineBottom(line) + padY
+            )
+            canvas.drawRoundRect(rect, radius, radius, paint)
+        }
+    }
+
+    private fun withAlpha(color: Int, alpha: Float): Int =
+        (color and 0x00FFFFFF) or ((Color.alpha(color) * alpha).toInt().coerceIn(0, 255) shl 24)
+}

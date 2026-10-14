@@ -19,7 +19,6 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
         "Áudio",
         "Overlay",
         "Cor",
-        "Movimento",
         "Formato"
     )
     fun <T> onMain(action: () -> T): T {
@@ -72,6 +71,25 @@ internal class ToolTestUi(private val instrumentation: Instrumentation) {
             result != null
         }
         return checkNotNull(result) { "Missing tool UI: $text" }
+    }
+
+    fun isVisible(label: String): Boolean =
+        find(root()) { it.isVisibleToUser && matchesLabel(it, label) } != null
+
+    /** Types into the editable field labelled [label]. */
+    fun setText(label: String, value: String) {
+        var field: AccessibilityNodeInfo? = null
+        await(description = { "Missing field $label" }) {
+            field = find(root()) { it.isEditable && it.isVisibleToUser && matchesLabel(it, label) }
+                ?: find(root()) { it.isEditable && it.isVisibleToUser }
+            field != null
+        }
+        val args = android.os.Bundle().apply {
+            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value)
+        }
+        check(checkNotNull(field).performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) {
+            "Cannot type into $label"
+        }
     }
 
     fun click(text: String, scroll: Boolean = false) {

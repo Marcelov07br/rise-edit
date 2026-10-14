@@ -76,7 +76,9 @@ data class AudioClip(val id: String = UUID.randomUUID().toString(), val uri: Str
 }
 data class VideoOverlay(val id: String = UUID.randomUUID().toString(), val clip: Clip, val offsetMs: Long = 0,
     val track: Int = 0, val x: Float = 0.55f, val y: Float = 0.55f, val scale: Float = 0.35f, val opacity: Float = 1f,
-    val rotation: Float = 0f, val keyframes: List<TransformKeyframe> = emptyList()) {
+    val rotation: Float = 0f, val keyframes: List<TransformKeyframe> = emptyList(),
+    val blend: OverlayBlend = OverlayBlend.NORMAL, val mask: OverlayMask = OverlayMask.NONE,
+    val maskFeather: Float = 0.2f, val maskInvert: Boolean = false) {
     init { require(offsetMs >= 0 && track in 0..1) }
     /** Transform at [localMs] since the overlay starts; keyframe times are overlay-local. */
     fun transformAt(localMs: Long) = TransformPath.at(keyframes, localMs, TransformKeyframe(localMs, x, y, scale, rotation, opacity))
@@ -84,7 +86,7 @@ data class VideoOverlay(val id: String = UUID.randomUUID().toString(), val clip:
 data class TextLayer(val id: String = UUID.randomUUID().toString(), val text: String, val startMs: Long = 0,
     val endMs: Long = 3000, val x: Float = 0f, val y: Float = -0.65f, val size: Float = 1f,
     val color: Int = -1, val animated: Boolean = true, val rotation: Float = 0f,
-    val keyframes: List<TransformKeyframe> = emptyList()) {
+    val keyframes: List<TransformKeyframe> = emptyList(), val style: TextStyle = TextStyle()) {
     init { require(endMs > startMs && startMs >= 0) }
     /** Transform at [localMs] since the text starts; scale multiplies [size]. */
     fun transformAt(localMs: Long) = TransformPath.at(keyframes, localMs, TransformKeyframe(localMs, x, y, size, rotation, 1f))

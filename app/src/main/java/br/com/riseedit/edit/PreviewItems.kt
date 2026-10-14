@@ -2,11 +2,14 @@ package br.com.riseedit.edit
 
 import br.com.riseedit.EditorState
 import br.com.riseedit.core.Clip
+import br.com.riseedit.core.TextFrame
 import br.com.riseedit.core.TextLayer
+import br.com.riseedit.core.TextMotion
 import br.com.riseedit.core.Timeline
 import br.com.riseedit.core.TransformEdits
 import br.com.riseedit.core.TransformKeyframe
 import br.com.riseedit.core.VideoOverlay
+import br.com.riseedit.text.TextRenderer
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
@@ -43,28 +46,23 @@ internal sealed interface PreviewItem {
         override val keyframes get() = layer.keyframes
     }
 
-    data class Text(val layer: TextLayer, override val keyTimeMs: Long, val frameAspect: Float) :
-        PreviewItem {
+    /** [editing] shows the text fully, without its in/out animation, while it is being typed. */
+    data class Text(
+        val layer: TextLayer,
+        override val keyTimeMs: Long,
+        val frameAspect: Float,
+        val editing: Boolean = false
+    ) : PreviewItem {
         override val id get() = layer.id
         override val transform get() = layer.transformAt(keyTimeMs)
         override val keyframes get() = layer.keyframes
-        override val baseSize: Pair<Float, Float> get() {
-            val lines = wrappedLines(layer.text)
-            val height = TEXT_LINE_FRACTION * lines.size
-            val width =
-                TEXT_LINE_FRACTION * CHAR_ASPECT * (lines.maxOfOrNull { it.length } ?: 1) /
-                    frameAspect
-            return width.coerceAtMost(0.9f) to height
-        }
-    }
+        override val baseSize: Pair<Float, Float> get() = TextRenderer.measure(layer, frameAspect)
 
-    companion object {
-        /** TimedText renders 42 px lines at a 720 px frame height. */
-        const val TEXT_LINE_FRACTION = 42f / 720f * 1.2f
-        const val CHAR_ASPECT = 0.58f
-
-        fun wrappedLines(text: String) = text.split('\n').flatMap {
-            it.chunked(24).ifEmpty { listOf("") }
+        /** In/out animation at the playhead (identity while editing). */
+        val motion: TextFrame get() = if (editing) {
+            TextFrame(1f, 0f, 1f, 1f)
+        } else {
+            TextMotion.at(layer.style, keyTimeMs, layer.endMs - layer.startMs)
         }
     }
 }
@@ -74,7 +72,8 @@ internal fun previewItems(
     state: EditorState,
     mainIndex: Int?,
     mainSourceMs: Long,
-    frameAspect: Float
+    frameAspect: Float,
+    textDraft: TextLayer? = null
 ): List<PreviewItem> = buildList {
     val project = state.project
     val position = state.positionMs
@@ -85,8 +84,12 @@ internal fun previewItems(
         .forEach {
             add(PreviewItem.Overlay(it, position - it.offsetMs, aspectOf(it.clip), frameAspect))
         }
-    project.texts.filter { position in it.startMs until it.endMs }
+    project.texts.filter { position in it.startMs until it.endMs && it.id != textDraft?.id }
         .forEach { add(PreviewItem.Text(it, position - it.startMs, frameAspect)) }
+    textDraft?.let {
+        val local = (position - it.startMs).coerceIn(0, it.endMs - it.startMs - 1)
+        add(PreviewItem.Text(it, local, frameAspect, editing = true))
+    }
 }
 
 private fun aspectOf(clip: Clip): Float {

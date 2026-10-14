@@ -29,6 +29,7 @@ import br.com.riseedit.preview.PreviewQuality
 /** UI facade. Coordinators share one document and one processing owner. */
 class EditorViewModel(application: Application) : AndroidViewModel(application) {
     private val document = EditorDocument(ProjectStore(application))
+        .also { br.com.riseedit.text.TextFonts.install(application) }
     val state = document.state
     private val preview = EditorPreview(application, viewModelScope, document)
     private val operations =
@@ -85,6 +86,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun settings(settings: Stabilization) = commands.settings(settings)
 
     fun selectLayer(id: String) = layers.select(id)
+    fun clearLayer() = layers.select(null)
     fun text(layer: TextLayer) = layers.text(layer)
     fun audio(layer: AudioClip) = layers.audio(layer)
     fun overlay(layer: VideoOverlay) = layers.overlay(layer)

@@ -9,21 +9,23 @@ fun ToolPanel(
     tool: EditorTool,
     vm: EditorViewModel,
     state: EditorState,
-    chooseAudioTrack: (Int) -> Unit,
-    chooseOverlayTrack: (Int) -> Unit,
-    addAudio: () -> Unit,
-    addOverlay: () -> Unit
+    addAudio: (android.net.Uri) -> Unit
 ) {
     when (tool) {
         EditorTool.Trim -> TrimPanel(vm, state)
         EditorTool.Stabilize -> StabilizePanel(vm, state)
-        EditorTool.Text -> TextPanel(vm, state)
-        EditorTool.Audio -> AudioPanel(vm, state, chooseAudioTrack, addAudio)
-        EditorTool.Overlay -> OverlayPanel(vm, state, chooseOverlayTrack, addOverlay)
-        EditorTool.Color -> ColorPanel(vm, state)
-        EditorTool.Movement -> MovementPanel(vm, state)
         EditorTool.Format -> FormatPanel(vm, state)
         EditorTool.Speed -> SpeedPanel(vm, state)
         EditorTool.Volume -> VolumePanel(vm, state)
+        EditorTool.Adjust -> AdjustPanel(vm, state)
+        EditorTool.Filters -> FiltersPanel(vm, state)
+        EditorTool.ClipAnimation -> ClipAnimationPanel(vm, state)
+        EditorTool.AudioLayer -> AudioPanel(vm, state)
+        EditorTool.Record -> RecordPanel(addAudio)
+        EditorTool.OverlayOpacity -> OverlayOpacityPanel(vm, state)
+        EditorTool.OverlayBlend -> OverlayBlendPanel(vm, state)
+        EditorTool.OverlayMask -> OverlayMaskPanel(vm, state)
+        EditorTool.OverlayTrim -> OverlayTrimPanel(vm, state)
+        EditorTool.TextTiming -> TextTimingPanel(vm, state)
     }
 }

@@ -204,7 +204,7 @@ class PreviewEngineTest {
             assertEquals(source.proxyUri, store.load(project.id).clips.single().effectiveUri())
             val file = File(context.filesDir, "projects/${project.id}.json")
             val json = JSONObject(file.readText())
-            assertEquals(4, json.getInt("schema"))
+            assertEquals(5, json.getInt("schema"))
             fun removeNewFields(clipJson: JSONObject) {
                 clipJson.remove("sourceInfo")
                 clipJson.remove("proxyUri")

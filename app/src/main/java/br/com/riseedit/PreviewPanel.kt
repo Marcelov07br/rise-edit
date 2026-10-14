@@ -7,7 +7,12 @@ import android.view.View
 import androidx.core.view.doOnPreDraw
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import br.com.riseedit.edit.FrameSampler
 import br.com.riseedit.edit.PreviewEditLayer
+import br.com.riseedit.core.TextLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import br.com.riseedit.edit.PreviewEditState
 import br.com.riseedit.edit.previewItems
 import androidx.compose.foundation.layout.*
@@ -32,7 +37,7 @@ import kotlin.math.*
 
 /** TextureView lets the cheap preview transform decoded frames without the GL effect graph. */
 @Composable
-fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = Modifier, editable: Boolean = false, mainSelected: Boolean = false, onSelect: (Boolean) -> Unit = {}) {
+fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = Modifier, editable: Boolean = false, mainSelected: Boolean = false, onSelect: (Boolean) -> Unit = {}, textDraft: TextLayer? = null, onDraftTransform: (TextLayer) -> Unit = {}, pickColor: ((Int) -> Unit)? = null) {
     val previewPlayer = vm.player
     val fast = previewPlayer is ExoPlayer
     val clip = vm.previewClip
@@ -98,9 +103,12 @@ fun PreviewPanel(vm: EditorViewModel, state: EditorState, modifier: Modifier = M
                 ) }
             }
             if (editable) {
-                val items = previewItems(state, index.takeIf { it >= 0 }, vm.previewSourceMs, outputRatio)
-                val selectedId = state.selection ?: clip?.id?.takeIf { mainSelected }
-                PreviewEditLayer(vm, state, edit, items, selectedId, fast, onSelect)
+                val items = previewItems(state, index.takeIf { it >= 0 }, vm.previewSourceMs, outputRatio, textDraft)
+                val selectedId = textDraft?.id ?: state.selection ?: clip?.id?.takeIf { mainSelected }
+                val context = LocalContext.current
+                val scope = rememberCoroutineScope()
+                val pick = pickColor?.let { done -> { u: Float, v: Float -> clip?.let { c -> scope.launch { FrameSampler.sample(context, c, vm.previewSourceMs, u, v)?.let(done) } }; Unit } }
+                PreviewEditLayer(vm, state, edit, items, selectedId, fast, onSelect, textDraft?.id, onDraftTransform, pick)
             }
         }
         Surface(Modifier.align(Alignment.TopStart).padding(6.dp),color=Color.Black.copy(alpha=0.7f),shape=RoundedCornerShape(6.dp)) {

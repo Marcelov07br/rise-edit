@@ -61,10 +61,6 @@ class ToolPanelFlowTest {
         val panels = listOf(
             "Estabilizar" to "Analisar e estabilizar",
             "Cortar" to "Aplicar trim",
-            "Áudio" to "Importar música / voz",
-            "Overlay" to "Importar vídeo sobreposto",
-            "Cor" to "Natural",
-            "Movimento" to "Adicionar keyframe no cursor",
             "Formato" to "Original"
         )
         panels.forEachIndexed { index, (tool, content) ->
@@ -73,6 +69,24 @@ class ToolPanelFlowTest {
             ui.screenshot("tool-$index")
             ui.click("Concluir")
         }
+        // Sub-toolbars replace the bottom bar; "Voltar" pops one level.
+        ui.click("Áudio", scroll = true)
+        listOf("Música", "Efeitos sonoros", "Gravar", "Extrair").forEach { ui.waitFor(it) }
+        ui.screenshot("toolbar-audio")
+        ui.click("Voltar")
+        ui.click("Overlay", scroll = true)
+        ui.waitFor("Adicionar overlay")
+        ui.click("Máscara")
+        ui.waitFor("Adicione um overlay primeiro (Overlay › Adicionar overlay).")
+        ui.click("Concluir")
+        ui.click("Voltar")
+        ui.click("Cor", scroll = true)
+        ui.click("Filtros")
+        ui.waitFor("Cinema")
+        ui.screenshot("toolbar-color")
+        ui.click("Concluir")
+        ui.click("Voltar")
+        assertTrue(listOf("Movimento", "Posição X", "Escala").none { ui.isVisible(it) })
     }
 
     private fun editAndReopen(ui: ToolTestUi, vm: EditorViewModel, projectName: String) {
@@ -81,27 +95,32 @@ class ToolPanelFlowTest {
         ui.click(projectName, scroll = true)
         ui.await { ui.onMain { vm.state.value.busy == null } }
         ui.click("Texto", scroll = true)
-        ui.click("Adicionar no cursor")
+        ui.waitFor("Adicionar texto")
+        ui.screenshot("toolbar-text")
+        ui.click("Adicionar texto")
+        ui.waitFor("Editor de texto")
+        ui.setText("Texto", "Sua história começa aqui")
+        ui.click("Estilos")
+        ui.click("Contorno")
+        ui.waitFor("Plano de fundo")
+        ui.screenshot("text-editor")
+        ui.click("Fontes")
+        ui.click("Bebas Neue")
+        ui.screenshot("text-editor-fonts")
+        ui.click("Confirmar texto")
         ui.await { ui.onMain { vm.state.value.project.texts.size == 1 } }
+        val saved = ui.onMain { vm.state.value.project.texts.single() }
+        assertEquals("Sua história começa aqui", saved.text)
+        assertTrue(saved.style.strokeWidth > 0f)
+        assertEquals("bebas", saved.style.font)
+        ui.waitFor("Editar")
+        ui.screenshot("toolbar-text-selected")
         ui.onMain { vm.undo() }
         assertTrue(ui.onMain { vm.state.value.project.texts.isEmpty() })
         ui.onMain { vm.redo() }
-        assertEquals(
-            "Sua história começa aqui",
-            ui.onMain {
-                vm.state.value.project.texts.single().text
-            }
-        )
-        ui.screenshot("tool-text")
-        ui.click("Concluir")
         ui.click("Projetos")
         ui.click(projectName, scroll = true)
         ui.await { ui.onMain { vm.state.value.busy == null } }
-        assertEquals(
-            "Sua história começa aqui",
-            ui.onMain {
-                vm.state.value.project.texts.single().text
-            }
-        )
+        assertEquals(saved, ui.onMain { vm.state.value.project.texts.single() })
     }
 }
