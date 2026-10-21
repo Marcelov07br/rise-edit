@@ -77,3 +77,4 @@
 - UI: faixa "Ajuste" (lane 7), botão '+' e menus "Camada de ajuste"; painel de cor com cabeçalho de camada + opacidade; copiar/colar entre camadas e clipes.
 - Riscos: TODO do Media3 1.9 sobre efeitos de composição; na Rápida a camada é aplicada ao frame do clipe (vinheta pode diferir com corte de aspecto); não testado em aparelho.
 - Pré-existente: `./build-local.sh check` falha em ktlint/detekt/lint (ExportService UnstableApi, FiltersPanel produceState) — fora do escopo.
+- Release: https://github.com/Marcelov07br/rise-edit/releases/tag/v0.16.0 (commit 015b292, tag v0.16.0, APK debug anexado).
