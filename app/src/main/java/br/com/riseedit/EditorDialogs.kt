@@ -39,6 +39,12 @@ internal fun EditorDialogs(
         )
     }
     if (ui.recoveryDialog) RecoveryDialog(vm, state, ui)
+    if (ui.mediaPicker) {
+        br.com.riseedit.picker.MediaPickerRoute(onPick = {
+            ui.mediaPicker = false
+            vm.import(it)
+        }, onClose = { ui.mediaPicker = false })
+    }
 }
 
 @Composable

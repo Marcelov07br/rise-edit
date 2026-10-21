@@ -23,7 +23,8 @@ data class EditorState(
     val comparing: Boolean = false,
     val muted: Boolean = false,
     val previewQuality: PreviewQuality = PreviewQuality.Fast,
-    val previewRequested: PreviewQuality = PreviewQuality.Faithful,
+    val previewRequested: PreviewQuality =
+        br.com.riseedit.settings.SettingsStore.current.previewQuality,
     val previewDegraded: String? = null,
     val previewGeneration: Int = 0,
     val previewFault: MediaFault? = null,

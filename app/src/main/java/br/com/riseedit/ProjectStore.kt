@@ -271,7 +271,15 @@ class ProjectStore(private val context: Context) {
             p.aspectRatio
         ).put(
             "export",
-            JSONArray(listOf(p.export.height, p.export.fps, p.export.bitrate, p.export.codec.name))
+            JSONArray(
+                listOf(
+                    p.export.height,
+                    p.export.fps,
+                    p.export.bitrate,
+                    p.export.codec.name,
+                    p.export.ntsc
+                )
+            )
         )
         .put(
             "markers",
@@ -398,7 +406,9 @@ class ProjectStore(private val context: Context) {
                     e.getInt(2).coerceIn(ExportSettings.MIN_BITRATE, ExportSettings.MAX_BITRATE),
                     runCatching {
                         VideoCodec.valueOf(e.optString(3, "H264"))
-                    }.getOrDefault(VideoCodec.H264)
+                    }.getOrDefault(VideoCodec.H264),
+                    // 0.19: 5th element = NTSC (absent → integer rate).
+                    e.optBoolean(4, false) && e.getInt(1) in ExportSettings.NTSC_BASES
                 )
             },
             markers = objects(j.optJSONArray("markers")).map {

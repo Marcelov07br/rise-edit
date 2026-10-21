@@ -22,10 +22,7 @@ internal fun rememberEditorMediaActions(
     state: EditorState,
     ui: EditorUiState
 ): EditorMediaActions {
-    val videoPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenMultipleDocuments(),
-        vm::import
-    )
+    val context = androidx.compose.ui.platform.LocalContext.current
     val audioPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
     ) { vm.importAudio(it, ui.audioTrack) }
@@ -39,16 +36,39 @@ internal fun rememberEditorMediaActions(
         ActivityResultContracts.CreateDocument("video/mp4")
     ) { it?.let(vm::export) }
     return EditorMediaActions(
-        videos = { videoPicker.launch(arrayOf("video/*")) },
+        // 0.19: in-app MediaStore picker (Vídeos | Imagens) replaces the system document picker.
+        videos = { ui.mediaPicker = true },
         audio = { audioPicker.launch(arrayOf("audio/*")) },
         overlay = { overlayPicker.launch(arrayOf("video/*")) },
         export = { settings ->
             vm.projectSettings(state.project.aspectRatio, settings)
             ui.exportDialog = false
             val name = state.project.name.replace(Regex("[^\\p{L}\\p{N} _-]"), "")
-            exportPicker.launch("$name.mp4")
+            // 0.19: Configurações › Exportação › pasta destino (SAF tree) skips "Salvar como".
+            val folder = br.com.riseedit.settings.SettingsStore.current.exportFolder
+            val direct = folder?.let { createInTree(context, it, "$name.mp4") }
+            if (direct != null) vm.export(direct) else exportPicker.launch("$name.mp4")
         },
         extract = { extractPicker.launch(arrayOf("video/*")) },
         audioFile = { vm.importAudio(listOf(it), ui.audioTrack) }
     )
 }
+
+/** New MP4 inside the chosen folder; null when the grant was lost (falls back to the picker). */
+internal fun createInTree(
+    context: android.content.Context,
+    tree: String,
+    name: String
+): android.net.Uri? = runCatching {
+    val treeUri = android.net.Uri.parse(tree)
+    val parent = android.provider.DocumentsContract.buildDocumentUriUsingTree(
+        treeUri,
+        android.provider.DocumentsContract.getTreeDocumentId(treeUri)
+    )
+    android.provider.DocumentsContract.createDocument(
+        context.contentResolver,
+        parent,
+        "video/mp4",
+        name
+    )
+}.onFailure { android.util.Log.w("RiseExport", "pasta destino indisponível", it) }.getOrNull()

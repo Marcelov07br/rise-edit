@@ -34,7 +34,7 @@ internal class EditorMedia(private val context: Context, private val document: E
                     index.toFloat() / uris.size,
                     "Verificando mídia ${index + 1}/${uris.size}…"
                 )
-                clips += MediaImporter.readClip(context, uri, kind, document::progress)
+                clips += readAny(uri, kind)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -47,6 +47,22 @@ internal class EditorMedia(private val context: Context, private val document: E
             document.message("$summary ${faults.distinct().joinToString(" ")}")
         }
         return clips
+    }
+
+    /** 0.19: photos (picker "Imagens") become still clips of Configurações › duração da imagem. */
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    private suspend fun readAny(uri: Uri, kind: MediaKind): Clip {
+        val mime = withContext(Dispatchers.IO) { context.contentResolver.getType(uri) }
+        if (mime?.startsWith("image/") !=
+            true
+        ) {
+            return MediaImporter.readClip(context, uri, kind, document::progress)
+        }
+        val duration = br.com.riseedit.settings.SettingsStore.current.imageDurationMs
+        document.progress(0f, "Preparando foto…")
+        val name = MediaImporter.displayName(context, uri) ?: "Foto"
+        val still = br.com.riseedit.media.StillClip.render(context, uri, duration)
+        return MediaImporter.readClip(context, still, kind, document::progress).copy(name = name)
     }
 
     suspend fun trimCache() {

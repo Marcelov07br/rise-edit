@@ -27,13 +27,18 @@ internal fun buildOutputEffects(project: Project, preview: Boolean): List<Effect
     add(Presentation.createForHeight(if (preview) 480 else project.export.height))
     // Camadas de ajuste: after composition (video + overlays), below texts.
     if (project.adjustmentLayers.any { !it.isNeutral }) {
-        add(br.com.riseedit.color.AdjustmentLayersEffect.forComposition(project.adjustmentLayers, preview))
+        add(
+            br.com.riseedit.color.AdjustmentLayersEffect.forComposition(
+                project.adjustmentLayers,
+                preview
+            )
+        )
     }
     if (project.texts.isNotEmpty()) add(OverlayEffect(project.texts.map(::StyledTextOverlay)))
     if (!preview) {
         add(
             FrameDropEffect.createDefaultFrameDropEffect(
-                br.com.riseedit.core.ExportPlan.effectiveFps(project).toFloat()
+                br.com.riseedit.core.ExportPlan.effectiveFrameRate(project).toFloat()
             )
         )
     }

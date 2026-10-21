@@ -12,8 +12,8 @@ object ExportPlan {
     /** Frame-rate caps the user may pick: never above what any source actually has. */
     fun allowedFps(project: Project): List<Int> {
         val source = sourceFps(project)
-        if (source <= 0f) return listOf(24, 30)
-        return listOf(24, 30, 60).filter { it <= source.roundToInt() + 1 }.ifEmpty { listOf(24) }
+        if (source <= 0f) return listOf(24, 25, 30)
+        return ExportSettings.FPS.filter { it <= source.roundToInt() + 1 }.ifEmpty { listOf(24) }
     }
 
     /** Output frame rate: the cap, or the source if slower (frames are only dropped). */
@@ -21,6 +21,10 @@ object ExportPlan {
         val allowed = allowedFps(project)
         return if (project.export.fps in allowed) project.export.fps else allowed.max()
     }
+
+    /** Real output rate: [effectiveFps], made fractional when the project is NTSC. */
+    fun effectiveFrameRate(project: Project): Double =
+        ExportSettings.frameRate(effectiveFps(project), project.export.ntsc)
 
     /** Suggested bitrate (bits/s) for a quality level 0..2 (Leve/Boa/Alta). */
     fun suggestedBitrate(height: Int, fps: Int, codec: VideoCodec, level: Int): Int {

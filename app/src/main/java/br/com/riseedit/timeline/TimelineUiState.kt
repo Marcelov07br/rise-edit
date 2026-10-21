@@ -40,7 +40,8 @@ internal sealed class TrimDraft {
         val draft: br.com.riseedit.core.AdjustmentLayer
     ) : TrimDraft() {
         override val entryId get() = original.id
-        fun dragged(deltaUs: Double) = copy(draft = original.trimmed(edge, (deltaUs / 1000).toLong()))
+        fun dragged(deltaUs: Double) =
+            copy(draft = original.trimmed(edge, (deltaUs / 1000).toLong()))
     }
 }
 
@@ -63,7 +64,7 @@ internal class TimelineUiState(density: Float) {
 
     var movingId by mutableStateOf<String?>(null)
     var movingUs by mutableStateOf(0.0)
-    var snapping by mutableStateOf(true)
+    var snapping by mutableStateOf(br.com.riseedit.settings.SettingsStore.current.snap)
 
     /** Time the current drag is magnetized to, drawn as a guide line; null when free. */
     var snapUs by mutableStateOf<Double?>(null)

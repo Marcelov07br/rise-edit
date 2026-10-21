@@ -96,14 +96,14 @@ class P3Test {
                     ).copy(sourceInfo = SourceInfo("video/avc", 1920, 1080, frameRate = 29.97f))
                 )
             )
-        assertEquals(listOf(24, 30), ExportPlan.allowedFps(slow))
+        assertEquals(listOf(24, 25, 30), ExportPlan.allowedFps(slow))
         assertEquals(30, ExportPlan.effectiveFps(slow.copy(export = ExportSettings(fps = 60))))
         val fast = slow.copy(
             clips = listOf(
                 clip("a").copy(sourceInfo = SourceInfo("video/avc", 3840, 2160, frameRate = 59.94f))
             )
         )
-        assertEquals(listOf(24, 30, 60), ExportPlan.allowedFps(fast))
+        assertEquals(listOf(24, 25, 30, 50, 60), ExportPlan.allowedFps(fast))
         ExportSettings(2160, 60, 150_000_000, VideoCodec.HEVC)
         assertTrue(ExportPlan.upscales(slow.copy(export = ExportSettings(height = 2160))))
     }

@@ -23,6 +23,12 @@ internal class EditorUiState(toolState: MutableState<EditorTool?>) {
     /** Keeps the closing panel rendered during its exit animation. */
     var lastTool by mutableStateOf<EditorTool?>(null)
     var exportDialog by mutableStateOf(false)
+    var mediaPicker by mutableStateOf(
+        br.com.riseedit.picker.PickerRequest.pending.also {
+            br.com.riseedit.picker.PickerRequest.pending =
+                false
+        }
+    )
     var recoveryDialog by mutableStateOf(false)
     var reconnectUri by mutableStateOf<String?>(null)
 

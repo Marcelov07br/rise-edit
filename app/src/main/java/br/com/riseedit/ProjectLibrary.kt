@@ -5,10 +5,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.riseedit.core.Project
 import br.com.riseedit.media.ProxyTranscoder
+import java.util.UUID
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.UUID
 
 class ProjectLibrary(application: Application) : AndroidViewModel(application) {
     private val store = ProjectStore(application)
@@ -18,22 +18,62 @@ class ProjectLibrary(application: Application) : AndroidViewModel(application) {
     val loading = loadingState.asStateFlow()
     private val error = MutableStateFlow<String?>(null)
     val message = error.asStateFlow()
-    init { refresh() }
-    fun refresh() { viewModelScope.launch { runCatching { withContext(Dispatchers.IO) { store.list() } }.onSuccess { mutable.value = it }.onFailure { error.value = "Não foi possível abrir a biblioteca: ${it.localizedMessage}" }; loadingState.value=false } }
-    fun create(name: String): Project? = runCatching { Project(name = name.trim().ifBlank { "Novo projeto" }).also(store::save) }.onSuccess { refresh() }.onFailure { error.value = "Não foi possível criar o projeto." }.getOrNull()
+    init {
+        refresh()
+    }
+    fun refresh() {
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { store.list() } }.onSuccess {
+                mutable.value =
+                    it
+            }.onFailure {
+                error.value = "Não foi possível abrir a biblioteca: ${it.localizedMessage}"
+            }
+            loadingState.value =
+                false
+        }
+    }
+
+    /** 0.19: "Criar projeto" with format chosen up front. */
+    fun create(project: Project): Project? =
+        runCatching { project.also(store::save) }.onSuccess { refresh() }
+            .onFailure { error.value = "Não foi possível criar o projeto." }.getOrNull()
+    fun create(name: String): Project? = runCatching {
+        Project(name = name.trim().ifBlank { "Novo projeto" }).also(store::save)
+    }.onSuccess { refresh() }.onFailure {
+        error.value =
+            "Não foi possível criar o projeto."
+    }.getOrNull()
     fun rename(p: Project, name: String) = update(p.copy(name = name.trim().ifBlank { p.name }))
     fun favorite(p: Project) = update(p.copy(favorite = !p.favorite))
-    fun duplicate(p: Project) = update(p.copy(id = UUID.randomUUID().toString(), name = "${p.name} · cópia"))
-    private fun update(p: Project) { runCatching { store.save(p.copy(modifiedAt = System.currentTimeMillis())) }.onSuccess { refresh() }.onFailure { error.value = "Falha ao salvar projeto." } }
-    fun delete(p: Project) { viewModelScope.launch {
-        try {
-            val keep = withContext(Dispatchers.IO) {
-                store.delete(p.id)
-                store.list().flatMap { it.clips + it.overlays.map { o -> o.clip } }.mapNotNull { it.proxyUri }.toSet()
+    fun duplicate(p: Project) =
+        update(p.copy(id = UUID.randomUUID().toString(), name = "${p.name} · cópia"))
+    private fun update(p: Project) {
+        runCatching {
+            store.save(p.copy(modifiedAt = System.currentTimeMillis()))
+        }.onSuccess { refresh() }.onFailure {
+            error.value =
+                "Falha ao salvar projeto."
+        }
+    }
+    fun delete(p: Project) {
+        viewModelScope.launch {
+            try {
+                val keep = withContext(Dispatchers.IO) {
+                    store.delete(p.id)
+                    store.list().flatMap {
+                        it.clips + it.overlays.map { o -> o.clip }
+                    }.mapNotNull { it.proxyUri }.toSet()
+                }
+                ProxyTranscoder(getApplication()).cleanupUnused(keep)
+                refresh()
+            } catch (
+                e: CancellationException
+            ) {
+                throw e
+            } catch (e: Exception) {
+                error.value = "Falha ao excluir projeto."
             }
-            ProxyTranscoder(getApplication()).cleanupUnused(keep)
-            refresh()
-        } catch(e: CancellationException) { throw e }
-        catch(e: Exception) { error.value = "Falha ao excluir projeto." }
-    } }
+        }
+    }
 }

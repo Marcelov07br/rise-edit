@@ -106,7 +106,7 @@ private fun ClipBackground(
         val tiles = br.com.riseedit.core.timeline.FilmStrip.tiles(
             clip,
             pxPerSecond,
-            TILE_TARGET_DP * density,
+            br.com.riseedit.settings.SettingsStore.current.thumbs.tileDp * density,
             visibleFromPx = -originPx,
             visibleToPx = widthPx - originPx
         )
@@ -123,8 +123,6 @@ private fun ClipBackground(
     }
     entry.audio?.let { TimelineWaveform(it) }
 }
-
-private const val TILE_TARGET_DP = 40.0
 
 @Composable
 private fun BoxScope.TrimHandle(x: Float, label: String) {

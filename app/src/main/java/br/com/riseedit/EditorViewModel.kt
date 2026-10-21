@@ -69,9 +69,11 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun seek(ms: Long) = preview.seek(ms)
     fun togglePlay() = preview.togglePlay()
     fun stepFrame(deltaFrames: Int) {
-        val fps = state.value.project.export.fps.coerceIn(24, 60)
-        val frameMs = (1000.0 / fps).toLong().coerceAtLeast(1)
-        val target = (state.value.positionMs + deltaFrames * frameMs)
+        // 0.19: real (possibly NTSC fractional) frame duration, rounded per step from the start.
+        val rate = state.value.project.export.frameRate.coerceIn(23.0, 60.0)
+        val frame =
+            (state.value.positionMs * rate / 1000.0).let { kotlin.math.round(it) } + deltaFrames
+        val target = kotlin.math.round(frame * 1000.0 / rate).toLong()
             .coerceIn(0, state.value.project.durationMs)
         pausePreview()
         seek(target)
@@ -99,7 +101,9 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun speed(value: Double, keepPitch: Boolean) = cuts.speed(value, keepPitch)
 
     /** 0.18: "Excluir" closes the gap on every track (ripple) when on; kept for the session. */
-    private val ripple = androidx.compose.runtime.mutableStateOf(false)
+    private val ripple = androidx.compose.runtime.mutableStateOf(
+        br.com.riseedit.settings.SettingsStore.current.ripple
+    )
     var rippleMode: Boolean
         get() = ripple.value
         set(v) {

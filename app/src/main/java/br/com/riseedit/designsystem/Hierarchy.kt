@@ -57,27 +57,27 @@ import br.com.riseedit.RiseWhite
 object HierarchyTokens {
     // 1. tools: segmented pill
     val TabBarHeight = 40.dp
-    val TabBarBg = RiseSurface
-    val TabIndicator = RiseSurfaceHigh
-    val TabIndicatorBorder = RiseOutline
+    val TabBarBg get() = RiseSurface
+    val TabIndicator get() = RiseSurfaceHigh
+    val TabIndicatorBorder get() = RiseOutline
 
     // 2. actions: small icon-only
     val ActionSize = 36.dp
     val ActionIcon = 20.dp
-    val ActionBg = RiseSurfaceHigh
+    val ActionBg get() = RiseSurfaceHigh
     val ActionGap = 6.dp
     val DangerGap = 14.dp
 
     // 3. direct graphic controls
-    val GraphicBg = Color(0xFF070708)
-    val GraphicBorder = Color(0xFF242426)
+    val GraphicBg get() = br.com.riseedit.RisePalette.graphicBg
+    val GraphicBorder get() = br.com.riseedit.RisePalette.graphicBorder
     val GraphicRadius = 20.dp
     val GraphicPadding = 12.dp
     val ChipHeight = 26.dp
 
     // 4. choices: field look
-    val FieldBg = RiseSurface
-    val FieldBorder = RiseOutline
+    val FieldBg get() = RiseSurface
+    val FieldBorder get() = RiseOutline
     val FieldRadius = 12.dp
     val FieldLabel = 11.sp
 }

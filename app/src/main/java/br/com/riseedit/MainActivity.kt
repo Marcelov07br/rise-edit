@@ -34,26 +34,28 @@ fun time(ms: Long): String = String.format(
     (ms % 1000) / 100
 )
 
+/** 0.19: top-level routes (Configurações and Criar projeto are real screens, not dialogs). */
+private enum class Route { HOME, SETTINGS, NEW_PROJECT }
+
 class MainActivity : ComponentActivity() {
     private val editor by viewModels<EditorViewModel>()
-    private val updates by viewModels<UpdateViewModel>()
     private val library by viewModels<ProjectLibrary>()
+
+    @Suppress("LongMethod", "CyclomaticComplexMethod") // route host
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             RiseTheme {
                 val state by editor.state.collectAsStateWithLifecycle()
-                val update by updates.state.collectAsStateWithLifecycle()
                 val projects by library.projects.collectAsStateWithLifecycle()
                 val libraryLoading by library.loading.collectAsStateWithLifecycle()
                 val libraryError by library.message.collectAsStateWithLifecycle()
                 var activeId by rememberSaveable { mutableStateOf<String?>(null) }
+                var route by rememberSaveable { mutableStateOf(Route.HOME) }
+                var form by remember { mutableStateOf<NewProjectForm?>(null) }
                 val editing = activeId != null
-                var settings by remember { mutableStateOf(false) }
                 fun home() {
-                    if (state.busy ==
-                        null
-                    ) {
+                    if (state.busy == null) {
                         editor.suspendPreview()
                         activeId = null
                         library.refresh()
@@ -66,48 +68,68 @@ class MainActivity : ComponentActivity() {
                         if (project != null) editor.open(project) else activeId = null
                     }
                 }
-                BackHandler(enabled = editing && state.busy == null) { home() }
+                BackHandler(enabled = route != Route.HOME) { route = Route.HOME }
+                BackHandler(enabled = route == Route.HOME && editing && state.busy == null) {
+                    home()
+                }
                 Surface(Modifier.fillMaxSize()) {
-                    if (editing &&
-                        state.project.id == activeId
-                    ) {
-                        EditorScreen(editor, state, onBack = { home() }, onSettings = {
-                            settings =
-                                true
-                        })
-                    } else if (editing) {
-                        Box(
+                    when {
+                        route == Route.SETTINGS -> br.com.riseedit.settings.SettingsRoute {
+                            route =
+                                Route.HOME
+                        }
+                        route == Route.NEW_PROJECT -> {
+                            val f = form ?: newForm(projects.size).also { form = it }
+                            NewProjectScreen(f, { form = it }, onCreate = {
+                                val d = br.com.riseedit.settings.SettingsStore.current
+                                library.create(
+                                    br.com.riseedit.core.ProjectFormat.newProject(
+                                        f.name,
+                                        f.aspect,
+                                        f.resolution,
+                                        f.rate,
+                                        d.exportDefaults()
+                                    )
+                                )?.let {
+                                    br.com.riseedit.picker.PickerRequest.pending = true
+                                    editor.open(it)
+                                    activeId = it.id
+                                }
+                                form = null
+                                route = Route.HOME
+                            }, onBack = {
+                                form = null
+                                route = Route.HOME
+                            })
+                        }
+                        editing && state.project.id == activeId ->
+                            EditorScreen(editor, state, onBack = { home() }, onSettings = {
+                                route =
+                                    Route.SETTINGS
+                            })
+                        editing -> Box(
                             Modifier.fillMaxSize(),
                             contentAlignment = androidx.compose.ui.Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    } else {
-                        HomeScreen(projects, libraryError, library, onOpen = {
+                        ) { CircularProgressIndicator() }
+                        else -> HomeScreen(projects, libraryError, library, onOpen = {
                             editor.open(it)
-                            activeId =
-                                it.id
-                        }, onSettings = { settings = true }, hasUpdate = update.release != null)
+                            activeId = it.id
+                        }, onSettings = { route = Route.SETTINGS }, onNew = {
+                            route =
+                                Route.NEW_PROJECT
+                        })
                     }
-                }
-                if (settings) {
-                    UpdateSettings(updates, update, state.busy == null, install = {
-                        updates.installationIntent()?.let { intent ->
-                            runCatching {
-                                startActivity(intent)
-                            }.onFailure { editor.message("Não foi possível abrir o instalador.") }
-                        }
-                    }, close = { settings = false })
                 }
             }
         }
-    }
-    override fun onStart() {
-        super.onStart()
-        updates.onOpen()
     }
     override fun onStop() {
         editor.pausePreview()
         super.onStop()
     }
+}
+
+private fun newForm(count: Int): NewProjectForm {
+    val d = br.com.riseedit.settings.SettingsStore.current
+    return NewProjectForm("Projeto ${count + 1}", d.aspect, d.resolution, d.standard, d.rate)
 }

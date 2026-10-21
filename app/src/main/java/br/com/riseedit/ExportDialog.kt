@@ -51,7 +51,15 @@ fun ExportDialog(project: Project, onClose: () -> Unit, onExport: (ExportSetting
                     value = value.copy(codec = it)
                 }) { it.label }
                 Text("Limite de quadros por segundo")
-                ChoiceRow(allowedFps, value.fps, { value = value.copy(fps = it) }) { "$it fps" }
+                ChoiceRow(allowedFps, value.fps, {
+                    value =
+                        value.copy(fps = it, ntsc = value.ntsc && it in ExportSettings.NTSC_BASES)
+                }) {
+                    br.com.riseedit.core.FrameRateChoice(
+                        it,
+                        value.ntsc && it in ExportSettings.NTSC_BASES
+                    ).label
+                }
                 Text("Qualidade")
                 ChoiceRow(listOf(0, 1, 2), -1, {
                     value =

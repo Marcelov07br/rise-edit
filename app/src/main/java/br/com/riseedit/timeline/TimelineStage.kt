@@ -133,8 +133,9 @@ private fun PlayheadNeedle(
 ) {
     Canvas(modifier) {
         val x = ui.viewport.pxAtTime(state.value.positionMs * 1000.0).toFloat()
-        drawLine(RiseWhite, Offset(x, 0f), Offset(x, size.height), 2 * density)
-        drawCircle(RiseWhite, 6 * density, Offset(x, 6 * density))
+        val needle = br.com.riseedit.RiseAccent
+        drawLine(needle, Offset(x, 0f), Offset(x, size.height), 2 * density)
+        drawCircle(needle, 6 * density, Offset(x, 6 * density))
         drawCircle(androidx.compose.ui.graphics.Color.Black, 2.5f * density, Offset(x, 6 * density))
         ui.snapUs?.let {
             val snapX = ui.viewport.pxAtTime(it).toFloat()

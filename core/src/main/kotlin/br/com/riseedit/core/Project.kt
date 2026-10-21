@@ -225,17 +225,32 @@ data class ExportSettings(
     val height: Int = 720,
     val fps: Int = 30,
     val bitrate: Int = 8_000_000,
-    val codec: VideoCodec = VideoCodec.H264
+    val codec: VideoCodec = VideoCodec.H264,
+    /** 0.19: NTSC rate (fps × 1000/1001: 23.976 / 29.97 / 59.94). Only for 24/30/60. */
+    val ntsc: Boolean = false
 ) {
     init {
         require(
             height in HEIGHTS &&
-                fps in listOf(24, 30, 60) &&
-                bitrate in MIN_BITRATE..MAX_BITRATE
+                fps in FPS &&
+                bitrate in MIN_BITRATE..MAX_BITRATE &&
+                (!ntsc || fps in NTSC_BASES)
         )
     }
 
+    /** Real frame rate (fractional for NTSC). */
+    val frameRate: Double get() = frameRate(fps, ntsc)
+
     companion object {
+        val FPS = listOf(24, 25, 30, 50, 60)
+        val NTSC_BASES = listOf(24, 30, 60)
+        fun frameRate(fps: Int, ntsc: Boolean) = if (ntsc &&
+            fps in NTSC_BASES
+        ) {
+            fps * 1000.0 / 1001.0
+        } else {
+            fps.toDouble()
+        }
         val HEIGHTS = listOf(480, 720, 1080, 1440, 2160)
         const val MIN_BITRATE = 1_000_000
         const val MAX_BITRATE = 150_000_000
