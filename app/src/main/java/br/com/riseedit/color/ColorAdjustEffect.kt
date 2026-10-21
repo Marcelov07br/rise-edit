@@ -20,24 +20,39 @@ import java.nio.ByteOrder
 /** Live state for the fast preview player and the hold-to-compare button. */
 internal object ColorLive {
     @Volatile var adjust: ColorAdjust = ColorAdjust.NEUTRAL
+
     @Volatile var grade: ColorGrade = ColorGrade()
+
     /** True while the user holds "Comparar": every ColorAdjustEffect outputs the original. */
     @Volatile var holdOriginal = false
+
     /** Qualifier "ver máscara": preview draws the key in black & white (never in export). */
     @Volatile var showMask = false
+
+    /** Ferramenta Máscara "ver máscara" (preview only): the take's mask coverage in gray. */
+    @Volatile var maskViewClip = false
+
+    /** Same, for the adjustment layer with this id. */
+    @Volatile var maskViewLayer: String? = null
+
     /** Bumped on every live change (incl. compare) so the paused overlay re-renders. */
     val tick = androidx.compose.runtime.mutableIntStateOf(0)
+
     /** True while the paused GL overlay covers the player (no seek-redraw needed). */
     @Volatile var overlayActive = false
+
     /** Keyframed color of the selected clip; null = static [adjust]/[grade]. */
     @Volatile var keys: br.com.riseedit.core.Clip? = null
+
     /** Source position of the playing clip (set by PreviewPanel each frame); drives [keys]. */
     @Volatile var sourceMs: Long = 0
+
     /** Last paused frame rendered by the export shader (scopes reuse it, no extra GPU pass). */
     val scopeFrame = androidx.compose.runtime.mutableStateOf<android.graphics.Bitmap?>(null)
 
     /** Adjustment layers of the project + playhead (project time), for the fast preview. */
     @Volatile var layers: List<br.com.riseedit.core.AdjustmentLayer> = emptyList()
+
     @Volatile var projectMs: Long = 0
 
     fun layerPasses() = br.com.riseedit.core.AdjustmentStack.at(layers, projectMs)
@@ -68,9 +83,20 @@ internal class ColorAdjustEffect private constructor(
      * ClipTransform: presentationTimeUs/1000 − offset → clip.sourceAt). Uniforms only, no rebuild.
      */
     constructor(clip: br.com.riseedit.core.Clip, offsetMs: Long, preview: Boolean) : this(
-        if (clip.colorKeys.isEmpty) { _ -> clip.adjustments to clip.grade }
-        else { us -> clip.colorAt(clip.sourceAt((us / 1000 - offsetMs).coerceIn(0, clip.durationMs))) },
-        true, preview, !clip.colorKeys.isEmpty
+        if (clip.colorKeys.isEmpty && clip.masks.isEmpty) {
+            { _ -> clip.adjustments to clip.grade }
+        } else if (clip.colorKeys.isEmpty &&
+            !clip.masks.isAnimated
+        ) {
+            clip.colorAt(clip.startMs).let { v -> { _ -> v } }
+        } else {
+            { us ->
+                clip.colorAt(clip.sourceAt((us / 1000 - offsetMs).coerceIn(0, clip.durationMs)))
+            }
+        },
+        true,
+        preview,
+        !clip.colorKeys.isEmpty
     )
 
     val neutral get() = !animated && source(0).let { it.first.isNeutral && it.second.isIdentity }
@@ -88,8 +114,7 @@ internal class ColorAdjustEffect private constructor(
         private val source: (Long) -> Pair<ColorAdjust, ColorGrade>,
         private val preview: Boolean,
         useHdr: Boolean
-    ) :
-        BaseGlShaderProgram(useHdr, 1) {
+    ) : BaseGlShaderProgram(useHdr, 1) {
         private val pass = try {
             ColorPass()
         } catch (error: GlUtil.GlException) {
@@ -107,8 +132,13 @@ internal class ColorAdjustEffect private constructor(
             try {
                 val (adjust, grade) = source(presentationTimeUs)
                 pass.draw(
-                    inputTexId, adjust, grade, preview && ColorLive.holdOriginal,
-                    aspect = aspect, showMask = preview && ColorLive.showMask
+                    inputTexId,
+                    adjust,
+                    grade,
+                    preview && ColorLive.holdOriginal,
+                    aspect = aspect,
+                    showMask = preview && ColorLive.showMask,
+                    maskView = preview && ColorLive.maskViewClip
                 )
             } catch (error: GlUtil.GlException) {
                 throw VideoFrameProcessingException(error, presentationTimeUs)
@@ -148,20 +178,42 @@ internal class ColorPass {
      * [aspect] = frame width/height (vignette), [flipY] = texture row 0 is the image top (bitmaps
      * uploaded by the paused renderer) vs Media3 frames (row 0 = bottom). [showMask] draws the
      * qualifier key in black & white (preview only). [amount] mixes original→result (layer opacity).
+     * Masks ([ColorAdjust.masks], already evaluated) multiply [amount] per pixel ([MaskMath.GLSL]);
+     * [maskView] draws that coverage in gray instead (preview only).
      */
     fun draw(
-        inputTexId: Int, adjust: ColorAdjust, grade: ColorGrade, bypass: Boolean,
-        aspect: Float = 16f / 9f, flipY: Boolean = false, showMask: Boolean = false, amount: Float = 1f
+        inputTexId: Int,
+        adjust: ColorAdjust,
+        grade: ColorGrade,
+        bypass: Boolean,
+        aspect: Float = 16f / 9f,
+        flipY: Boolean = false,
+        showMask: Boolean = false,
+        amount: Float = 1f,
+        maskView: Boolean = false
     ) {
-        val useLut = !bypass && !grade.isIdentity
-        if (useLut && grade != lutGrade) uploadLut(grade)
         program.use()
         program.setSamplerTexIdUniform("uTexSampler", inputTexId, 0)
+        val a = if (bypass) ColorAdjust.NEUTRAL else adjust
+        setGrade(inputTexId, grade, bypass)
+        setGlobal(inputTexId, a, bypass || adjust.isGlobalNeutral)
+        setLocal(a, showMask && !bypass && a.qualifier.active, aspect, flipY)
+        program.setFloatUniform("uAmount", if (bypass) 0f else amount.coerceIn(0f, 1f))
+        setMasks(if (bypass) emptyList() else adjust.masks, maskView)
+        program.bindAttributesAndUniforms()
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+    }
+
+    private fun setGrade(inputTexId: Int, grade: ColorGrade, bypass: Boolean) {
+        val useLut = !bypass && !grade.isIdentity
+        if (useLut && grade != lutGrade) uploadLut(grade)
         program.setSamplerTexIdUniform("uLut", if (useLut) lutTex else inputTexId, 1)
         program.setFloatUniform("uUseLut", if (useLut) 1f else 0f)
         program.setFloatUniform("uLutSize", SIZE.toFloat())
         program.setFloatUniform("uLutFirst", if (grade.lutBeforeAdjust) 1f else 0f)
-        val a = if (bypass) ColorAdjust.NEUTRAL else adjust
+    }
+
+    private fun setGlobal(inputTexId: Int, a: ColorAdjust, neutral: Boolean) {
         a.uniforms().forEach { (name, v) -> program.setFloatUniform(name, v) }
         a.vectorUniforms().forEach { (name, v) -> program.setFloatsUniform(name, v) }
         program.setFloatUniform("uUseHsl", if (a.hsl.isNeutral) 0f else 1f)
@@ -170,26 +222,47 @@ internal class ColorPass {
         if (useCurves && a.curves != curveData) uploadCurves(a.curves)
         program.setSamplerTexIdUniform("uCurves", if (useCurves) curveTex else inputTexId, 2)
         program.setFloatUniform("uUseCurves", if (useCurves) 1f else 0f)
-        program.setFloatUniform("uNeutral", if (bypass || adjust.isGlobalNeutral) 1f else 0f)
-        br.com.riseedit.core.color.LocalColorMath.uniforms(a.qualifier, a.vignette).forEach { (name, v) -> program.setFloatsUniform(name, v) }
-        val mask = showMask && !bypass && a.qualifier.active
+        program.setFloatUniform("uNeutral", if (neutral) 1f else 0f)
+    }
+
+    private fun setLocal(a: ColorAdjust, qualifierMask: Boolean, aspect: Float, flipY: Boolean) {
+        br.com.riseedit.core.color.LocalColorMath.uniforms(
+            a.qualifier,
+            a.vignette
+        ).forEach { (name, v) ->
+            program.setFloatsUniform(name, v)
+        }
         program.setFloatUniform("uQOn", if (!a.qualifier.isNeutral) 1f else 0f)
-        program.setFloatUniform("uQMask", if (mask) 1f else 0f)
+        program.setFloatUniform("uQMask", if (qualifierMask) 1f else 0f)
         program.setFloatUniform("uVOn", if (!a.vignette.isNeutral) 1f else 0f)
         program.setFloatUniform("uAspect", aspect)
         program.setFloatUniform("uFlipY", if (flipY) 1f else 0f)
-        program.setFloatUniform("uAmount", if (bypass) 0f else amount.coerceIn(0f, 1f))
-        program.bindAttributesAndUniforms()
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+    }
+
+    private fun setMasks(masks: List<br.com.riseedit.core.mask.Mask>, maskView: Boolean) {
+        br.com.riseedit.core.mask.MaskMath.uniforms(masks).forEach { (name, v) ->
+            if (v.size ==
+                1
+            ) {
+                program.setFloatUniform(name, v[0])
+            } else {
+                program.setFloatsUniform(name, v)
+            }
+        }
+        program.setFloatUniform("uMaskView", if (maskView && masks.isNotEmpty()) 1f else 0f)
     }
 
     /** 33³ cube as a 2D atlas: x = b * 33 + r, y = g (GLES2 has no 3D textures). */
     private fun uploadLut(grade: ColorGrade) {
         val data = GradeLuts.cube(grade)
         val buf = ByteBuffer.allocateDirect(SIZE * SIZE * SIZE * 4).order(ByteOrder.nativeOrder())
-        for (g in 0 until SIZE) for (b in 0 until SIZE) for (r in 0 until SIZE) {
-            val i = ((b * SIZE + g) * SIZE + r) * 3
-            buf.put(byte(data[i])).put(byte(data[i + 1])).put(byte(data[i + 2])).put(-1)
+        for (g in 0 until SIZE) {
+            for (b in 0 until SIZE) {
+                for (r in 0 until SIZE) {
+                    val i = ((b * SIZE + g) * SIZE + r) * 3
+                    buf.put(byte(data[i])).put(byte(data[i + 1])).put(byte(data[i + 2])).put(-1)
+                }
+            }
         }
         buf.flip()
         if (lutTex == 0) {
@@ -200,8 +273,16 @@ internal class ColorPass {
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, lutTex)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(
+            GLES20.GL_TEXTURE_2D,
+            GLES20.GL_TEXTURE_WRAP_S,
+            GLES20.GL_CLAMP_TO_EDGE
+        )
+        GLES20.glTexParameteri(
+            GLES20.GL_TEXTURE_2D,
+            GLES20.GL_TEXTURE_WRAP_T,
+            GLES20.GL_CLAMP_TO_EDGE
+        )
         GLES20.glTexImage2D(
             GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, SIZE * SIZE, SIZE, 0,
             GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf
@@ -214,7 +295,11 @@ internal class ColorPass {
     private fun uploadCurves(curves: br.com.riseedit.core.ColorCurves) {
         val t = curves.table(256)
         val buf = ByteBuffer.allocateDirect(256 * 4).order(ByteOrder.nativeOrder())
-        for (i in 0 until 256) buf.put(byte(t[i * 3])).put(byte(t[i * 3 + 1])).put(byte(t[i * 3 + 2])).put(-1)
+        for (i in 0 until 256) {
+            buf.put(
+                byte(t[i * 3])
+            ).put(byte(t[i * 3 + 1])).put(byte(t[i * 3 + 2])).put(-1)
+        }
         buf.flip()
         if (curveTex == 0) {
             val ids = IntArray(1)
@@ -224,8 +309,16 @@ internal class ColorPass {
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, curveTex)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(
+            GLES20.GL_TEXTURE_2D,
+            GLES20.GL_TEXTURE_WRAP_S,
+            GLES20.GL_CLAMP_TO_EDGE
+        )
+        GLES20.glTexParameteri(
+            GLES20.GL_TEXTURE_2D,
+            GLES20.GL_TEXTURE_WRAP_T,
+            GLES20.GL_CLAMP_TO_EDGE
+        )
         GLES20.glTexImage2D(
             GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, 256, 1, 0,
             GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf
@@ -242,11 +335,13 @@ internal class ColorPass {
         program.delete()
     }
 
-    private companion object { const val SIZE = 33 }
+    private companion object {
+        const val SIZE = 33
+    }
 }
 
 private object Shaders {
-        const val VERTEX = """
+    const val VERTEX = """
 attribute vec4 aFramePosition;
 varying vec2 vTex;
 void main() {
@@ -254,8 +349,9 @@ void main() {
   vTex = vec2(aFramePosition.x * 0.5 + 0.5, aFramePosition.y * 0.5 + 0.5);
 }
 """
-        const val FRAGMENT = "precision highp float;\n" + ColorAdjustMath.GLSL +
-            br.com.riseedit.core.color.LocalColorMath.GLSL + """
+    val FRAGMENT = "precision highp float;\n" + ColorAdjustMath.GLSL +
+        br.com.riseedit.core.color.LocalColorMath.GLSL + br.com.riseedit.core.mask.MaskMath.GLSL +
+        """
 uniform sampler2D uTexSampler;
 uniform sampler2D uLut;
 uniform float uUseLut;
@@ -265,6 +361,7 @@ uniform float uLutFirst;
 uniform sampler2D uCurves;
 uniform float uUseCurves;
 uniform float uAmount;
+uniform float uMaskView;
 varying vec2 vTex;
 vec3 lut(vec3 c) {
   float n = uLutSize;
@@ -294,7 +391,10 @@ void main() {
   if (uUseLut > 0.5 && uLutFirst < 0.5) c = lut(clamp(c, 0.0, 1.0));
   if (uVOn > 0.5) c = vignette(c, vTex);
   if (uQMask > 0.5) c = vec3(qualMask(key));
-  gl_FragColor = vec4(mix(orig, c, uAmount), color.a);
+  vec2 muv = vec2(vTex.x, uFlipY > 0.5 ? vTex.y : 1.0 - vTex.y);
+  float cov = maskCoverage(muv, uAspect, clamp(orig, 0.0, 1.0));
+  if (uMaskView > 0.5) { gl_FragColor = vec4(vec3(cov), color.a); return; }
+  gl_FragColor = vec4(mix(orig, c, uAmount * cov), color.a);
 }
 """
 }

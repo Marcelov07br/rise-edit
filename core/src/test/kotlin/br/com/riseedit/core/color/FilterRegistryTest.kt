@@ -1,8 +1,8 @@
 package br.com.riseedit.core.color
 
 import br.com.riseedit.core.ColorAdjust
-import org.junit.Test
 import org.junit.Assert.assertEquals
+import org.junit.Test
 
 class FilterRegistryTest {
     @Test fun noneFirstAndMatchesIntensity() {

@@ -13,11 +13,11 @@ import android.opengl.GLUtils
 import android.util.Log
 import br.com.riseedit.core.ColorAdjust
 import br.com.riseedit.core.color.ColorGrade
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.withContext
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.Executors
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.withContext
 
 /**
  * Paused fast preview: the current frame is decoded once (bitmap) and re-colored here with the
@@ -26,7 +26,9 @@ import java.util.concurrent.Executors
  */
 internal object PausedColorRenderer {
     const val TAG = "RiseColor"
-    private val dispatcher = Executors.newSingleThreadExecutor { Thread(it, "RiseColorGl") }.asCoroutineDispatcher()
+    private val dispatcher = Executors.newSingleThreadExecutor {
+        Thread(it, "RiseColorGl")
+    }.asCoroutineDispatcher()
     private var display: EGLDisplay = EGL14.EGL_NO_DISPLAY
     private var context: EGLContext = EGL14.EGL_NO_CONTEXT
     private var surface: EGLSurface = EGL14.EGL_NO_SURFACE
@@ -39,6 +41,7 @@ internal object PausedColorRenderer {
     private var width = 0
     private var height = 0
     private var buffer: ByteBuffer? = null
+
     /** Last uploaded ORIGINAL paused frame (qualifier eyedropper samples it). */
     @Volatile var source: Bitmap? = null
         private set
@@ -55,21 +58,19 @@ internal object PausedColorRenderer {
                 width = frame.width
                 height = frame.height
                 if (outTex == 0) outTex = genTexture()
-                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, outTex)
-                GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null)
                 if (fbo == 0) fbo = IntArray(1).also { GLES20.glGenFramebuffers(1, it, 0) }[0]
-                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo)
-                GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, outTex, 0)
                 if (outTex2 == 0) outTex2 = genTexture()
-                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, outTex2)
-                GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null)
                 if (fbo2 == 0) fbo2 = IntArray(1).also { GLES20.glGenFramebuffers(1, it, 0) }[0]
-                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo2)
-                GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, outTex2, 0)
-                buffer = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.nativeOrder())
+                attach(fbo, outTex)
+                attach(fbo2, outTex2)
+                buffer =
+                    ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.nativeOrder())
             }
             source = frame
-            Log.d(TAG, "frame uploaded ${width}x$height in ${(System.nanoTime() - t0) / 1_000_000}ms")
+            Log.d(
+                TAG,
+                "frame uploaded ${width}x$height in ${(System.nanoTime() - t0) / 1_000_000}ms"
+            )
             true
         } catch (error: Throwable) {
             Log.w(TAG, "setFrame failed", error)
@@ -77,12 +78,38 @@ internal object PausedColorRenderer {
         }
     }
 
+    /** (Re)allocates [tex] at width×height and binds it as the color target of [fb]. */
+    private fun attach(fb: Int, tex: Int) {
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tex)
+        GLES20.glTexImage2D(
+            GLES20.GL_TEXTURE_2D,
+            0,
+            GLES20.GL_RGBA,
+            width,
+            height,
+            0,
+            GLES20.GL_RGBA,
+            GLES20.GL_UNSIGNED_BYTE,
+            null
+        )
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fb)
+        GLES20.glFramebufferTexture2D(
+            GLES20.GL_FRAMEBUFFER,
+            GLES20.GL_COLOR_ATTACHMENT0,
+            GLES20.GL_TEXTURE_2D,
+            tex,
+            0
+        )
+    }
+
     /**
      * Renders the uploaded frame with [adjust]/[grade] (take color), then each adjustment layer
      * pass bottom→top (ping-pong between two FBOs, same ColorPass); null on failure.
      */
     suspend fun render(
-        adjust: ColorAdjust, grade: ColorGrade, bypass: Boolean,
+        adjust: ColorAdjust,
+        grade: ColorGrade,
+        bypass: Boolean,
         layers: List<br.com.riseedit.core.AdjustmentPass> = emptyList()
     ): Bitmap? = withContext(dispatcher) {
         try {
@@ -92,21 +119,49 @@ internal object PausedColorRenderer {
             val aspect = width.toFloat() / height
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo)
             GLES20.glViewport(0, 0, width, height)
-            p.draw(srcTex, adjust, grade, bypass, aspect = aspect, flipY = true, showMask = ColorLive.showMask)
+            p.draw(
+                srcTex,
+                adjust,
+                grade,
+                bypass,
+                aspect = aspect,
+                flipY = true,
+                showMask = ColorLive.showMask,
+                maskView = ColorLive.maskViewClip
+            )
             if (!bypass) {
                 val targets = listOf(fbo to outTex, fbo2 to outTex2)
                 layers.forEachIndexed { i, l ->
                     GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, targets[(i + 1) % 2].first)
-                    p.draw(targets[i % 2].second, l.adjust, l.grade, false, aspect = aspect, flipY = true, amount = l.opacity)
+                    p.draw(
+                        targets[i % 2].second,
+                        l.adjust,
+                        l.grade,
+                        false,
+                        aspect = aspect,
+                        flipY = true,
+                        amount = l.opacity,
+                        maskView =
+                        ColorLive.maskViewLayer == l.layerId
+                    )
                 }
-                if (layers.isNotEmpty()) Log.d(TAG, "paused: ${layers.size} adjustment layer pass(es)")
+                if (layers.isNotEmpty()) {
+                    Log.d(
+                        TAG,
+                        "paused: ${layers.size} adjustment layer pass(es)"
+                    )
+                }
             }
             buf.rewind()
             GLES20.glReadPixels(0, 0, width, height, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf)
             buf.rewind()
             val out = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             out.copyPixelsFromBuffer(buf)
-            Log.d(TAG, "render ${(System.nanoTime() - t0) / 1_000_000}ms bypass=$bypass neutral=${adjust.isNeutral && grade.isIdentity}")
+            Log.d(
+                TAG,
+                "render ${(System.nanoTime() - t0) / 1_000_000}ms bypass=$bypass " +
+                    "neutral=${adjust.isNeutral && grade.isIdentity}"
+            )
             out
         } catch (error: Throwable) {
             Log.w(TAG, "render failed", error)
@@ -124,7 +179,13 @@ internal object PausedColorRenderer {
      * Filter thumbnails: renders [frame] (small, ~160px) once per entry of [looks] with the same
      * [ColorPass] as export/overlay, on separate textures so the paused overlay frame is untouched.
      */
-    suspend fun thumbnails(frame: Bitmap, looks: List<ColorAdjust>, grade: ColorGrade): List<Bitmap>? = withContext(dispatcher) {
+    // detekt: linear GL setup + render loop on the GL thread.
+    @Suppress("LongMethod")
+    suspend fun thumbnails(
+        frame: Bitmap,
+        looks: List<ColorAdjust>,
+        grade: ColorGrade
+    ): List<Bitmap>? = withContext(dispatcher) {
         try {
             ensureGl()
             val p = pass ?: return@withContext null
@@ -136,23 +197,64 @@ internal object PausedColorRenderer {
                 thumbH = frame.height
                 if (thumbOut == 0) thumbOut = genTexture()
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, thumbOut)
-                GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, thumbW, thumbH, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null)
-                if (thumbFbo == 0) thumbFbo = IntArray(1).also { GLES20.glGenFramebuffers(1, it, 0) }[0]
+                GLES20.glTexImage2D(
+                    GLES20.GL_TEXTURE_2D,
+                    0,
+                    GLES20.GL_RGBA,
+                    thumbW,
+                    thumbH,
+                    0,
+                    GLES20.GL_RGBA,
+                    GLES20.GL_UNSIGNED_BYTE,
+                    null
+                )
+                if (thumbFbo ==
+                    0
+                ) {
+                    thumbFbo = IntArray(1).also { GLES20.glGenFramebuffers(1, it, 0) }[0]
+                }
                 GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, thumbFbo)
-                GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, thumbOut, 0)
+                GLES20.glFramebufferTexture2D(
+                    GLES20.GL_FRAMEBUFFER,
+                    GLES20.GL_COLOR_ATTACHMENT0,
+                    GLES20.GL_TEXTURE_2D,
+                    thumbOut,
+                    0
+                )
             }
             val buf = ByteBuffer.allocateDirect(thumbW * thumbH * 4).order(ByteOrder.nativeOrder())
             val t0 = System.nanoTime()
             val out = looks.map { look ->
                 GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, thumbFbo)
                 GLES20.glViewport(0, 0, thumbW, thumbH)
-                p.draw(thumbSrc, look, grade, false, aspect = thumbW.toFloat() / thumbH, flipY = true)
+                p.draw(
+                    thumbSrc,
+                    look,
+                    grade,
+                    false,
+                    aspect = thumbW.toFloat() / thumbH,
+                    flipY = true
+                )
                 buf.rewind()
-                GLES20.glReadPixels(0, 0, thumbW, thumbH, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf)
+                GLES20.glReadPixels(
+                    0,
+                    0,
+                    thumbW,
+                    thumbH,
+                    GLES20.GL_RGBA,
+                    GLES20.GL_UNSIGNED_BYTE,
+                    buf
+                )
                 buf.rewind()
-                Bitmap.createBitmap(thumbW, thumbH, Bitmap.Config.ARGB_8888).also { it.copyPixelsFromBuffer(buf) }
+                Bitmap.createBitmap(thumbW, thumbH, Bitmap.Config.ARGB_8888).also {
+                    it.copyPixelsFromBuffer(buf)
+                }
             }
-            Log.d(TAG, "filter thumbnails ${out.size}x ${thumbW}x$thumbH in ${(System.nanoTime() - t0) / 1_000_000}ms")
+            Log.d(
+                TAG,
+                "filter thumbnails ${out.size}x ${thumbW}x$thumbH " +
+                    "in ${(System.nanoTime() - t0) / 1_000_000}ms"
+            )
             out
         } catch (error: Throwable) {
             Log.w(TAG, "thumbnails failed", error)
@@ -165,8 +267,16 @@ internal object PausedColorRenderer {
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, id)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(
+            GLES20.GL_TEXTURE_2D,
+            GLES20.GL_TEXTURE_WRAP_S,
+            GLES20.GL_CLAMP_TO_EDGE
+        )
+        GLES20.glTexParameteri(
+            GLES20.GL_TEXTURE_2D,
+            GLES20.GL_TEXTURE_WRAP_T,
+            GLES20.GL_CLAMP_TO_EDGE
+        )
         return id
     }
 
@@ -176,18 +286,39 @@ internal object PausedColorRenderer {
         val v = IntArray(2)
         check(EGL14.eglInitialize(display, v, 0, v, 1)) { "eglInitialize" }
         val attrs = intArrayOf(
-            EGL14.EGL_RED_SIZE, 8, EGL14.EGL_GREEN_SIZE, 8, EGL14.EGL_BLUE_SIZE, 8, EGL14.EGL_ALPHA_SIZE, 8,
-            EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT, EGL14.EGL_SURFACE_TYPE, EGL14.EGL_PBUFFER_BIT,
+            EGL14.EGL_RED_SIZE,
+            8,
+            EGL14.EGL_GREEN_SIZE,
+            8,
+            EGL14.EGL_BLUE_SIZE,
+            8,
+            EGL14.EGL_ALPHA_SIZE,
+            8,
+            EGL14.EGL_RENDERABLE_TYPE,
+            EGL14.EGL_OPENGL_ES2_BIT,
+            EGL14.EGL_SURFACE_TYPE,
+            EGL14.EGL_PBUFFER_BIT,
             EGL14.EGL_NONE
         )
         val configs = arrayOfNulls<EGLConfig>(1)
         val n = IntArray(1)
-        check(EGL14.eglChooseConfig(display, attrs, 0, configs, 0, 1, n, 0) && n[0] > 0) { "eglChooseConfig" }
+        check(EGL14.eglChooseConfig(display, attrs, 0, configs, 0, 1, n, 0) && n[0] > 0) {
+            "eglChooseConfig"
+        }
         context = EGL14.eglCreateContext(
-            display, configs[0], EGL14.EGL_NO_CONTEXT,
-            intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE), 0
+            display,
+            configs[0],
+            EGL14.EGL_NO_CONTEXT,
+            intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE),
+            0
         )
-        surface = EGL14.eglCreatePbufferSurface(display, configs[0], intArrayOf(EGL14.EGL_WIDTH, 1, EGL14.EGL_HEIGHT, 1, EGL14.EGL_NONE), 0)
+        surface =
+            EGL14.eglCreatePbufferSurface(
+                display,
+                configs[0],
+                intArrayOf(EGL14.EGL_WIDTH, 1, EGL14.EGL_HEIGHT, 1, EGL14.EGL_NONE),
+                0
+            )
         check(EGL14.eglMakeCurrent(display, surface, surface, context)) { "eglMakeCurrent" }
         pass = ColorPass()
         Log.i(TAG, "GL ready: ${GLES20.glGetString(GLES20.GL_RENDERER)}")

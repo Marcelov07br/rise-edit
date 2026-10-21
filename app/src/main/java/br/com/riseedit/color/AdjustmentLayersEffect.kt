@@ -34,15 +34,21 @@ internal class AdjustmentLayersEffect private constructor(
 ) : GlEffect {
     override fun isNoOp(inputWidth: Int, inputHeight: Int) = static && empty
 
-    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = Program(source, preview, useHdr)
+    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram =
+        Program(source, preview, useHdr)
 
     companion object {
         const val TAG = "RiseColor"
 
-        fun forComposition(layers: List<AdjustmentLayer>, preview: Boolean): AdjustmentLayersEffect {
+        fun forComposition(
+            layers: List<AdjustmentLayer>,
+            preview: Boolean
+        ): AdjustmentLayersEffect {
             val snapshot = layers.toList()
             Log.i(TAG, "adjustment layers in composition: ${snapshot.size} preview=$preview")
-            return AdjustmentLayersEffect({ us -> AdjustmentStack.at(snapshot, us / 1000) }, true, preview, snapshot.all { it.isNeutral })
+            return AdjustmentLayersEffect({ us ->
+                AdjustmentStack.at(snapshot, us / 1000)
+            }, true, preview, snapshot.all { it.isNeutral })
         }
 
         val live = AdjustmentLayersEffect({ _ -> ColorLive.layerPasses() }, false, true, false)
@@ -71,14 +77,50 @@ internal class AdjustmentLayersEffect private constructor(
                 for (i in 0..1) {
                     if (tex[i] == 0) tex[i] = IntArray(1).also { GLES20.glGenTextures(1, it, 0) }[0]
                     GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tex[i])
-                    GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
-                    GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
-                    GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
-                    GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
-                    GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null)
-                    if (fbo[i] == 0) fbo[i] = IntArray(1).also { GLES20.glGenFramebuffers(1, it, 0) }[0]
+                    GLES20.glTexParameteri(
+                        GLES20.GL_TEXTURE_2D,
+                        GLES20.GL_TEXTURE_MIN_FILTER,
+                        GLES20.GL_LINEAR
+                    )
+                    GLES20.glTexParameteri(
+                        GLES20.GL_TEXTURE_2D,
+                        GLES20.GL_TEXTURE_MAG_FILTER,
+                        GLES20.GL_LINEAR
+                    )
+                    GLES20.glTexParameteri(
+                        GLES20.GL_TEXTURE_2D,
+                        GLES20.GL_TEXTURE_WRAP_S,
+                        GLES20.GL_CLAMP_TO_EDGE
+                    )
+                    GLES20.glTexParameteri(
+                        GLES20.GL_TEXTURE_2D,
+                        GLES20.GL_TEXTURE_WRAP_T,
+                        GLES20.GL_CLAMP_TO_EDGE
+                    )
+                    GLES20.glTexImage2D(
+                        GLES20.GL_TEXTURE_2D,
+                        0,
+                        GLES20.GL_RGBA,
+                        width,
+                        height,
+                        0,
+                        GLES20.GL_RGBA,
+                        GLES20.GL_UNSIGNED_BYTE,
+                        null
+                    )
+                    if (fbo[i] ==
+                        0
+                    ) {
+                        fbo[i] = IntArray(1).also { GLES20.glGenFramebuffers(1, it, 0) }[0]
+                    }
                     GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo[i])
-                    GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, tex[i], 0)
+                    GLES20.glFramebufferTexture2D(
+                        GLES20.GL_FRAMEBUFFER,
+                        GLES20.GL_COLOR_ATTACHMENT0,
+                        GLES20.GL_TEXTURE_2D,
+                        tex[i],
+                        0
+                    )
                 }
             }
             return Size(inputWidth, inputHeight)
@@ -90,7 +132,11 @@ internal class AdjustmentLayersEffect private constructor(
                 val bypass = preview && ColorLive.holdOriginal
                 val aspect = if (height > 0) width.toFloat() / height else 16f / 9f
                 if (passes.size != lastCount) {
-                    Log.d(TAG, "adjustment layers active=${passes.size} at ${presentationTimeUs / 1000}ms ${passes.map { it.layerId.take(6) }}")
+                    val ids = passes.map { it.layerId.take(6) }
+                    Log.d(
+                        TAG,
+                        "adjustment layers active=${passes.size} at ${presentationTimeUs / 1000}ms $ids"
+                    )
                     lastCount = passes.size
                 }
                 if (passes.isEmpty() || bypass) {
@@ -111,7 +157,16 @@ internal class AdjustmentLayersEffect private constructor(
                         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo[i % 2])
                         GLES20.glViewport(0, 0, width, height)
                     }
-                    pass.draw(src, p.adjust, p.grade, false, aspect, amount = p.opacity)
+                    pass.draw(
+                        src,
+                        p.adjust,
+                        p.grade,
+                        false,
+                        aspect,
+                        amount = p.opacity,
+                        maskView =
+                        preview && ColorLive.maskViewLayer == p.layerId
+                    )
                     if (!last) src = tex[i % 2]
                 }
             } catch (error: GlUtil.GlException) {

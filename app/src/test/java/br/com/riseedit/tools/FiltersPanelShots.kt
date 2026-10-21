@@ -20,22 +20,29 @@ import org.junit.Rule
 import org.junit.Test
 
 class FiltersPanelShots {
-    @get:Rule val p = Paparazzi(deviceConfig = DeviceConfig.PIXEL_5, theme = "android:Theme.Material.NoActionBar")
+    @get:Rule val p =
+        Paparazzi(deviceConfig = DeviceConfig.PIXEL_5, theme = "android:Theme.Material.NoActionBar")
     private val presets = FilterRegistry.all
-
 
     @Composable
     private fun Screen(selected: String?, intensity: Float) = RiseTheme {
         val thumbs = androidx.compose.runtime.remember { sampleThumbnails(presets) }
         Column(Modifier.fillMaxSize().background(RiseBlack).padding(top = 360.dp)) {
             Column(Modifier.padding(8.dp).background(RiseSurface).padding(16.dp)) {
-                Text("Filtros", color = RiseWhite, fontSize = 16.sp, modifier = Modifier.padding(bottom = 12.dp))
+                Text(
+                    "Filtros",
+                    color = RiseWhite,
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
                 FiltersContent(presets, selected, intensity, { thumbs[it.id] }, {}, {})
             }
         }
     }
 
     @Test fun filtersNone() = p.snapshot { Screen("none", 1f) }
+
     @Test fun filtersSelected() = p.snapshot { Screen("cinema", 0.7f) }
+
     @Test fun filtersCustom() = p.snapshot { Screen(null, 1f) }
 }

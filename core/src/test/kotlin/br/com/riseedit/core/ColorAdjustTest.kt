@@ -9,7 +9,8 @@ class ColorAdjustTest {
     @Test fun legacyArrayMigratesToSameValues() {
         val a = ColorAdjust.fromLegacy(listOf(0.1, 0.2, 0.3, -0.2))
         assertEquals(ColorAdjust(0.1f, 0.2f, 0.3f, -0.2f), a)
-        assertEquals(0f, a.exposure); assertEquals(0f, a.vibrance)
+        assertEquals(0f, a.exposure)
+        assertEquals(0f, a.vibrance)
     }
 
     @Test fun missingLegacyIsNeutral() {
@@ -40,7 +41,9 @@ class ColorAdjustV3Test {
     @Test fun filterKeepsAdvancedFields() {
         val a = ColorAdjust(exposure = 1f, shadows = 0.4f, hsl = HslBands().with(0, 0, 0.5f))
         val out = a.withFilter(ColorAdjust(0.1f, 0.2f, 0.3f, 0.4f))
-        assertEquals(1f, out.exposure); assertEquals(0.4f, out.shadows); assertEquals(0.5f, out.hsl.hue(0))
+        assertEquals(1f, out.exposure)
+        assertEquals(0.4f, out.shadows)
+        assertEquals(0.5f, out.hsl.hue(0))
         assertEquals(0.2f, out.contrast)
         assertTrue(out.matchesFilter(ColorAdjust(0.1f, 0.2f, 0.3f, 0.4f)))
     }
@@ -48,7 +51,9 @@ class ColorAdjustV3Test {
     @Test fun v3RoundTripAndV2Migration() {
         val a = ColorAdjust(
             exposure = 0.5f,
-            curves = ColorCurves(red = listOf(CurvePoint(0f, 0.1f), CurvePoint(0.5f, 0.4f), CurvePoint(1f, 1f))),
+            curves = ColorCurves(
+                red = listOf(CurvePoint(0f, 0.1f), CurvePoint(0.5f, 0.4f), CurvePoint(1f, 1f))
+            ),
             hsl = HslBands().with(5, 2, -0.3f),
             wheels = ColorWheels(lift = Wheel(0.2f, -0.1f, 0.05f))
         )
@@ -60,9 +65,16 @@ class ColorAdjustV3Test {
     }
 
     @Test fun curveMonotoneAndEndpoints() {
-        val c = ColorCurves(master = listOf(CurvePoint(0f, 0f), CurvePoint(0.3f, 0.5f), CurvePoint(1f, 1f)))
+        val c =
+            ColorCurves(
+                master = listOf(CurvePoint(0f, 0f), CurvePoint(0.3f, 0.5f), CurvePoint(1f, 1f))
+            )
         var last = -1f
-        for (i in 0..100) { val v = c.eval(0, i / 100f); assertTrue(v >= last - 1e-5f); last = v }
+        for (i in 0..100) {
+            val v = c.eval(0, i / 100f)
+            assertTrue(v >= last - 1e-5f)
+            last = v
+        }
         assertEquals(0.5f, c.eval(1, 0.3f), 1e-3f)
         assertEquals(256 * 3, c.table().size)
     }

@@ -8,6 +8,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.BookmarkAdd
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.LibraryAdd
+import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -27,15 +36,6 @@ import br.com.riseedit.core.color.Vignette
 import br.com.riseedit.designsystem.ActionMenuItems
 import br.com.riseedit.designsystem.ActionOverflow
 import br.com.riseedit.designsystem.PanelAction
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AutoFixHigh
-import androidx.compose.material.icons.rounded.BookmarkAdd
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.ContentPaste
-import androidx.compose.material.icons.rounded.FileDownload
-import androidx.compose.material.icons.rounded.Insights
-import androidx.compose.material.icons.rounded.LibraryAdd
-import androidx.compose.material.icons.rounded.RestartAlt
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -43,14 +43,23 @@ import org.junit.Test
 @Composable
 private fun Screen(title: String, content: @Composable () -> Unit) = RiseTheme {
     Column(Modifier.fillMaxSize().background(RiseBlack).padding(16.dp)) {
-        Text(title, color = RiseWhite, fontSize = 18.sp, modifier = Modifier.padding(bottom = 16.dp))
+        Text(
+            title,
+            color = RiseWhite,
+            fontSize = 18.sp,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
         content()
     }
 }
 
 private val keys = ColorKeyUi({ false }, { false }, {})
-private val all = AdjustActions(canPaste = true, savePreset = {}, exportCube = {}, scopes = {}, match = {})
-private val q = Qualifier.pick(Qualifier(), floatArrayOf(0.85f, 0.45f, 0.2f)).copy(saturation = -0.4f, hueShift = 0.15f, lightness = 0.1f)
+private val all =
+    AdjustActions(canPaste = true, savePreset = {}, exportCube = {}, scopes = {}, match = {})
+private val q = Qualifier.pick(
+    Qualifier(),
+    floatArrayOf(0.85f, 0.45f, 0.2f)
+).copy(saturation = -0.4f, hueShift = 0.15f, lightness = 0.1f)
 
 private fun menuActions() = listOf(
     PanelAction(Icons.Rounded.Insights, "Mostrar scopes", primary = true) {},
@@ -64,7 +73,8 @@ private fun menuActions() = listOf(
 )
 
 class LocalColorShots {
-    @get:Rule val p = Paparazzi(deviceConfig = DeviceConfig.PIXEL_5, theme = "android:Theme.Material.NoActionBar")
+    @get:Rule val p =
+        Paparazzi(deviceConfig = DeviceConfig.PIXEL_5, theme = "android:Theme.Material.NoActionBar")
 
     @Test fun overflowSplit() {
         val (inline, menu) = ActionOverflow.split(menuActions(), 4)
@@ -75,7 +85,8 @@ class LocalColorShots {
 
     @Test fun actionBarPhone() = p.snapshot {
         Screen("Ajustar · barra com menu 'mais'") {
-            AdjustContent(ColorAdjust(exposure = 0.3f), AdjustTab.BASIC, {}, {}, all, keys = keys, compare = {
+            AdjustContent(ColorAdjust(exposure = 0.3f), AdjustTab.BASIC, {
+            }, {}, all, keys = keys, compare = {
                 br.com.riseedit.designsystem.PanelIconButton(Icons.Rounded.Insights, "Comparar") {}
             }, grade = {})
         }
@@ -83,7 +94,9 @@ class LocalColorShots {
 
     @Test fun actionMenuOpen() = p.snapshot {
         Screen("Menu 'mais' aberto") {
-            Box(Modifier.width(280.dp).clip(RoundedCornerShape(16.dp)).background(RiseSurfaceHigh)) {
+            Box(
+                Modifier.width(280.dp).clip(RoundedCornerShape(16.dp)).background(RiseSurfaceHigh)
+            ) {
                 Column { ActionMenuItems(ActionOverflow.split(menuActions(), 4).second) }
             }
         }
@@ -91,29 +104,54 @@ class LocalColorShots {
 
     @Test fun qualifierTab() = p.snapshot {
         Screen("Ajustar · Seleção (qualifier)") {
-            AdjustContent(ColorAdjust(qualifier = q), AdjustTab.QUALIFIER, {}, {}, all, keys = keys, grade = {}, local = LocalColorUi(showMask = true))
+            AdjustContent(ColorAdjust(qualifier = q), AdjustTab.QUALIFIER, {
+            }, {}, all, keys = keys, grade = {}, local = LocalColorUi(showMask = true))
         }
     }
 
     @Test fun qualifierEmpty() = p.snapshot {
         Screen("Ajustar · Seleção (sem cor)") {
-            AdjustContent(ColorAdjust(), AdjustTab.QUALIFIER, {}, {}, all, keys = keys, grade = {}, local = LocalColorUi(picking = true))
+            AdjustContent(ColorAdjust(), AdjustTab.QUALIFIER, {
+            }, {}, all, keys = keys, grade = {}, local = LocalColorUi(picking = true))
         }
     }
 
     @Test fun vignetteTab() = p.snapshot {
         Screen("Ajustar · Vinheta") {
-            AdjustContent(ColorAdjust(vignette = Vignette(-0.6f, 0.45f, 0.6f, 0.3f, 0.4f, 0.45f)), AdjustTab.VIGNETTE, {}, {}, all, keys = keys, grade = {})
+            AdjustContent(
+                ColorAdjust(
+                    vignette = Vignette(-0.6f, 0.45f, 0.6f, 0.3f, 0.4f, 0.45f)
+                ),
+                AdjustTab.VIGNETTE,
+                {
+                },
+                {},
+                all,
+                keys = keys,
+                grade = {}
+            )
         }
     }
 
     @Test fun colorMatch() = p.snapshot {
-        val clips = (1..5).map { Clip(uri = "file:///$it.mp4", name = "Clipe $it", sourceDurationMs = 4000) }
+        val clips = (1..5).map {
+            Clip(uri = "file:///$it.mp4", name = "Clipe $it", sourceDurationMs = 4000)
+        }
         val thumbs = clips.mapIndexed { i, c ->
             c.id to Bitmap.createBitmap(64, 48, Bitmap.Config.ARGB_8888).apply {
-                eraseColor(android.graphics.Color.HSVToColor(floatArrayOf(i * 50f + 20f, 0.5f, 0.4f + i * 0.1f)))
+                eraseColor(
+                    android.graphics.Color.HSVToColor(
+                        floatArrayOf(
+                            i * 50f + 20f,
+                            0.5f,
+                            0.4f + i * 0.1f
+                        )
+                    )
+                )
             }
         }.toMap()
-        Screen("Combinar cor") { ColorMatchContent(clips, thumbs, 0, setOf(2, 3), 0.8f, false, {}, {}, {}) }
+        Screen("Combinar cor") {
+            ColorMatchContent(clips, thumbs, 0, setOf(2, 3), 0.8f, false, {}, {}, {})
+        }
     }
 }

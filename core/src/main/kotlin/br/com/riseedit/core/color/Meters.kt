@@ -40,7 +40,12 @@ object Meters {
     }
 
     /** RGB parade: 3 × [columns] × [levels] counts (r, g, b), row 0 = black. */
-    fun parade(pixels: IntArray, width: Int, columns: Int, levels: Int = 64): Array<Array<IntArray>> {
+    fun parade(
+        pixels: IntArray,
+        width: Int,
+        columns: Int,
+        levels: Int = 64
+    ): Array<Array<IntArray>> {
         val out = Array(3) { Array(columns) { IntArray(levels) } }
         if (width <= 0) return out
         for (i in pixels.indices) {
@@ -63,7 +68,11 @@ object Meters {
     fun vectorscope(pixels: IntArray, size: Int = 96): IntArray {
         val out = IntArray(size * size)
         for (p in pixels) {
-            val (cb, cr) = chroma((p shr 16 and 0xFF) / 255f, (p shr 8 and 0xFF) / 255f, (p and 0xFF) / 255f)
+            val (cb, cr) = chroma(
+                (p shr 16 and 0xFF) / 255f,
+                (p shr 8 and 0xFF) / 255f,
+                (p and 0xFF) / 255f
+            )
             val x = ((cb + 0.5f) * (size - 1)).toInt().coerceIn(0, size - 1)
             val y = ((0.5f - cr) * (size - 1)).toInt().coerceIn(0, size - 1)
             out[y * size + x]++
@@ -75,13 +84,18 @@ object Meters {
      * Skin-tone ("I") line angle on the vectorscope in radians, CCW from +Cb. Derived from a
      * reference skin rgb rather than hard-coded; ≈123° like broadcast scopes.
      */
-    val SKIN_LINE_RAD: Double = chroma(0.80f, 0.58f, 0.46f).let { (cb, cr) -> kotlin.math.atan2(cr.toDouble(), cb.toDouble()) }
+    val SKIN_LINE_RAD: Double = chroma(0.80f, 0.58f, 0.46f).let { (cb, cr) ->
+        kotlin.math.atan2(cr.toDouble(), cb.toDouble())
+    }
 
     /** Per-channel 256-bin histograms (r, g, b) + luma. */
     fun histogramRgb(pixels: IntArray): Array<IntArray> {
         val out = Array(4) { IntArray(256) }
         for (p in pixels) {
-            out[0][p shr 16 and 0xFF]++; out[1][p shr 8 and 0xFF]++; out[2][p and 0xFF]++; out[3][luma(p)]++
+            out[0][p shr 16 and 0xFF]++
+            out[1][p shr 8 and 0xFF]++
+            out[2][p and 0xFF]++
+            out[3][luma(p)]++
         }
         return out
     }

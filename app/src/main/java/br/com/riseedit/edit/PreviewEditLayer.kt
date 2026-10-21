@@ -180,7 +180,9 @@ private fun BoxScope.StandIn(item: PreviewItem, t: TransformKeyframe) {
             MediaThumbnail(
                 item.layer.clip.effectiveUri(true),
                 item.layer.clip.sourceAt((item.keyTimeMs / 500) * 500),
-                Modifier.fillMaxSize().overlayMask(item.layer).graphicsLayer { alpha = t.opacity }
+                Modifier.fillMaxSize().overlayMask(item.layer)
+                    .maskedBy(item.layer.clip.masks, item.layer.clip.startMs + item.keyTimeMs)
+                    .graphicsLayer { alpha = t.opacity }
             )
         }
         is PreviewItem.Text -> TextStandIn(item, t)
@@ -460,3 +462,54 @@ private fun grabTarget(
 }
 
 private val PreviewItem.isEditing get() = this is PreviewItem.Text && editing
+
+/**
+ * Fast-preview stand-in of the Máscara tool on an overlay: the coverage is computed by the CPU
+ * mirror ([br.com.riseedit.core.mask.MaskMath], same formulas as the shader) into a small alpha
+ * bitmap and applied with DstIn. Color masks need the overlay pixels → only exact in Fiel/export
+ * (here they count as fully opaque).
+ */
+private fun Modifier.maskedBy(set: br.com.riseedit.core.mask.MaskSet, sourceMs: Long): Modifier {
+    if (set.isEmpty) return this
+    val masks = set.at(sourceMs).map {
+        if (it.isGeometric) {
+            it
+        } else {
+            it.copy(
+                type = br.com.riseedit.core.mask.MaskType.RECT,
+                geom = br.com.riseedit.core.mask.MaskGeom(w = 3f, h = 3f, feather = 0f),
+                invert = false
+            )
+        }
+    }
+    return graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }.drawWithContent {
+        drawContent()
+        val aspect = size.width / size.height.coerceAtLeast(1f)
+        val bw = 96
+        val bh = (bw / aspect).toInt().coerceIn(8, 192)
+        val px = IntArray(bw * bh)
+        for (y in 0 until bh) {
+            for (x in 0 until bw) {
+                val c = br.com.riseedit.core.mask.MaskMath.coverage(
+                    masks,
+                    (x + 0.5f) / bw,
+                    (y + 0.5f) / bh,
+                    aspect
+                )
+                px[y * bw + x] = ((c * 255f).toInt().coerceIn(0, 255) shl 24) or 0xFFFFFF
+            }
+        }
+        val bmp = android.graphics.Bitmap.createBitmap(
+            px,
+            bw,
+            bh,
+            android.graphics.Bitmap.Config.ARGB_8888
+        ).asImageBitmap()
+        drawImage(
+            bmp,
+            dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
+            blendMode = BlendMode.DstIn,
+            filterQuality = androidx.compose.ui.graphics.FilterQuality.Low
+        )
+    }
+}

@@ -37,7 +37,10 @@ internal fun colorKeyMarks(state: EditorState): List<Long> {
     val clip = state.project.clips.getOrNull(state.selected) ?: return emptyList()
     if (clip.colorKeys.isEmpty) return emptyList()
     val offset = state.project.clips.take(state.selected).sumOf { it.durationMs }
-    return clip.colorKeys.times().filter { it in clip.startMs..clip.endMs }.map { offset + outputOfSource(clip, it) }
+    return clip.colorKeys.times().filter { it in clip.startMs..clip.endMs }.map {
+        offset +
+            outputOfSource(clip, it)
+    }
 }
 
 internal fun AdjustTab.group() = when (this) {
@@ -64,13 +67,31 @@ internal class ColorKeyUi(
 internal fun KeyActions(ui: ColorKeyUi, tab: AdjustTab) {
     val here = ui.hasKeyHere(tab)
     val anim = ui.animated(tab)
-    if (anim) PanelIconButton(Icons.Rounded.ChevronLeft, "Keyframe anterior", enabled = ui.prev != null) { ui.prev?.invoke() }
+    if (anim) {
+        PanelIconButton(
+            Icons.Rounded.ChevronLeft,
+            "Keyframe anterior",
+            enabled =
+            ui.prev != null
+        ) { ui.prev?.invoke() }
+    }
     PanelIconButton(
         KeyDiamond,
         if (here) "Remover keyframe (${tab.label})" else "Adicionar keyframe (${tab.label})",
-        tint = when { here -> KeyGold; anim -> Color.White; else -> Color.White.copy(alpha = 0.55f) }
+        tint = when {
+            here -> KeyGold
+            anim -> Color.White
+            else -> Color.White.copy(alpha = 0.55f)
+        }
     ) { ui.toggle(tab) }
-    if (anim) PanelIconButton(Icons.Rounded.ChevronRight, "Próximo keyframe", enabled = ui.next != null) { ui.next?.invoke() }
+    if (anim) {
+        PanelIconButton(
+            Icons.Rounded.ChevronRight,
+            "Próximo keyframe",
+            enabled =
+            ui.next != null
+        ) { ui.next?.invoke() }
+    }
 }
 
 /** Keyframe diamond (rotated square, same 24dp grid as Material Symbols Rounded; no gem icon exists). */

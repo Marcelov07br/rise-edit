@@ -112,6 +112,9 @@ class ProjectStore(private val context: Context) {
             else -> false
         }
     }.getOrDefault(false)
+
+    // detekt: flat JSON field list (one put per clip field).
+    @Suppress("LongMethod")
     private fun clip(c: Clip): JSONObject =
         JSONObject().put("id", c.id).put("uri", c.uri).put("name", c.name)
             .put(
@@ -148,7 +151,23 @@ class ProjectStore(private val context: Context) {
             )
             .put("tracks", TracksJson.encode(c.tracks))
             .put("grade", GradeJson.encode(c.grade))
-            .apply { if (!c.colorKeys.isEmpty) put("colorKeys", JSONObject(br.com.riseedit.core.color.ColorKeyframes.toMap(c.colorKeys))) }
+            .apply {
+                if (!c.colorKeys.isEmpty) {
+                    put(
+                        "colorKeys",
+                        JSONObject(br.com.riseedit.core.color.ColorKeyframes.toMap(c.colorKeys))
+                    )
+                }
+            }
+            // schema 10 (0.17): masks {"v":1,"masks":[...]}; absent (≤ 9) → no masks.
+            .apply {
+                if (c.masks.masks.isNotEmpty()) {
+                    put(
+                        "masks",
+                        JSONObject(br.com.riseedit.core.mask.MaskSet.toMap(c.masks))
+                    )
+                }
+            }
             .put(
                 "stabilization",
                 JSONObject().put(
@@ -204,7 +223,12 @@ class ProjectStore(private val context: Context) {
             orientation = readOrientation(c.optJSONObject("orientation")),
             tracks = TracksJson.decode(c.optJSONObject("tracks")),
             grade = GradeJson.decode(c.optJSONObject("grade")),
-            colorKeys = br.com.riseedit.core.color.ColorKeyframes.fromMap(c.optJSONObject("colorKeys")?.let(GradeJson::plain))
+            colorKeys = br.com.riseedit.core.color.ColorKeyframes.fromMap(
+                c.optJSONObject("colorKeys")?.let(GradeJson::plain)
+            ),
+            masks = br.com.riseedit.core.mask.MaskSet.fromMap(
+                c.optJSONObject("masks")?.let(GradeJson::plain)
+            )
         )
     }
 
@@ -222,13 +246,15 @@ class ProjectStore(private val context: Context) {
     }
     private fun encode(p: Project) = JSONObject().put(
         "schema",
-        9
+        10
     ).put(
         // schema 9 (0.16): adjustment layers; absent in ≤ 8 → none.
         "adjustmentLayers",
         JSONArray(
             p.adjustmentLayers.map {
-                JSONObject(br.com.riseedit.core.AdjustmentLayer.toMap(it)).put("grade", GradeJson.encode(it.grade))
+                JSONObject(
+                    br.com.riseedit.core.AdjustmentLayer.toMap(it)
+                ).put("grade", GradeJson.encode(it.grade))
             }
         )
     ).put(
@@ -342,7 +368,7 @@ class ProjectStore(private val context: Context) {
             )
         )
     private fun decode(j: JSONObject): Project {
-        require(j.getInt("schema") in 1..9) { "Formato de projeto não reconhecido" }
+        require(j.getInt("schema") in 1..10) { "Formato de projeto não reconhecido" }
         val e = j.optJSONArray("export")
         return Project(
             clips = objects(
@@ -378,7 +404,10 @@ class ProjectStore(private val context: Context) {
             },
             adjustmentLayers = objects(j.optJSONArray("adjustmentLayers")).mapNotNull {
                 runCatching {
-                    br.com.riseedit.core.AdjustmentLayer.fromMap(GradeJson.plain(it), GradeJson.decode(it.optJSONObject("grade")))
+                    br.com.riseedit.core.AdjustmentLayer.fromMap(
+                        GradeJson.plain(it),
+                        GradeJson.decode(it.optJSONObject("grade"))
+                    )
                 }.getOrNull()
             },
             audio = objects(j.optJSONArray("audio")).map { a ->

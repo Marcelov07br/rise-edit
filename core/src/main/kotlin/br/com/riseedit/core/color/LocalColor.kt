@@ -32,7 +32,12 @@ data class Qualifier(
     val exposure: Float = 0f,
     val temperature: Float = 0f
 ) {
-    val hasAdjust get() = hueShift != 0f || saturation != 0f || lightness != 0f || exposure != 0f || temperature != 0f
+    val hasAdjust get() = hueShift != 0f ||
+        saturation != 0f ||
+        lightness != 0f ||
+        exposure != 0f ||
+        temperature != 0f
+
     /** Neutral = no effect on the image (mask view aside). */
     val isNeutral get() = !active || !hasAdjust
 
@@ -41,19 +46,33 @@ data class Qualifier(
         fun pick(q: Qualifier, rgb: FloatArray): Qualifier {
             val hsv = ColorAdjustMath.rgbToHsv(rgb)
             val l = luma(rgb)
-            val sw = 0.35f; val lw = 0.3f
+            val sw = 0.35f
+            val lw = 0.3f
             return q.copy(
-                active = true, hue = hsv[0] * 360f,
-                satLow = (hsv[1] - sw).coerceIn(0f, 1f), satHigh = (hsv[1] + sw).coerceIn(0f, 1f).let { if (it > 0.95f) 1f else it },
-                lumLow = (l - lw).coerceIn(0f, 1f), lumHigh = (l + lw).coerceIn(0f, 1f)
+                active = true,
+                hue = hsv[0] * 360f,
+                satLow = (hsv[1] - sw).coerceIn(0f, 1f),
+                satHigh = (hsv[1] + sw).coerceIn(0f, 1f).let {
+                    if (it >
+                        0.95f
+                    ) {
+                        1f
+                    } else {
+                        it
+                    }
+                },
+                lumLow = (l - lw).coerceIn(0f, 1f),
+                lumHigh = (l + lw).coerceIn(0f, 1f)
             )
         }
 
         fun toMap(q: Qualifier): Map<String, Any> = mapOf(
-            "on" to q.active, "h" to q.hue.toDouble(), "hw" to q.hueWidth.toDouble(), "hs" to q.hueSoft.toDouble(),
+            "on" to q.active, "h" to q.hue.toDouble(), "hw" to q.hueWidth.toDouble(),
+            "hs" to q.hueSoft.toDouble(),
             "sl" to q.satLow.toDouble(), "sh" to q.satHigh.toDouble(), "ss" to q.satSoft.toDouble(),
             "ll" to q.lumLow.toDouble(), "lh" to q.lumHigh.toDouble(), "ls" to q.lumSoft.toDouble(),
-            "dHue" to q.hueShift.toDouble(), "dSat" to q.saturation.toDouble(), "dLum" to q.lightness.toDouble(),
+            "dHue" to q.hueShift.toDouble(), "dSat" to q.saturation.toDouble(),
+            "dLum" to q.lightness.toDouble(),
             "dExp" to q.exposure.toDouble(), "dTemp" to q.temperature.toDouble()
         )
 
@@ -62,11 +81,37 @@ data class Qualifier(
             val d = Qualifier()
             fun f(k: String, def: Float) = (m[k] as? Number)?.toFloat() ?: def
             return Qualifier(
-                m["on"] as? Boolean ?: false, f("h", d.hue).mod(360f), f("hw", d.hueWidth).coerceIn(0f, 180f),
+                m["on"] as? Boolean ?: false,
+                f(
+                    "h",
+                    d.hue
+                ).mod(360f),
+                f("hw", d.hueWidth).coerceIn(0f, 180f),
                 f("hs", d.hueSoft).coerceIn(0f, 1f),
-                f("sl", d.satLow).coerceIn(0f, 1f), f("sh", d.satHigh).coerceIn(0f, 1f), f("ss", d.satSoft).coerceIn(0f, 1f),
-                f("ll", d.lumLow).coerceIn(0f, 1f), f("lh", d.lumHigh).coerceIn(0f, 1f), f("ls", d.lumSoft).coerceIn(0f, 1f),
-                f("dHue", 0f).coerceIn(-1f, 1f), f("dSat", 0f).coerceIn(-1f, 1f), f("dLum", 0f).coerceIn(-1f, 1f),
+                f(
+                    "sl",
+                    d.satLow
+                ).coerceIn(
+                    0f,
+                    1f
+                ),
+                f("sh", d.satHigh).coerceIn(0f, 1f), f("ss", d.satSoft).coerceIn(0f, 1f),
+                f(
+                    "ll",
+                    d.lumLow
+                ).coerceIn(
+                    0f,
+                    1f
+                ),
+                f("lh", d.lumHigh).coerceIn(0f, 1f), f("ls", d.lumSoft).coerceIn(0f, 1f),
+                f(
+                    "dHue",
+                    0f
+                ).coerceIn(
+                    -1f,
+                    1f
+                ),
+                f("dSat", 0f).coerceIn(-1f, 1f), f("dLum", 0f).coerceIn(-1f, 1f),
                 f("dExp", 0f).coerceIn(-2f, 2f), f("dTemp", 0f).coerceIn(-1f, 1f)
             )
         }
@@ -78,7 +123,7 @@ data class Qualifier(
 /**
  * Vignette, applied last (after the LUT) in frame coordinates. [amount] -1..1 (negative darkens),
  * [size] 0..1 (inner radius), [softness] 0..1, [roundness] -1..1 (1 = circle, 0 = frame-shaped
- * ellipse, -1 = rounded rectangle), center [cx],[cy] 0..1 with y down (top = 0).
+ * ellipse, -1 = rounded rectangle), center [cx], [cy] 0..1 with y down (top = 0).
  */
 data class Vignette(
     val amount: Float = 0f,
@@ -92,8 +137,12 @@ data class Vignette(
 
     companion object {
         fun toMap(v: Vignette): Map<String, Any> = mapOf(
-            "amount" to v.amount.toDouble(), "size" to v.size.toDouble(), "soft" to v.softness.toDouble(),
-            "round" to v.roundness.toDouble(), "cx" to v.cx.toDouble(), "cy" to v.cy.toDouble()
+            "amount" to v.amount.toDouble(),
+            "size" to v.size.toDouble(),
+            "soft" to v.softness.toDouble(),
+            "round" to v.roundness.toDouble(),
+            "cx" to v.cx.toDouble(),
+            "cy" to v.cy.toDouble()
         )
 
         fun fromMap(m: Map<String, Any?>?): Vignette {
@@ -101,8 +150,12 @@ data class Vignette(
             val d = Vignette()
             fun f(k: String, def: Float) = (m[k] as? Number)?.toFloat() ?: def
             return Vignette(
-                f("amount", 0f).coerceIn(-1f, 1f), f("size", d.size).coerceIn(0f, 1f), f("soft", d.softness).coerceIn(0f, 1f),
-                f("round", d.roundness).coerceIn(-1f, 1f), f("cx", d.cx).coerceIn(0f, 1f), f("cy", d.cy).coerceIn(0f, 1f)
+                f("amount", 0f).coerceIn(-1f, 1f),
+                f("size", d.size).coerceIn(0f, 1f),
+                f("soft", d.softness).coerceIn(0f, 1f),
+                f("round", d.roundness).coerceIn(-1f, 1f),
+                f("cx", d.cx).coerceIn(0f, 1f),
+                f("cy", d.cy).coerceIn(0f, 1f)
             )
         }
     }
@@ -125,7 +178,9 @@ object LocalColorMath {
         val hs = q.hueSoft * 60f + 1f
         val wh = 1f - smooth(q.hueWidth, q.hueWidth + hs, d)
         val ss = q.satSoft * 0.3f + 0.001f
-        val ws = smooth(q.satLow - ss, q.satLow, hsv[1]) * (1f - smooth(q.satHigh, q.satHigh + ss, hsv[1]))
+        val ws =
+            smooth(q.satLow - ss, q.satLow, hsv[1]) *
+                (1f - smooth(q.satHigh, q.satHigh + ss, hsv[1]))
         val ls = q.lumSoft * 0.3f + 0.001f
         val l = 0.2126f * key[0] + 0.7152f * key[1] + 0.0722f * key[2]
         val wl = smooth(q.lumLow - ls, q.lumLow, l) * (1f - smooth(q.lumHigh, q.lumHigh + ls, l))
@@ -140,7 +195,9 @@ object LocalColorMath {
         var r = c[0] * g * (1f + q.temperature * 0.18f)
         var gg = c[1] * g
         var b = c[2] * g * (1f - q.temperature * 0.18f)
-        r = r.coerceIn(0f, 1f); gg = gg.coerceIn(0f, 1f); b = b.coerceIn(0f, 1f)
+        r = r.coerceIn(0f, 1f)
+        gg = gg.coerceIn(0f, 1f)
+        b = b.coerceIn(0f, 1f)
         val hsv = ColorAdjustMath.rgbToHsv(floatArrayOf(r, gg, b))
         val nh = ((hsv[0] + q.hueShift / 6f) % 1f + 1f) % 1f
         val ns = (hsv[1] * (1f + q.saturation)).coerceIn(0f, 1f)
@@ -182,18 +239,19 @@ uniform vec3 uVig2;
 uniform float uAspect;
 uniform float uFlipY;
 float sstep(float e0, float e1, float x) { return e1 <= e0 ? step(e1, x) : smoothstep(e0, e1, x); }
-float qualMask(vec3 k) {
+float qualMaskP(vec3 k, vec3 H, vec3 S, vec3 L) {
   vec3 hsv = rgbToHsv(k);
-  float d = mod(abs(hsv.x * 360.0 - uQHue.x), 360.0);
+  float d = mod(abs(hsv.x * 360.0 - H.x), 360.0);
   if (d > 180.0) d = 360.0 - d;
-  float wh = 1.0 - sstep(uQHue.y, uQHue.y + uQHue.z * 60.0 + 1.0, d);
-  float ss = uQSat.z * 0.3 + 0.001;
-  float ws = sstep(uQSat.x - ss, uQSat.x, hsv.y) * (1.0 - sstep(uQSat.y, uQSat.y + ss, hsv.y));
-  float ls = uQLum.z * 0.3 + 0.001;
+  float wh = 1.0 - sstep(H.y, H.y + H.z * 60.0 + 1.0, d);
+  float ss = S.z * 0.3 + 0.001;
+  float ws = sstep(S.x - ss, S.x, hsv.y) * (1.0 - sstep(S.y, S.y + ss, hsv.y));
+  float ls = L.z * 0.3 + 0.001;
   float l = dot(k, vec3(0.2126, 0.7152, 0.0722));
-  float wl = sstep(uQLum.x - ls, uQLum.x, l) * (1.0 - sstep(uQLum.y, uQLum.y + ls, l));
+  float wl = sstep(L.x - ls, L.x, l) * (1.0 - sstep(L.y, L.y + ls, l));
   return wh * ws * wl;
 }
+float qualMask(vec3 k) { return qualMaskP(k, uQHue, uQSat, uQLum); }
 vec3 qualify(vec3 k, vec3 c) {
   float w = qualMask(k);
   vec3 x = clamp(c * exp2(uQAdj2.x) * vec3(1.0 + uQAdj2.y * 0.18, 1.0, 1.0 - uQAdj2.y * 0.18), 0.0, 1.0);
@@ -226,5 +284,4 @@ vec3 vignette(vec3 c, vec2 uv) {
         "uVig" to floatArrayOf(v.amount, v.size, v.softness),
         "uVig2" to floatArrayOf(v.roundness, v.cx, v.cy)
     )
-
 }

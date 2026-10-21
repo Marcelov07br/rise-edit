@@ -23,34 +23,52 @@ import org.junit.Test
 @Composable
 private fun Screen(title: String, content: @Composable () -> Unit) = RiseTheme {
     Column(Modifier.fillMaxSize().background(RiseBlack).padding(16.dp)) {
-        Text(title, color = RiseWhite, fontSize = 18.sp, modifier = Modifier.padding(bottom = 16.dp))
+        Text(
+            title,
+            color = RiseWhite,
+            fontSize = 18.sp,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
         content()
     }
 }
 
 private val keys = ColorKeyUi({ false }, { it == AdjustTab.VIGNETTE }, {})
+
 // Layer: no "aplicar a todos" / "combinar cor" (clip-only actions).
-private val layerActions = AdjustActions(canPaste = true, applyAll = null, savePreset = {}, exportCube = {}, scopes = {})
+private val layerActions =
+    AdjustActions(canPaste = true, applyAll = null, savePreset = {}, exportCube = {}, scopes = {})
 
 class AdjustmentLayerShots {
-    @get:Rule val p = Paparazzi(deviceConfig = DeviceConfig.PIXEL_5, theme = "android:Theme.Material.NoActionBar")
+    @get:Rule val p =
+        Paparazzi(deviceConfig = DeviceConfig.PIXEL_5, theme = "android:Theme.Material.NoActionBar")
 
     private val layer = AdjustmentLayer(
-        startMs = 2000, durationMs = 4500, name = "Ajuste 1", opacity = 0.8f,
-        adjust = ColorAdjust(contrast = 0.2f, saturation = -0.3f, warmth = 0.25f, vignette = Vignette(-0.5f))
+        startMs = 2000,
+        durationMs = 4500,
+        name = "Ajuste 1",
+        opacity = 0.8f,
+        adjust = ColorAdjust(
+            contrast = 0.2f,
+            saturation = -0.3f,
+            warmth = 0.25f,
+            vignette = Vignette(-0.5f)
+        )
     )
 
     @Test fun layerBasic() = p.snapshot {
         Screen("Ajustar · camada de ajuste") {
             LayerHeader(layer) {}
-            AdjustContent(layer.adjust, AdjustTab.BASIC, {}, {}, layerActions, keys = keys, grade = {})
+            AdjustContent(layer.adjust, AdjustTab.BASIC, {
+            }, {}, layerActions, keys = keys, grade = {})
         }
     }
 
     @Test fun layerVignette() = p.snapshot {
         Screen("Camada de ajuste · Vinheta") {
             LayerHeader(layer) {}
-            AdjustContent(layer.adjust, AdjustTab.VIGNETTE, {}, {}, layerActions, keys = keys, grade = {})
+            AdjustContent(layer.adjust, AdjustTab.VIGNETTE, {
+            }, {}, layerActions, keys = keys, grade = {})
         }
     }
 }

@@ -21,7 +21,12 @@ import kotlin.math.hypot
  * relative to where it is (fine control), double tap recenters.
  */
 @Composable
-fun ColorWheelPad(x: Float, y: Float, modifier: Modifier = Modifier, change: (Float, Float) -> Unit) {
+fun ColorWheelPad(
+    x: Float,
+    y: Float,
+    modifier: Modifier = Modifier,
+    change: (Float, Float) -> Unit
+) {
     val cur by rememberUpdatedState(Offset(x, y))
     Canvas(
         modifier.fillMaxWidth().aspectRatio(1f)
@@ -32,7 +37,10 @@ fun ColorWheelPad(x: Float, y: Float, modifier: Modifier = Modifier, change: (Fl
                     var nx = cur.x + d.x / r * 0.5f
                     var ny = cur.y - d.y / r * 0.5f
                     val len = hypot(nx, ny)
-                    if (len > 1f) { nx /= len; ny /= len }
+                    if (len > 1f) {
+                        nx /= len
+                        ny /= len
+                    }
                     c.consume()
                     change(nx, ny)
                 }
@@ -41,7 +49,16 @@ fun ColorWheelPad(x: Float, y: Float, modifier: Modifier = Modifier, change: (Fl
         val r = size.minDimension / 2f
         val c = Offset(size.width / 2f, size.height / 2f)
         // hue ring matching Wheel.rgb(): red at 0°, counter-clockwise (y up)
-        val hues = listOf(Color.Red, Color.Magenta, Color.Blue, Color.Cyan, Color.Green, Color.Yellow, Color.Red)
+        val hues =
+            listOf(
+                Color.Red,
+                Color.Magenta,
+                Color.Blue,
+                Color.Cyan,
+                Color.Green,
+                Color.Yellow,
+                Color.Red
+            )
         drawCircle(Brush.sweepGradient(hues, c), r, c, alpha = 0.55f)
         drawCircle(Brush.radialGradient(listOf(Color(0xFF1A1A1C), Color(0x001A1A1C)), c, r), r, c)
         drawCircle(Color.White.copy(alpha = 0.25f), r, c, style = Stroke(1.5f * density))

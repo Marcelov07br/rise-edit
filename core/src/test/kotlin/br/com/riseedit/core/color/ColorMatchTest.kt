@@ -1,10 +1,10 @@
 package br.com.riseedit.core.color
 
 import br.com.riseedit.core.ColorAdjust
+import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.random.Random
 
 class ColorMatchTest {
     /** Synthetic "scene": gradient + colored patches. */
@@ -12,9 +12,20 @@ class ColorMatchTest {
         val rnd = Random(seed)
         val n = 1600
         return FloatArray(n * 3) { i ->
-            val p = i / 3; val c = i % 3
+            val p = i / 3
+            val c = i % 3
             val base = (p % 40) / 40f * 0.8f + 0.1f
-            (base + (if (c == p / 400 % 3) 0.12f else -0.04f) + rnd.nextFloat() * 0.03f).coerceIn(0f, 1f)
+            (
+                base + (
+                    if (c ==
+                        p / 400 % 3
+                    ) {
+                        0.12f
+                    } else {
+                        -0.04f
+                    }
+                    ) + rnd.nextFloat() * 0.03f
+                ).coerceIn(0f, 1f)
         }
     }
 

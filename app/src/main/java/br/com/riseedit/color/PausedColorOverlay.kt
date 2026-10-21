@@ -35,6 +35,8 @@ private const val FRAME_INTERVAL_MS = 33L
  * export shader. Changes are coalesced (latest wins) and throttled to ~30 fps. Hidden on play.
  */
 @Composable
+// detekt: one effect pipeline (grab → upload → render) kept together.
+@Suppress("LongMethod")
 internal fun PausedColorOverlay(
     clip: Clip,
     sourceMs: () -> Long,
@@ -74,7 +76,10 @@ internal fun PausedColorOverlay(
                 Log.w(TAG, "frame grab failed uri=$uri at ${sourceMs}ms -> seek fallback")
                 return@collectLatest
             }
-            Log.d(TAG, "frame grabbed ${frame.width}x${frame.height} at ${sourceMs}ms in ${(System.nanoTime() - t0) / 1_000_000}ms")
+            Log.d(
+                TAG,
+                "frame grabbed ${frame.width}x${frame.height} at ${sourceMs}ms in ${(System.nanoTime() - t0) / 1_000_000}ms"
+            )
             if (!PausedColorRenderer.setFrame(frame)) return@collectLatest
             ready = true
         }
@@ -87,7 +92,12 @@ internal fun PausedColorOverlay(
                 val wait = FRAME_INTERVAL_MS - (System.currentTimeMillis() - last)
                 if (wait > 0) delay(wait)
                 last = System.currentTimeMillis()
-                val out = PausedColorRenderer.render(currentAdjust, currentGrade, ColorLive.holdOriginal, currentLayers)
+                val out = PausedColorRenderer.render(
+                    currentAdjust,
+                    currentGrade,
+                    ColorLive.holdOriginal,
+                    currentLayers
+                )
                 if (out != null) {
                     shown = out
                     ColorLive.scopeFrame.value = out
@@ -97,16 +107,34 @@ internal fun PausedColorOverlay(
             }
     }
     shown?.let {
-        Image(it.asImageBitmap(), contentDescription = null, modifier = modifier, contentScale = ContentScale.Fit)
+        Image(
+            it.asImageBitmap(),
+            contentDescription = null,
+            modifier = modifier,
+            contentScale = ContentScale.Fit
+        )
     }
 }
 
-internal fun grab(context: android.content.Context, uri: String, sourceMs: Long, max: Int = 1280): Bitmap? {
+internal fun grab(
+    context: android.content.Context,
+    uri: String,
+    sourceMs: Long,
+    max: Int = 1280
+): Bitmap? {
     val r = MediaMetadataRetriever()
     return try {
         r.setDataSource(context, Uri.parse(uri))
         r.getScaledFrameAtTime(sourceMs * 1000, MediaMetadataRetriever.OPTION_CLOSEST, max, max)
-            ?.let { if (it.config == Bitmap.Config.ARGB_8888) it else it.copy(Bitmap.Config.ARGB_8888, false) }
+            ?.let {
+                if (it.config ==
+                    Bitmap.Config.ARGB_8888
+                ) {
+                    it
+                } else {
+                    it.copy(Bitmap.Config.ARGB_8888, false)
+                }
+            }
     } catch (error: RuntimeException) {
         Log.w(TAG, "grab error", error)
         null

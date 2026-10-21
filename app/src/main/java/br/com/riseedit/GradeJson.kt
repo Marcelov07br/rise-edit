@@ -15,7 +15,8 @@ internal object GradeJson {
         .put("lutFirst", g.lutBeforeAdjust)
 
     /** JSONObject/JSONArray → Map/List, for core decoders. */
-    fun plain(o: JSONObject): Map<String, Any?> = o.keys().asSequence().associateWith { plainValue(o.opt(it)) }
+    fun plain(o: JSONObject): Map<String, Any?> =
+        o.keys().asSequence().associateWith { plainValue(o.opt(it)) }
     private fun plainValue(v: Any?): Any? = when (v) {
         is JSONObject -> plain(v)
         is org.json.JSONArray -> List(v.length()) { plainValue(v.opt(it)) }

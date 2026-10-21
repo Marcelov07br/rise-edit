@@ -12,15 +12,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CenterFocusStrong
 import androidx.compose.material.icons.rounded.Colorize
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
@@ -53,9 +53,11 @@ import br.com.riseedit.designsystem.TileSlider
 internal object ColorTools {
     /** Waiting for a tap on the preview: receives the ORIGINAL frame color (ARGB). */
     var eyedropper by mutableStateOf<((Int) -> Unit)?>(null)
+
     /** Vignette center (0..1, y down) shown as a handle on the preview while the tab is open. */
     var vignetteCenter by mutableStateOf<Offset?>(null)
     var onVignetteCenter: ((Float, Float) -> Unit)? = null
+
     /** Qualifier "ver máscara" (mirrors ColorLive.showMask for Compose). */
     var showMask by mutableStateOf(false)
 
@@ -78,17 +80,27 @@ internal class LocalColorUi(
 private fun hueColor(h: Float) = Color.hsv(((h % 360f) + 360f) % 360f, 0.8f, 0.95f)
 
 @Composable
+// detekt: flat list of qualifier controls.
+@Suppress("LongMethod")
 internal fun QualifierTab(a: ColorAdjust, change: (ColorAdjust) -> Unit, ui: LocalColorUi) {
     val q = a.qualifier
     fun set(n: Qualifier) = change(a.copy(qualifier = n))
     GraphicSurface {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             PanelIconButton(
-                Icons.Rounded.Colorize, if (ui.picking) "Toque na prévia…" else "Conta-gotas: escolher cor",
-                tint = if (ui.picking) KeyGold else Color.White, onClick = ui.onEyedropper
+                Icons.Rounded.Colorize,
+                if (ui.picking) "Toque na prévia…" else "Conta-gotas: escolher cor",
+                tint = if (ui.picking) KeyGold else Color.White,
+                onClick = ui.onEyedropper
             )
             Box(
-                Modifier.size(26.dp).clip(CircleShape).background(if (q.active) hueColor(q.hue) else Color.Transparent)
+                Modifier.size(
+                    26.dp
+                ).clip(CircleShape).background(if (q.active) hueColor(q.hue) else Color.Transparent)
                     .border(1.dp, Color.White.copy(alpha = 0.5f), CircleShape)
             )
             Text(
@@ -97,32 +109,74 @@ internal fun QualifierTab(a: ColorAdjust, change: (ColorAdjust) -> Unit, ui: Loc
                     q.active -> "Matiz %.0f°".format(q.hue)
                     else -> "Nenhuma cor escolhida"
                 },
-                color = RiseMuted, fontSize = 12.sp, modifier = Modifier.weight(1f)
+                color = RiseMuted,
+                fontSize = 12.sp,
+                modifier = Modifier.weight(1f)
             )
             PanelIconButton(
                 if (ui.showMask) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
                 if (ui.showMask) "Ocultar máscara" else "Ver máscara (P&B)",
-                enabled = q.active, tint = if (ui.showMask) KeyGold else Color.White, onClick = ui.onMask
+                enabled = q.active,
+                tint = if (ui.showMask) KeyGold else Color.White,
+                onClick = ui.onMask
             )
-            PanelIconButton(Icons.Rounded.RestartAlt, "Resetar seleção", enabled = q != Qualifier()) { set(Qualifier()) }
+            PanelIconButton(
+                Icons.Rounded.RestartAlt,
+                "Resetar seleção",
+                enabled = q != Qualifier()
+            ) {
+                set(Qualifier())
+            }
         }
         // Hue strip with the selected range.
         Canvas(Modifier.fillMaxWidth().height(14.dp).clip(CircleShape)) {
             val n = 60
             for (i in 0 until n) {
-                drawRect(hueColor(i * 360f / n), Offset(size.width * i / n, 0f), androidx.compose.ui.geometry.Size(size.width / n + 1f, size.height))
+                drawRect(
+                    hueColor(i * 360f / n),
+                    Offset(size.width * i / n, 0f),
+                    androidx.compose.ui.geometry.Size(
+                        size.width / n + 1f,
+                        size.height
+                    )
+                )
             }
             if (q.active) {
                 val c = q.hue / 360f * size.width
                 val w = q.hueWidth / 360f * size.width
-                drawRect(Color.Black.copy(alpha = 0.55f), Offset(0f, 0f), androidx.compose.ui.geometry.Size((c - w).coerceAtLeast(0f), size.height))
-                drawRect(Color.Black.copy(alpha = 0.55f), Offset(c + w, 0f), androidx.compose.ui.geometry.Size((size.width - c - w).coerceAtLeast(0f), size.height))
+                drawRect(
+                    Color.Black.copy(alpha = 0.55f),
+                    Offset(0f, 0f),
+                    androidx.compose.ui.geometry.Size(
+                        (
+                            c -
+                                w
+                            ).coerceAtLeast(0f),
+                        size.height
+                    )
+                )
+                drawRect(
+                    Color.Black.copy(alpha = 0.55f),
+                    Offset(c + w, 0f),
+                    androidx.compose.ui.geometry.Size(
+                        (
+                            size.width -
+                                c -
+                                w
+                            ).coerceAtLeast(0f),
+                        size.height
+                    )
+                )
                 drawLine(Color.White, Offset(c, 0f), Offset(c, size.height), 3f)
             }
         }
     }
     if (!q.active) {
-        Text("Toque no conta-gotas e depois na prévia para escolher a cor a ajustar.", color = RiseMuted, fontSize = 12.sp)
+        Text(
+            "Toque no conta-gotas e depois na prévia para escolher a cor a ajustar.",
+            color = RiseMuted,
+            fontSize = 12.sp
+        )
     }
     val pct = { v: Float -> "%.0f%%".format(v * 100f) }
     val deg = { v: Float -> "±%.0f°".format(v) }
@@ -131,11 +185,21 @@ internal fun QualifierTab(a: ColorAdjust, change: (ColorAdjust) -> Unit, ui: Loc
         listOf(
             Tile("Largura matiz", q.hueWidth, 2f..90f, 25f, deg) { set(q.copy(hueWidth = it)) },
             Tile("Suav. matiz", q.hueSoft, 0f..1f, 0.5f, pct) { set(q.copy(hueSoft = it)) },
-            Tile("Sat. mín", q.satLow, 0f..1f, 0.15f, pct) { set(q.copy(satLow = it.coerceAtMost(q.satHigh))) },
-            Tile("Sat. máx", q.satHigh, 0f..1f, 1f, pct) { set(q.copy(satHigh = it.coerceAtLeast(q.satLow))) },
-            Tile("Lum. mín", q.lumLow, 0f..1f, 0.05f, pct) { set(q.copy(lumLow = it.coerceAtMost(q.lumHigh))) },
-            Tile("Lum. máx", q.lumHigh, 0f..1f, 0.95f, pct) { set(q.copy(lumHigh = it.coerceAtLeast(q.lumLow))) },
-            Tile("Suav. sat/lum", q.satSoft, 0f..1f, 0.3f, pct) { set(q.copy(satSoft = it, lumSoft = it)) }
+            Tile("Sat. mín", q.satLow, 0f..1f, 0.15f, pct) {
+                set(q.copy(satLow = it.coerceAtMost(q.satHigh)))
+            },
+            Tile("Sat. máx", q.satHigh, 0f..1f, 1f, pct) {
+                set(q.copy(satHigh = it.coerceAtLeast(q.satLow)))
+            },
+            Tile("Lum. mín", q.lumLow, 0f..1f, 0.05f, pct) {
+                set(q.copy(lumLow = it.coerceAtMost(q.lumHigh)))
+            },
+            Tile("Lum. máx", q.lumHigh, 0f..1f, 0.95f, pct) {
+                set(q.copy(lumHigh = it.coerceAtLeast(q.lumLow)))
+            },
+            Tile("Suav. sat/lum", q.satSoft, 0f..1f, 0.3f, pct) {
+                set(q.copy(satSoft = it, lumSoft = it))
+            }
         ),
         enabled = q.active
     )
@@ -164,20 +228,33 @@ internal fun VignetteTab(a: ColorAdjust, change: (ColorAdjust) -> Unit) {
             Tile("Arredondamento", v.roundness, -1f..1f) { set(v.copy(roundness = it)) }
         )
     )
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        PanelIconButton(Icons.Rounded.CenterFocusStrong, "Centralizar vinheta", enabled = v.cx != 0.5f || v.cy != 0.5f) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        PanelIconButton(
+            Icons.Rounded.CenterFocusStrong,
+            "Centralizar vinheta",
+            enabled =
+            v.cx != 0.5f || v.cy != 0.5f
+        ) {
             set(v.copy(cx = 0.5f, cy = 0.5f))
         }
         Text(
             "Arraste o ponto na prévia para mover o centro. Quantidade negativa escurece as bordas.",
-            color = RiseMuted, fontSize = 12.sp
+            color = RiseMuted,
+            fontSize = 12.sp
         )
     }
 }
 
 internal class Tile(
-    val label: String, val value: Float, val range: ClosedFloatingPointRange<Float>, val default: Float = 0f,
-    val format: ((Float) -> String)? = null, val set: (Float) -> Unit
+    val label: String,
+    val value: Float,
+    val range: ClosedFloatingPointRange<Float>,
+    val default: Float = 0f,
+    val format: ((Float) -> String)? = null,
+    val set: (Float) -> Unit
 )
 
 @Composable
@@ -189,9 +266,26 @@ internal fun TileGrid(tiles: List<Tile>, enabled: Boolean = true) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     line.forEach { t ->
                         if (t.format != null) {
-                            TileSlider(t.label, t.value, t.range, Modifier.weight(1f), enabled = enabled, default = t.default, format = t.format, change = t.set)
+                            TileSlider(
+                                t.label,
+                                t.value,
+                                t.range,
+                                Modifier.weight(1f),
+                                enabled = enabled,
+                                default = t.default,
+                                format = t.format,
+                                change = t.set
+                            )
                         } else {
-                            TileSlider(t.label, t.value, t.range, Modifier.weight(1f), enabled = enabled, default = t.default, change = t.set)
+                            TileSlider(
+                                t.label,
+                                t.value,
+                                t.range,
+                                Modifier.weight(1f),
+                                enabled = enabled,
+                                default = t.default,
+                                change = t.set
+                            )
                         }
                     }
                     repeat(cols - line.size) { Spacer(Modifier.weight(1f)) }
@@ -229,25 +323,40 @@ internal fun VignetteHandle(modifier: Modifier = Modifier) {
 @Composable
 internal fun LayerHeader(layer: br.com.riseedit.core.AdjustmentLayer, onOpacity: (Float) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically,
+        Modifier.fillMaxWidth().padding(bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 androidx.compose.material3.Icon(
-                    androidx.compose.material.icons.Icons.Rounded.Layers, null,
-                    Modifier.size(16.dp), tint = br.com.riseedit.LaneAdjust
+                    androidx.compose.material.icons.Icons.Rounded.Layers,
+                    null,
+                    Modifier.size(16.dp),
+                    tint = br.com.riseedit.LaneAdjust
                 )
                 Text("Camada de ajuste", color = Color.White, fontSize = 13.sp)
             }
             Text(
-                "${layer.name} · afeta vídeo e overlays abaixo, de %.1fs a %.1fs".format(layer.startMs / 1000f, layer.endMs / 1000f),
-                color = RiseMuted, fontSize = 11.sp
+                "${layer.name} · afeta vídeo e overlays abaixo, de %.1fs a %.1fs".format(
+                    layer.startMs / 1000f,
+                    layer.endMs / 1000f
+                ),
+                color = RiseMuted,
+                fontSize = 11.sp
             )
         }
         TileSlider(
-            "Opacidade", layer.opacity, 0f..1f, Modifier.width(150.dp), default = 1f,
-            format = { "%.0f%%".format(it * 100f) }, change = onOpacity
+            "Opacidade",
+            layer.opacity,
+            0f..1f,
+            Modifier.width(150.dp),
+            default = 1f,
+            format = { "%.0f%%".format(it * 100f) },
+            change = onOpacity
         )
     }
 }

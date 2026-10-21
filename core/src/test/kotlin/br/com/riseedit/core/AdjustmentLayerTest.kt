@@ -25,9 +25,16 @@ class AdjustmentLayerTest {
 
     @Test fun orderBottomToTop() {
         val a = AdjustmentLayer(id = "a", startMs = 0, durationMs = 4000, track = 1, adjust = warm)
-        val b = AdjustmentLayer(id = "b", startMs = 500, durationMs = 4000, track = 0, adjust = dark)
-        val c = AdjustmentLayer(id = "c", startMs = 100, durationMs = 4000, track = 0, adjust = dark)
-        assertEquals(listOf("c", "b", "a"), AdjustmentStack.at(listOf(a, b, c), 1000).map { it.layerId })
+        val b =
+            AdjustmentLayer(id = "b", startMs = 500, durationMs = 4000, track = 0, adjust = dark)
+        val c =
+            AdjustmentLayer(id = "c", startMs = 100, durationMs = 4000, track = 0, adjust = dark)
+        assertEquals(
+            listOf("c", "b", "a"),
+            AdjustmentStack.at(listOf(a, b, c), 1000).map {
+                it.layerId
+            }
+        )
     }
 
     @Test fun neutralAndTransparentLayersAreSkipped() {
@@ -53,7 +60,11 @@ class AdjustmentLayerTest {
 
     @Test fun keysAreLayerLocalAndTrimKeepsProjectTime() {
         var l = AdjustmentLayer(startMs = 2000, durationMs = 2000)
-        val clip = ColorKeyEdits.toggle(l.asClip().copy(adjustments = warm), ColorKeyGroup.BASIC, 500)
+        val clip = ColorKeyEdits.toggle(
+            l.asClip().copy(adjustments = warm),
+            ColorKeyGroup.BASIC,
+            500
+        )
         l = l.withColorOf(clip)
         assertEquals(listOf(500L), l.colorKeys.times())
         val t = l.trimmed(TrimEdge.START, 300)
@@ -65,8 +76,15 @@ class AdjustmentLayerTest {
     }
 
     @Test fun jsonRoundTripAndAbsentMeansNone() {
-        val l = AdjustmentLayer(startMs = 100, durationMs = 900, track = 1, name = "Look", opacity = 0.6f,
-            adjust = ColorAdjust(vignette = Vignette(-0.5f)))
+        val l =
+            AdjustmentLayer(
+                startMs = 100,
+                durationMs = 900,
+                track = 1,
+                name = "Look",
+                opacity = 0.6f,
+                adjust = ColorAdjust(vignette = Vignette(-0.5f))
+            )
         val m = AdjustmentLayer.toMap(l)
         assertEquals(l, AdjustmentLayer.fromMap(m))
         assertNull(AdjustmentLayer.fromMap(mapOf("start" to 1)))
@@ -74,14 +92,22 @@ class AdjustmentLayerTest {
     }
 
     @Test fun copyPasteBetweenLayerAndClip() {
-        val layer = AdjustmentLayer(adjust = ColorAdjust(exposure = 0.4f, vignette = Vignette(-0.3f)))
+        val layer =
+            AdjustmentLayer(adjust = ColorAdjust(exposure = 0.4f, vignette = Vignette(-0.3f)))
         val clip = Clip(uri = "a", name = "a", sourceDurationMs = 1000, volume = 0.5f)
-        val pasted = ClipAttributes.of(layer.asClip()).applyTo(clip, setOf(AttributeGroup.COLOR_VIGNETTE, AttributeGroup.COLOR_BASIC))
+        val pasted = ClipAttributes.of(
+            layer.asClip()
+        ).applyTo(clip, setOf(AttributeGroup.COLOR_VIGNETTE, AttributeGroup.COLOR_BASIC))
         assertEquals(0.4f, pasted.adjustments.exposure)
         assertEquals(0.5f, pasted.volume)
-        val back = layer.withColorOf(ClipAttributes.of(pasted).applyTo(layer.asClip(), setOf(AttributeGroup.COLOR_BASIC)))
+        val back = layer.withColorOf(
+            ClipAttributes.of(pasted).applyTo(layer.asClip(), setOf(AttributeGroup.COLOR_BASIC))
+        )
         assertEquals(-0.3f, back.adjust.vignette.amount)
-        assertEquals(Selection.Adjustment(layer.id), Selection.of(Project(adjustmentLayers = listOf(layer)), layer.id))
+        assertEquals(
+            Selection.Adjustment(layer.id),
+            Selection.of(Project(adjustmentLayers = listOf(layer)), layer.id)
+        )
     }
 
     @Test fun newLayerFitsProject() {
@@ -90,6 +116,9 @@ class AdjustmentLayerTest {
         assertEquals(1500, l.startMs)
         assertEquals(500, l.durationMs)
         assertEquals(1, AdjustmentStack.clamp(listOf(l.copy(durationMs = 5000)), 2000).size)
-        assertEquals(500, AdjustmentStack.clamp(listOf(l.copy(durationMs = 5000)), 2000)[0].durationMs)
+        assertEquals(
+            500,
+            AdjustmentStack.clamp(listOf(l.copy(durationMs = 5000)), 2000)[0].durationMs
+        )
     }
 }

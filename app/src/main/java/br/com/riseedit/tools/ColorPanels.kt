@@ -1,14 +1,30 @@
 package br.com.riseedit.tools
 
-import androidx.compose.runtime.Composable
-import br.com.riseedit.ChoiceRow
-import br.com.riseedit.EditorState
-import br.com.riseedit.EditorViewModel
-import br.com.riseedit.core.ColorAdjust
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.BookmarkAdd
+import androidx.compose.material.icons.rounded.Compare
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.LibraryAdd
+import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,34 +35,16 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
-import br.com.riseedit.color.ColorLive
-import br.com.riseedit.redrawColor
-import br.com.riseedit.riseSpring
-import br.com.riseedit.designsystem.TileSlider
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Compare
-import androidx.compose.material.icons.rounded.AutoFixHigh
-import androidx.compose.material.icons.rounded.BookmarkAdd
-import androidx.compose.material.icons.rounded.Insights
-import androidx.compose.material.icons.rounded.FileDownload
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.ContentPaste
-import androidx.compose.material.icons.rounded.LibraryAdd
-import androidx.compose.material.icons.rounded.RestartAlt
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
+import br.com.riseedit.ChoiceRow
+import br.com.riseedit.EditorState
+import br.com.riseedit.EditorViewModel
+import br.com.riseedit.color.ColorLive
+import br.com.riseedit.core.ColorAdjust
+import br.com.riseedit.designsystem.TileSlider
+import br.com.riseedit.redrawColor
+import br.com.riseedit.riseSpring
 
 private data class AdjustRow(
     val label: String,
@@ -69,6 +67,8 @@ private val adjustRows = listOf(
 )
 
 @Composable
+// detekt: wiring of every Ajustar action to the VM; content is the stateless AdjustContent.
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
     val target = colorTarget(state) ?: return
     val clip = target.clip
@@ -78,7 +78,10 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
     var tab by remember { mutableStateOf(AdjustTab.BASIC) }
     // Curves and wheels need room: expand the sheet automatically (handle still toggles).
     androidx.compose.runtime.LaunchedEffect(tab) {
-        br.com.riseedit.ToolSheetDetent.expanded = tab == AdjustTab.CURVES || tab == AdjustTab.WHEELS || tab == AdjustTab.QUALIFIER
+        br.com.riseedit.ToolSheetDetent.expanded =
+            tab == AdjustTab.CURVES ||
+            tab == AdjustTab.WHEELS ||
+            tab == AdjustTab.QUALIFIER
     }
     // On-preview tools: eyedropper (Seleção) and vignette center (Vinheta); cleared on tab/panel exit.
     val latestTarget by androidx.compose.runtime.rememberUpdatedState(target)
@@ -86,12 +89,17 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
     fun editLatest(f: (ColorAdjust) -> ColorAdjust) {
         val c = vm.latestColorClip(latestTarget) ?: return
         val shown = c.colorAt(latestSrc).first
-        vm.commitColor(latestTarget, br.com.riseedit.core.color.ColorKeyEdits.editAdjust(c, latestSrc, f(shown)))
+        vm.commitColor(
+            latestTarget,
+            br.com.riseedit.core.color.ColorKeyEdits.editAdjust(c, latestSrc, f(shown))
+        )
     }
     DisposableEffect(tab, target.clip.id) {
         if (tab == AdjustTab.VIGNETTE) {
-            ColorTools.vignetteCenter = androidx.compose.ui.geometry.Offset(a.vignette.cx, a.vignette.cy)
-            ColorTools.onVignetteCenter = { u, v -> editLatest { it.copy(vignette = it.vignette.copy(cx = u, cy = v)) } }
+            ColorTools.vignetteCenter =
+                androidx.compose.ui.geometry.Offset(a.vignette.cx, a.vignette.cy)
+            ColorTools.onVignetteCenter =
+                { u, v -> editLatest { it.copy(vignette = it.vignette.copy(cx = u, cy = v)) } }
         }
         onDispose {
             ColorTools.vignetteCenter = null
@@ -106,15 +114,40 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
     if (layer != null) LayerHeader(layer) { vm.adjustmentLayer(layer.copy(opacity = it)) }
     AdjustContent(
         a, tab, { tab = it },
-        change = { vm.commitColor(target, br.com.riseedit.core.color.ColorKeyEdits.editAdjust(clip, src, it)) },
+        change = {
+            vm.commitColor(
+                target,
+                br.com.riseedit.core.color.ColorKeyEdits.editAdjust(clip, src, it)
+            )
+        },
         local = LocalColorUi(
             picking = ColorTools.eyedropper != null,
             onEyedropper = {
-                ColorTools.eyedropper = if (ColorTools.eyedropper != null) null else { argb: Int ->
-                    val rgb = floatArrayOf((argb shr 16 and 0xFF) / 255f, (argb shr 8 and 0xFF) / 255f, (argb and 0xFF) / 255f)
-                    android.util.Log.i("RiseColor", "qualifier pick rgb=${rgb.joinToString { "%.3f".format(it) }}")
-                    editLatest { it.copy(qualifier = br.com.riseedit.core.color.Qualifier.pick(it.qualifier, rgb)) }
-                    ColorTools.eyedropper = null
+                ColorTools.eyedropper = if (ColorTools.eyedropper != null) {
+                    null
+                } else {
+                    { argb: Int ->
+                        val rgb = floatArrayOf(
+                            (argb shr 16 and 0xFF) / 255f,
+                            (argb shr 8 and 0xFF) / 255f,
+                            (argb and 0xFF) / 255f
+                        )
+                        android.util.Log.i(
+                            "RiseColor",
+                            "qualifier pick rgb=${rgb.joinToString {
+                                "%.3f".format(it)
+                            }}"
+                        )
+                        editLatest {
+                            it.copy(
+                                qualifier = br.com.riseedit.core.color.Qualifier.pick(
+                                    it.qualifier,
+                                    rgb
+                                )
+                            )
+                        }
+                        ColorTools.eyedropper = null
+                    }
                 }
             },
             showMask = ColorTools.showMask,
@@ -125,8 +158,16 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
             canPaste = vm.hasClipboard, applyAll = if (layer == null) vm::applyColorToAll else null,
             canReset = !a.isNeutral || !clip.colorKeys.isEmpty,
             savePreset = { savePresetOpen = true }, exportCube = { cubeOpen = true },
-            scopes = { br.com.riseedit.color.Scopes.visible = !br.com.riseedit.color.Scopes.visible },
-            match = if (layer == null && state.project.clips.size > 1) { { matchOpen = true } } else null
+            scopes = {
+                br.com.riseedit.color.Scopes.visible = !br.com.riseedit.color.Scopes.visible
+            },
+            match = if (layer == null &&
+                state.project.clips.size > 1
+            ) {
+                { matchOpen = true }
+            } else {
+                null
+            }
         ),
         compare = { CompareHoldButton(vm, enabled = !a.isNeutral || !clip.grade.isIdentity) },
         grade = { GradePanel(vm, state, target) },
@@ -136,17 +177,25 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
             animated = { clip.colorKeys.keys(it.group()).isNotEmpty() },
             toggle = {
                 val g = it.group()
-                android.util.Log.i("RiseColor", "key toggle ${g.id} at ${src}ms (had=${clip.colorKeys.hasKeyAt(g, src)})")
-                vm.commitColor(target, br.com.riseedit.core.color.ColorKeyEdits.toggle(clip, g, src))
+                android.util.Log.i(
+                    "RiseColor",
+                    "key toggle ${g.id} at ${src}ms (had=${clip.colorKeys.hasKeyAt(g, src)})"
+                )
+                vm.commitColor(
+                    target,
+                    br.com.riseedit.core.color.ColorKeyEdits.toggle(clip, g, src)
+                )
             },
             prev = jump(times.lastOrNull { it < src - 20 }),
             next = jump(times.firstOrNull { it > src + 20 })
         )
     )
-    if (savePresetOpen) SavePresetDialog(a, onDismiss = { savePresetOpen = false }) { name, groups ->
-        savePresetOpen = false
-        UserPresetStore.add(vm.appContext, name, a, groups)
-        vm.message("Preset \"$name\" salvo em Filtros › Meus.")
+    if (savePresetOpen) {
+        SavePresetDialog(a, onDismiss = { savePresetOpen = false }) { name, groups ->
+            savePresetOpen = false
+            UserPresetStore.add(vm.appContext, name, a, groups)
+            vm.message("Preset \"$name\" salvo em Filtros › Meus.")
+        }
     }
     if (matchOpen) ColorMatchDialog(vm, state, onDismiss = { matchOpen = false })
     if (cubeOpen) ExportCubeDialog(vm, clip, a, shownGrade, onDismiss = { cubeOpen = false })
@@ -157,7 +206,13 @@ private var cubeOpen by mutableStateOf(false)
 private var matchOpen by mutableStateOf(false)
 
 internal enum class AdjustTab(val label: String) {
-    BASIC("Básico"), CURVES("Curvas"), HSL("HSL"), WHEELS("Rodas"), QUALIFIER("Seleção"), VIGNETTE("Vinheta"), GRADE("LUT/log")
+    BASIC("Básico"),
+    CURVES("Curvas"),
+    HSL("HSL"),
+    WHEELS("Rodas"),
+    QUALIFIER("Seleção"),
+    VIGNETTE("Vinheta"),
+    GRADE("LUT/log")
 }
 
 internal class AdjustActions(
@@ -176,6 +231,8 @@ internal class AdjustActions(
 /** Header (reset/copy/paste/apply to all) + tab content. Stateless, used by Paparazzi too. */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
+// detekt: flat dispatch over the 7 Ajustar tabs.
+@Suppress("CyclomaticComplexMethod", "LongMethod")
 internal fun AdjustContent(
     a: ColorAdjust,
     tab: AdjustTab,
@@ -192,21 +249,82 @@ internal fun AdjustContent(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         // Level 2: icon-only actions in the top corner; reset set apart (gap + divider).
-        Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
             // Keyframe diamond of the open tab lives at the start (it belongs to the tab, not the clip).
-            keys?.let { Row(horizontalArrangement = Arrangement.spacedBy(br.com.riseedit.designsystem.HierarchyTokens.ActionGap)) { KeyActions(it, tab) } }
+            keys?.let {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(
+                        br.com.riseedit.designsystem.HierarchyTokens.ActionGap
+                    )
+                ) {
+                    KeyActions(it, tab)
+                }
+            }
             Spacer(Modifier.weight(1f).width(8.dp))
             // Visible: keyframe (left), compare, scopes; the rest collapses into "mais" when it doesn't fit.
             br.com.riseedit.designsystem.ActionBar(
                 listOfNotNull(
-                    actions.scopes?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.Insights, if (br.com.riseedit.color.Scopes.visible) "Ocultar scopes" else "Mostrar scopes", primary = true, onClick = it) },
-                    br.com.riseedit.designsystem.PanelAction(Icons.Rounded.ContentCopy, "Copiar ajustes", onClick = actions.copy),
-                    br.com.riseedit.designsystem.PanelAction(Icons.Rounded.ContentPaste, "Colar ajustes", actions.canPaste, onClick = actions.paste),
-                    actions.applyAll?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.LibraryAdd, "Aplicar a todos os clipes", onClick = it) },
-                    actions.match?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.AutoFixHigh, "Combinar cor com outro clipe", onClick = it) },
-                    actions.savePreset?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.BookmarkAdd, "Salvar como preset", onClick = it) },
-                    actions.exportCube?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.FileDownload, "Exportar LUT .cube", onClick = it) },
-                    br.com.riseedit.designsystem.PanelAction(Icons.Rounded.RestartAlt, "Resetar todos", actions.canReset, danger = true, onClick = actions.reset)
+                    actions.scopes?.let {
+                        br.com.riseedit.designsystem.PanelAction(
+                            Icons.Rounded.Insights,
+                            if (br.com.riseedit.color.Scopes.visible) {
+                                "Ocultar scopes"
+                            } else {
+                                "Mostrar scopes"
+                            },
+                            primary = true,
+                            onClick = it
+                        )
+                    },
+                    br.com.riseedit.designsystem.PanelAction(
+                        Icons.Rounded.ContentCopy,
+                        "Copiar ajustes",
+                        onClick = actions.copy
+                    ),
+                    br.com.riseedit.designsystem.PanelAction(
+                        Icons.Rounded.ContentPaste,
+                        "Colar ajustes",
+                        actions.canPaste,
+                        onClick = actions.paste
+                    ),
+                    actions.applyAll?.let {
+                        br.com.riseedit.designsystem.PanelAction(
+                            Icons.Rounded.LibraryAdd,
+                            "Aplicar a todos os clipes",
+                            onClick = it
+                        )
+                    },
+                    actions.match?.let {
+                        br.com.riseedit.designsystem.PanelAction(
+                            Icons.Rounded.AutoFixHigh,
+                            "Combinar cor com outro clipe",
+                            onClick = it
+                        )
+                    },
+                    actions.savePreset?.let {
+                        br.com.riseedit.designsystem.PanelAction(
+                            Icons.Rounded.BookmarkAdd,
+                            "Salvar como preset",
+                            onClick = it
+                        )
+                    },
+                    actions.exportCube?.let {
+                        br.com.riseedit.designsystem.PanelAction(
+                            Icons.Rounded.FileDownload,
+                            "Exportar LUT .cube",
+                            onClick = it
+                        )
+                    },
+                    br.com.riseedit.designsystem.PanelAction(
+                        Icons.Rounded.RestartAlt,
+                        "Resetar todos",
+                        actions.canReset,
+                        danger = true,
+                        onClick = actions.reset
+                    )
                 ),
                 modifier = Modifier.weight(1f, fill = false),
                 extraSlots = if (compare != null) 1 else 0,
@@ -240,32 +358,55 @@ internal fun AdjustContent(
 
 private val curveNames = listOf("Master", "R", "G", "B")
 private val curveColors = listOf(
-    androidx.compose.ui.graphics.Color.White, androidx.compose.ui.graphics.Color(0xFFFF5A5A),
-    androidx.compose.ui.graphics.Color(0xFF5AE07A), androidx.compose.ui.graphics.Color(0xFF5AA0FF)
+    androidx.compose.ui.graphics.Color.White,
+    androidx.compose.ui.graphics.Color(0xFFFF5A5A),
+    androidx.compose.ui.graphics.Color(0xFF5AE07A),
+    androidx.compose.ui.graphics.Color(0xFF5AA0FF)
 )
 
 @Composable
 private fun CurvesTab(a: ColorAdjust, change: (ColorAdjust) -> Unit, initial: Int) {
     var ch by remember { mutableStateOf(initial) }
     br.com.riseedit.designsystem.GraphicSurface {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
             Box(Modifier.weight(1f)) {
-                br.com.riseedit.designsystem.ChannelChips((0..3).toList(), ch, { curveNames[it] }, { curveColors[it] }) { ch = it }
+                br.com.riseedit.designsystem.ChannelChips((0..3).toList(), ch, {
+                    curveNames[it]
+                }, { curveColors[it] }) {
+                    ch =
+                        it
+                }
             }
-            br.com.riseedit.designsystem.PanelIconButton(Icons.Rounded.RestartAlt, "Resetar curva ${curveNames[ch]}") {
-                change(a.copy(curves = a.curves.withChannel(ch, br.com.riseedit.core.ColorCurves.IDENTITY)))
+            br.com.riseedit.designsystem.PanelIconButton(
+                Icons.Rounded.RestartAlt,
+                "Resetar curva ${curveNames[ch]}"
+            ) {
+                change(
+                    a.copy(
+                        curves = a.curves.withChannel(ch, br.com.riseedit.core.ColorCurves.IDENTITY)
+                    )
+                )
             }
         }
-        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+        BoxWithConstraints(
+            Modifier.fillMaxWidth(),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
             val w = maxWidth // full width, square (CurveEditor keeps 1:1)
             br.com.riseedit.designsystem.CurveEditor(
-                a.curves.channel(ch), curveColors[ch], Modifier.width(w)
+                a.curves.channel(ch),
+                curveColors[ch],
+                Modifier.width(w)
             ) { change(a.copy(curves = a.curves.withChannel(ch, it))) }
         }
     }
     Text(
         "Toque para adicionar ponto, arraste para mover, toque duplo remove.",
-        color = br.com.riseedit.RiseMuted, fontSize = 12.sp
+        color = br.com.riseedit.RiseMuted,
+        fontSize = 12.sp
     )
 }
 
@@ -275,8 +416,18 @@ private val hslKinds = listOf("Matiz", "Saturação", "Luminância")
 private fun HslTab(a: ColorAdjust, change: (ColorAdjust) -> Unit, initial: Int) {
     var band by remember { mutableStateOf(initial) }
     br.com.riseedit.designsystem.ChannelChips(
-        (0 until br.com.riseedit.core.HslBands.BANDS).toList(), band, { br.com.riseedit.core.HslBands.NAMES[it] },
-        { androidx.compose.ui.graphics.Color.hsv(br.com.riseedit.core.HslBands.CENTERS[it], 0.75f, 0.95f) }
+        (0 until br.com.riseedit.core.HslBands.BANDS).toList(),
+        band,
+        {
+            br.com.riseedit.core.HslBands.NAMES[it]
+        },
+        {
+            androidx.compose.ui.graphics.Color.hsv(
+                br.com.riseedit.core.HslBands.CENTERS[it],
+                0.75f,
+                0.95f
+            )
+        }
     ) { band = it }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val cols = (maxWidth / 170.dp).toInt().coerceIn(2, 3)
@@ -310,10 +461,18 @@ private fun WheelsTab(a: ColorAdjust, change: (ColorAdjust) -> Unit) {
             items.chunked(cols).forEach { line ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     line.forEach { (name, wheel, set) ->
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(
+                            Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
                             br.com.riseedit.designsystem.GraphicSurface {
-                                br.com.riseedit.designsystem.ChannelChips(listOf(name), name, { it }) {}
-                                br.com.riseedit.designsystem.ColorWheelPad(wheel.x, wheel.y) { x, y ->
+                                br.com.riseedit.designsystem.ChannelChips(listOf(name), name, {
+                                    it
+                                }) {}
+                                br.com.riseedit.designsystem.ColorWheelPad(wheel.x, wheel.y) {
+                                        x,
+                                        y
+                                    ->
                                     change(a.copy(wheels = set(wheel.copy(x = x, y = y))))
                                 }
                             }
@@ -327,11 +486,17 @@ private fun WheelsTab(a: ColorAdjust, change: (ColorAdjust) -> Unit) {
             }
         }
     }
-    Text("Toque duplo na roda volta ao centro.", color = br.com.riseedit.RiseMuted, fontSize = 12.sp)
+    Text(
+        "Toque duplo na roda volta ao centro.",
+        color = br.com.riseedit.RiseMuted,
+        fontSize = 12.sp
+    )
 }
 
 /** Copy/paste checklist with select all / clear; dependencies are kept consistent by core. */
 @Composable
+// detekt: flat checklist dialog.
+@Suppress("LongMethod")
 internal fun AttributeSelectDialog(
     dialog: br.com.riseedit.AttributeDialog,
     onDismiss: () -> Unit,
@@ -349,26 +514,48 @@ internal fun AttributeSelectDialog(
                     androidx.compose.material3.TextButton(onClick = {
                         sel = br.com.riseedit.core.editing.AttributeCopy.all(dialog.shown)
                     }) { Text("Selecionar todos") }
-                    androidx.compose.material3.TextButton(onClick = { sel = emptySet() }) { Text("Desmarcar") }
+                    androidx.compose.material3.TextButton(onClick = {
+                        sel = emptySet()
+                    }) { Text("Desmarcar") }
                 }
                 dialog.shown.groupBy { it.section }.forEach { (section, groups) ->
-                    Text(section, color = br.com.riseedit.RiseMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                    Text(
+                        section,
+                        color = br.com.riseedit.RiseMuted,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                     groups.forEach { g ->
                         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             androidx.compose.material3.Checkbox(g in sel, {
-                                sel = br.com.riseedit.core.editing.AttributeCopy.toggle(sel, g, it, dialog.shown)
+                                sel =
+                                    br.com.riseedit.core.editing.AttributeCopy.toggle(
+                                        sel,
+                                        g,
+                                        it,
+                                        dialog.shown
+                                    )
                             })
                             Column {
                                 Text(g.label)
                                 if (g.dependencies.isNotEmpty()) {
-                                    Text("requer " + g.dependencies.joinToString { it.label }, color = br.com.riseedit.RiseMuted, fontSize = 11.sp)
+                                    Text(
+                                        "requer " + g.dependencies.joinToString {
+                                            it.label
+                                        },
+                                        color = br.com.riseedit.RiseMuted,
+                                        fontSize = 11.sp
+                                    )
                                 }
                             }
                         }
                     }
                 }
                 if (dialog.paste) {
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                    Row(
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
                         androidx.compose.material3.Checkbox(all, { all = it })
                         Text("Colar em todos os clipes")
                     }
@@ -376,11 +563,15 @@ internal fun AttributeSelectDialog(
             }
         },
         confirmButton = {
-            androidx.compose.material3.TextButton(onClick = { onConfirm(sel, all) }, enabled = sel.isNotEmpty()) {
+            androidx.compose.material3.TextButton(onClick = {
+                onConfirm(sel, all)
+            }, enabled = sel.isNotEmpty()) {
                 Text(if (dialog.paste) "Colar" else "Copiar")
             }
         },
-        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
     )
 }
 
@@ -393,7 +584,9 @@ internal fun AdjustGrid(a: ColorAdjust, change: (ColorAdjust) -> Unit) {
             adjustRows.chunked(cols).forEach { line ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     line.forEach { row ->
-                        TileSlider(row.label, row.get(a), row.range, Modifier.weight(1f)) { change(row.set(a, it)) }
+                        TileSlider(row.label, row.get(a), row.range, Modifier.weight(1f)) {
+                            change(row.set(a, it))
+                        }
                     }
                     repeat(cols - line.size) { Spacer(Modifier.weight(1f)) }
                 }
@@ -410,10 +603,14 @@ private fun CompareHoldButton(vm: EditorViewModel, enabled: Boolean) {
     val haptic = LocalHapticFeedback.current
     DisposableEffect(Unit) { onDispose { ColorLive.holdOriginal = false } }
     br.com.riseedit.designsystem.PanelIconButton(
-        Icons.Rounded.Compare, if (held) "Original" else "Segure para comparar",
+        Icons.Rounded.Compare,
+        if (held) "Original" else "Segure para comparar",
         enabled = enabled,
         tint = if (held) br.com.riseedit.RiseMuted else br.com.riseedit.RiseWhite,
-        modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
+        modifier = Modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
             .pointerInput(enabled) {
                 if (!enabled) return@pointerInput
                 detectTapGestures(onPress = {

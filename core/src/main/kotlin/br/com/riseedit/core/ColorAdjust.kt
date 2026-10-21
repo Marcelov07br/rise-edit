@@ -22,10 +22,17 @@ data class ColorCurves(
 ) {
     val isIdentity get() = listOf(master, red, green, blue).all { it == IDENTITY }
 
-    fun channel(i: Int) = when (i) { 0 -> master; 1 -> red; 2 -> green; else -> blue }
+    fun channel(i: Int) = when (i) {
+        0 -> master
+        1 -> red
+        2 -> green
+        else -> blue
+    }
     fun withChannel(i: Int, pts: List<CurvePoint>) = when (i) {
-        0 -> copy(master = normalize(pts)); 1 -> copy(red = normalize(pts))
-        2 -> copy(green = normalize(pts)); else -> copy(blue = normalize(pts))
+        0 -> copy(master = normalize(pts))
+        1 -> copy(red = normalize(pts))
+        2 -> copy(green = normalize(pts))
+        else -> copy(blue = normalize(pts))
     }
 
     /** channel c (0=r,1=g,2=b) of x through master then that channel's curve. */
@@ -45,14 +52,18 @@ data class ColorCurves(
         val IDENTITY = listOf(CurvePoint(0f, 0f), CurvePoint(1f, 1f))
         const val MAX_POINTS = 12
 
-        fun sample(pts: List<CurvePoint>, x: Float): Float =
-            if (pts == IDENTITY) x.coerceIn(0f, 1f)
-            else Curves.monotone(pts.map { it.x.toDouble() to it.y.toDouble() }, x.toDouble())
+        fun sample(pts: List<CurvePoint>, x: Float): Float = if (pts == IDENTITY) {
+            x.coerceIn(0f, 1f)
+        } else {
+            Curves.monotone(pts.map { it.x.toDouble() to it.y.toDouble() }, x.toDouble())
                 .toFloat().coerceIn(0f, 1f)
+        }
 
         /** Sorted, clamped, strictly increasing x, endpoints kept, at most [MAX_POINTS]. */
         fun normalize(pts: List<CurvePoint>): List<CurvePoint> {
-            val sorted = pts.map { CurvePoint(it.x.coerceIn(0f, 1f), it.y.coerceIn(0f, 1f)) }.sortedBy { it.x }
+            val sorted = pts.map {
+                CurvePoint(it.x.coerceIn(0f, 1f), it.y.coerceIn(0f, 1f))
+            }.sortedBy { it.x }
             val out = mutableListOf<CurvePoint>()
             for (p in sorted) if (out.isEmpty() || p.x - out.last().x >= 0.01f) out += p
             if (out.size < 2) return IDENTITY
@@ -63,7 +74,9 @@ data class ColorCurves(
 
 /** 8 hue bands × (hue shift, saturation, luminance), each -1..1. */
 data class HslBands(val values: List<Float> = List(BANDS * 3) { 0f }) {
-    init { require(values.size == BANDS * 3) }
+    init {
+        require(values.size == BANDS * 3)
+    }
     val isNeutral get() = values.all { it == 0f }
     fun hue(b: Int) = values[b * 3]
     fun sat(b: Int) = values[b * 3 + 1]
@@ -72,7 +85,9 @@ data class HslBands(val values: List<Float> = List(BANDS * 3) { 0f }) {
 
     companion object {
         const val BANDS = 8
-        val NAMES = listOf("Vermelho", "Laranja", "Amarelo", "Verde", "Ciano", "Azul", "Roxo", "Magenta")
+        val NAMES =
+            listOf("Vermelho", "Laranja", "Amarelo", "Verde", "Ciano", "Azul", "Roxo", "Magenta")
+
         /** Band centers in degrees. */
         val CENTERS = floatArrayOf(0f, 30f, 60f, 120f, 180f, 240f, 270f, 300f)
     }
@@ -82,7 +97,9 @@ data class HslBands(val values: List<Float> = List(BANDS * 3) { 0f }) {
 data class Wheel(val x: Float = 0f, val y: Float = 0f, val luma: Float = 0f) {
     /** RGB push for this wheel: hue from the angle, strength from the radius. */
     fun rgb(): FloatArray {
-        val r = x; val g = -0.5f * x + 0.866f * y; val b = -0.5f * x - 0.866f * y
+        val r = x
+        val g = -0.5f * x + 0.866f * y
+        val b = -0.5f * x - 0.866f * y
         return floatArrayOf(r + luma, g + luma, b + luma)
     }
     companion object {
@@ -91,7 +108,11 @@ data class Wheel(val x: Float = 0f, val y: Float = 0f, val luma: Float = 0f) {
     }
 }
 
-data class ColorWheels(val lift: Wheel = Wheel(), val gamma: Wheel = Wheel(), val gain: Wheel = Wheel()) {
+data class ColorWheels(
+    val lift: Wheel = Wheel(),
+    val gamma: Wheel = Wheel(),
+    val gain: Wheel = Wheel()
+) {
     val isNeutral get() = this == ColorWheels()
 }
 
@@ -117,28 +138,60 @@ data class ColorAdjust(
     /** Secondary correction keyed on one color (0.15). */
     val qualifier: br.com.riseedit.core.color.Qualifier = br.com.riseedit.core.color.Qualifier(),
     /** Frame-space vignette, applied last (0.15). */
-    val vignette: br.com.riseedit.core.color.Vignette = br.com.riseedit.core.color.Vignette()
+    val vignette: br.com.riseedit.core.color.Vignette = br.com.riseedit.core.color.Vignette(),
+    /**
+     * Masks (0.17) EVALUATED at the current time, attached by `Clip.colorAt` /
+     * `AdjustmentLayer.colorAt` so every renderer gets them with the color. Never stored or
+     * serialized here (the source of truth is the owner's MaskSet) and ignored by neutrality.
+     */
+    val masks: List<br.com.riseedit.core.mask.Mask> = emptyList()
 ) {
-    val isNeutral get() = this == NEUTRAL || (copy(qualifier = Qualifier0, vignette = Vignette0) == NEUTRAL && qualifier.isNeutral && vignette.isNeutral)
+    val isNeutral get() = this == NEUTRAL ||
+        copy(masks = emptyList()) == NEUTRAL ||
+        (
+            copy(qualifier = Qualifier0, vignette = Vignette0, masks = emptyList()) == NEUTRAL &&
+                qualifier.isNeutral &&
+                vignette.isNeutral
+            )
 
     /** Global part (everything except qualifier/vignette) is neutral. */
-    val isGlobalNeutral get() = copy(qualifier = Qualifier0, vignette = Vignette0) == NEUTRAL
+    val isGlobalNeutral get() = copy(
+        qualifier = Qualifier0,
+        vignette = Vignette0,
+        masks = emptyList()
+    ) ==
+        NEUTRAL
 
     /** Only the "basic" sliders (what filters and the v1/v2 format cover). */
-    val basic get() = ColorAdjust(brightness, contrast, saturation, warmth, exposure, tint, shadows, highlights, vibrance)
+    val basic get() = ColorAdjust(
+        brightness, contrast, saturation, warmth, exposure, tint, shadows, highlights, vibrance
+    )
 
     /** A filter only owns brightness/contrast/saturation/temperature; everything else is kept. */
     /** Replaces only the basic sliders, keeping curves/HSL/wheels/qualifier/vignette. */
     fun withBasic(b: ColorAdjust) = copy(
-        brightness = b.brightness, contrast = b.contrast, saturation = b.saturation, warmth = b.warmth,
-        exposure = b.exposure, tint = b.tint, shadows = b.shadows, highlights = b.highlights, vibrance = b.vibrance
+        brightness = b.brightness,
+        contrast = b.contrast,
+        saturation = b.saturation,
+        warmth = b.warmth,
+        exposure = b.exposure,
+        tint = b.tint,
+        shadows = b.shadows,
+        highlights = b.highlights,
+        vibrance = b.vibrance
     )
 
-    fun withFilter(f: ColorAdjust) =
-        copy(brightness = f.brightness, contrast = f.contrast, saturation = f.saturation, warmth = f.warmth)
+    fun withFilter(f: ColorAdjust) = copy(
+        brightness = f.brightness,
+        contrast = f.contrast,
+        saturation = f.saturation,
+        warmth = f.warmth
+    )
 
-    fun matchesFilter(f: ColorAdjust) =
-        brightness == f.brightness && contrast == f.contrast && saturation == f.saturation && warmth == f.warmth
+    fun matchesFilter(f: ColorAdjust) = brightness == f.brightness &&
+        contrast == f.contrast &&
+        saturation == f.saturation &&
+        warmth == f.warmth
 
     /** Scalar uniforms in shader order; see [ColorAdjustMath.GLSL]. */
     fun uniforms(): Map<String, Float> = mapOf(
@@ -150,8 +203,14 @@ data class ColorAdjust(
     /** vec3 uniforms: HSL bands uHsl0..7, wheels uLift/uGamma/uGain. */
     fun vectorUniforms(): Map<String, FloatArray> {
         val m = LinkedHashMap<String, FloatArray>()
-        for (b in 0 until HslBands.BANDS) m["uHsl$b"] = floatArrayOf(hsl.hue(b), hsl.sat(b), hsl.lum(b))
-        m["uLift"] = wheels.lift.rgb(); m["uGamma"] = wheels.gamma.rgb(); m["uGain"] = wheels.gain.rgb()
+        for (b in 0 until HslBands.BANDS) {
+            m["uHsl$b"] =
+                floatArrayOf(hsl.hue(b), hsl.sat(b), hsl.lum(b))
+        }
+        m["uLift"] = wheels.lift.rgb()
+        m["uGamma"] = wheels.gamma.rgb()
+        m["uGain"] =
+            wheels.gain.rgb()
         return m
     }
 
@@ -165,25 +224,38 @@ data class ColorAdjust(
         fun fromLegacy(values: List<Double>?): ColorAdjust {
             if (values == null || values.size < 4) return NEUTRAL
             return ColorAdjust(
-                values[0].toFloat(), values[1].toFloat(), values[2].toFloat(), values[3].toFloat()
+                values[0].toFloat(),
+                values[1].toFloat(),
+                values[2].toFloat(),
+                values[3].toFloat()
             )
         }
 
-        private fun pts(p: List<CurvePoint>) = p.flatMap { listOf(it.x.toDouble(), it.y.toDouble()) }
+        private fun pts(p: List<CurvePoint>) = p.flatMap {
+            listOf(it.x.toDouble(), it.y.toDouble())
+        }
         private fun wheel(w: Wheel) = listOf(w.x.toDouble(), w.y.toDouble(), w.luma.toDouble())
 
         fun toMap(a: ColorAdjust): Map<String, Any> = mapOf(
-            "v" to VERSION, "brightness" to a.brightness.toDouble(), "contrast" to a.contrast.toDouble(),
+            "v" to VERSION, "brightness" to a.brightness.toDouble(),
+            "contrast" to a.contrast.toDouble(),
             "saturation" to a.saturation.toDouble(), "temperature" to a.warmth.toDouble(),
             "exposure" to a.exposure.toDouble(), "tint" to a.tint.toDouble(),
             "shadows" to a.shadows.toDouble(), "highlights" to a.highlights.toDouble(),
             "vibrance" to a.vibrance.toDouble(),
             "curves" to mapOf(
-                "master" to pts(a.curves.master), "red" to pts(a.curves.red),
-                "green" to pts(a.curves.green), "blue" to pts(a.curves.blue)
+                "master" to pts(a.curves.master),
+                "red" to pts(a.curves.red),
+                "green" to pts(a.curves.green),
+                "blue" to pts(a.curves.blue)
             ),
             "hsl" to a.hsl.values.map { it.toDouble() },
-            "wheels" to mapOf("lift" to wheel(a.wheels.lift), "gamma" to wheel(a.wheels.gamma), "gain" to wheel(a.wheels.gain)),
+            "wheels" to
+                mapOf(
+                    "lift" to wheel(a.wheels.lift),
+                    "gamma" to wheel(a.wheels.gamma),
+                    "gain" to wheel(a.wheels.gain)
+                ),
             "qualifier" to br.com.riseedit.core.color.Qualifier.toMap(a.qualifier),
             "vignette" to br.com.riseedit.core.color.Vignette.toMap(a.vignette)
         )
@@ -206,11 +278,14 @@ data class ColorAdjust(
             fun f(k: String) = (m[k] as? Number)?.toFloat() ?: 0f
             val c = obj(m["curves"])
             fun curve(k: String) = nums(c?.get(k))?.chunked(2)?.filter { it.size == 2 }
-                ?.map { CurvePoint(it[0], it[1]) }?.let(ColorCurves::normalize) ?: ColorCurves.IDENTITY
+                ?.map { CurvePoint(it[0], it[1]) }?.let(ColorCurves::normalize)
+                ?: ColorCurves.IDENTITY
             val hsl = nums(m["hsl"])?.takeIf { it.size == HslBands.BANDS * 3 }
                 ?.map { it.coerceIn(-1f, 1f) }?.let(::HslBands) ?: HslBands()
             val w = obj(m["wheels"])
-            fun wheel(k: String) = nums(w?.get(k))?.takeIf { it.size == 3 }?.let { Wheel(it[0], it[1], it[2]) } ?: Wheel()
+            fun wheel(k: String) =
+                nums(w?.get(k))?.takeIf { it.size == 3 }?.let { Wheel(it[0], it[1], it[2]) }
+                    ?: Wheel()
             return ColorAdjust(
                 f("brightness"), f("contrast"), f("saturation"), f("temperature"),
                 f("exposure"), f("tint"), f("shadows"), f("highlights"), f("vibrance"),
@@ -234,26 +309,41 @@ object ColorAdjustMath {
     private const val PIVOT = 0.5f
 
     fun apply(a: ColorAdjust, rgb: FloatArray): FloatArray {
-        var r = rgb[0]; var g = rgb[1]; var b = rgb[2]
+        var r = rgb[0]
+        var g = rgb[1]
+        var b = rgb[2]
         val gain = exp(a.exposure * ln(2f))
-        r = r * gain + a.brightness; g = g * gain + a.brightness; b = b * gain + a.brightness
-        r *= 1f + a.warmth * 0.18f; b *= 1f - a.warmth * 0.18f; g *= 1f - a.tint * 0.18f
+        r = r * gain + a.brightness
+        g = g * gain + a.brightness
+        b = b * gain + a.brightness
+        r *= 1f + a.warmth * 0.18f
+        b *= 1f - a.warmth * 0.18f
+        g *= 1f - a.tint * 0.18f
         val k = (1f + a.contrast) / (1.0001f - a.contrast)
-        r = (r - PIVOT) * k + PIVOT; g = (g - PIVOT) * k + PIVOT; b = (b - PIVOT) * k + PIVOT
+        r = (r - PIVOT) * k + PIVOT
+        g = (g - PIVOT) * k + PIVOT
+        b = (b - PIVOT) * k + PIVOT
         val l0 = luma(clamp(r), clamp(g), clamp(b))
         val ws = 1f - smooth(0f, 0.5f, l0)
         val wh = smooth(0.5f, 1f, l0)
         val lift = (a.shadows * ws + a.highlights * wh) * 0.25f
-        r += lift; g += lift; b += lift
+        r += lift
+        g += lift
+        b += lift
         val l = luma(r, g, b)
         val chroma = max(r, max(g, b)) - min(r, min(g, b))
         val s = (1f + a.saturation) * (1f + a.vibrance * (1f - clamp(chroma)))
-        r = clamp(l + (r - l) * s); g = clamp(l + (g - l) * s); b = clamp(l + (b - l) * s)
+        r = clamp(l + (r - l) * s)
+        g = clamp(l + (g - l) * s)
+        b = clamp(l + (b - l) * s)
         var c = floatArrayOf(r, g, b)
         if (!a.hsl.isNeutral) c = hsl(a.hsl, c)
         if (!a.wheels.isNeutral) c = wheels(a, c)
         if (!a.curves.isIdentity) c = FloatArray(3) { a.curves.eval(it, c[it]) }
-        if (!a.qualifier.isNeutral) c = br.com.riseedit.core.color.LocalColorMath.qualify(a.qualifier, rgb, c)
+        if (!a.qualifier.isNeutral) {
+            c =
+                br.com.riseedit.core.color.LocalColorMath.qualify(a.qualifier, rgb, c)
+        }
         return FloatArray(3) { clamp(c[it]) }
     }
 
@@ -266,10 +356,14 @@ object ColorAdjustMath {
 
     private fun hsl(bands: HslBands, c: FloatArray): FloatArray {
         val (h, s, v) = rgbToHsv(c)
-        var dh = 0f; var ds = 0f; var dl = 0f
+        var dh = 0f
+        var ds = 0f
+        var dl = 0f
         for (i in 0 until HslBands.BANDS) {
             val w = bandWeight(h * 360f, HslBands.CENTERS[i])
-            dh += bands.hue(i) * w; ds += bands.sat(i) * w; dl += bands.lum(i) * w
+            dh += bands.hue(i) * w
+            ds += bands.sat(i) * w
+            dl += bands.lum(i) * w
         }
         val amt = smooth(0f, 0.2f, s)
         val nh = ((h + dh * amt * (30f / 360f)) % 1f + 1f) % 1f
@@ -279,7 +373,9 @@ object ColorAdjustMath {
     }
 
     private fun wheels(a: ColorAdjust, c: FloatArray): FloatArray {
-        val lf = a.wheels.lift.rgb(); val gm = a.wheels.gamma.rgb(); val gn = a.wheels.gain.rgb()
+        val lf = a.wheels.lift.rgb()
+        val gm = a.wheels.gamma.rgb()
+        val gn = a.wheels.gain.rgb()
         return FloatArray(3) {
             val x = c[it] * (1f + gn[it] * 0.5f) + lf[it] * 0.25f * (1f - c[it])
             max(x, 0f).pow(1f / max(1f + gm[it] * 0.5f, 0.1f))
@@ -287,7 +383,9 @@ object ColorAdjustMath {
     }
 
     fun rgbToHsv(c: FloatArray): FloatArray {
-        val mx = max(c[0], max(c[1], c[2])); val mn = min(c[0], min(c[1], c[2])); val d = mx - mn
+        val mx = max(c[0], max(c[1], c[2]))
+        val mn = min(c[0], min(c[1], c[2]))
+        val d = mx - mn
         val h = when {
             d < 1e-5f -> 0f
             mx == c[0] -> (((c[1] - c[2]) / d) / 6f + 1f) % 1f

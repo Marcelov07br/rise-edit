@@ -5,6 +5,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.PlainTooltip
@@ -32,7 +33,6 @@ import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -60,18 +60,21 @@ object HierarchyTokens {
     val TabBarBg = RiseSurface
     val TabIndicator = RiseSurfaceHigh
     val TabIndicatorBorder = RiseOutline
+
     // 2. actions: small icon-only
     val ActionSize = 36.dp
     val ActionIcon = 20.dp
     val ActionBg = RiseSurfaceHigh
     val ActionGap = 6.dp
     val DangerGap = 14.dp
+
     // 3. direct graphic controls
     val GraphicBg = Color(0xFF070708)
     val GraphicBorder = Color(0xFF242426)
     val GraphicRadius = 20.dp
     val GraphicPadding = 12.dp
     val ChipHeight = 26.dp
+
     // 4. choices: field look
     val FieldBg = RiseSurface
     val FieldBorder = RiseOutline
@@ -85,8 +88,13 @@ fun <T> tabSpring() = spring<T>(dampingRatio = 0.9f, stiffness = 500f)
 /** Segmented pill tab bar with a sliding indicator. Scrolls horizontally when tabs would be < [minTab]. */
 @Composable
 fun <T> SegmentedTabs(
-    items: List<T>, selected: T, modifier: Modifier = Modifier, label: (T) -> String,
-    marked: (T) -> Boolean = { false }, minTab: Dp = 76.dp, onSelect: (T) -> Unit
+    items: List<T>,
+    selected: T,
+    modifier: Modifier = Modifier,
+    label: (T) -> String,
+    marked: (T) -> Boolean = { false },
+    minTab: Dp = 76.dp,
+    onSelect: (T) -> Unit
 ) {
     val t = HierarchyTokens
     BoxWithConstraints(
@@ -99,16 +107,21 @@ fun <T> SegmentedTabs(
         val index = items.indexOf(selected).coerceAtLeast(0)
         val density = androidx.compose.ui.platform.LocalDensity.current
         val view = maxWidth
-        fun centered(i: Int) = with(density) { (w * i - (view - w) / 2).toPx().toInt().coerceAtLeast(0) }
+        fun centered(i: Int) =
+            with(density) { (w * i - (view - w) / 2).toPx().toInt().coerceAtLeast(0) }
         val scroll = rememberScrollState(if (scrolls) centered(index) else 0)
         if (scrolls) {
-            androidx.compose.runtime.LaunchedEffect(index) { scroll.animateScrollTo(centered(index)) }
+            androidx.compose.runtime.LaunchedEffect(index) {
+                scroll.animateScrollTo(centered(index))
+            }
         }
         Box(if (scrolls) Modifier.horizontalScroll(scroll) else Modifier) {
             Box(Modifier.width(w * items.size).fillMaxHeight()) {
                 val x by animateDpAsState(w * index, tabSpring(), label = "tab")
                 Box(
-                    Modifier.offset(x = x).width(w).fillMaxHeight().clip(CircleShape).background(t.TabIndicator)
+                    Modifier.offset(
+                        x = x
+                    ).width(w).fillMaxHeight().clip(CircleShape).background(t.TabIndicator)
                         .border(1.dp, t.TabIndicatorBorder, CircleShape)
                 )
                 Row(Modifier.fillMaxWidth().fillMaxHeight()) {
@@ -121,15 +134,19 @@ fun <T> SegmentedTabs(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    label(item), fontSize = 13.sp, maxLines = 1,
+                                    label(item),
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
                                     color = if (on) RiseWhite else RiseMuted,
                                     fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal
                                 )
                                 // Indicator dot: this tool has a non-neutral setting.
-                                if (marked(item)) Box(
-                                    Modifier.padding(start = 4.dp).size(5.dp).clip(CircleShape)
-                                        .background(if (on) RiseWhite else RiseMuted)
-                                )
+                                if (marked(item)) {
+                                    Box(
+                                        Modifier.padding(start = 4.dp).size(5.dp).clip(CircleShape)
+                                            .background(if (on) RiseWhite else RiseMuted)
+                                    )
+                                }
                             }
                         }
                     }
@@ -172,7 +189,11 @@ fun GraphicSurface(modifier: Modifier = Modifier, content: @Composable ColumnSco
     val t = HierarchyTokens
     Column(
         modifier.fillMaxWidth().clip(RoundedCornerShape(t.GraphicRadius)).background(t.GraphicBg)
-            .border(1.dp, t.GraphicBorder, RoundedCornerShape(t.GraphicRadius)).padding(t.GraphicPadding),
+            .border(
+                1.dp,
+                t.GraphicBorder,
+                RoundedCornerShape(t.GraphicRadius)
+            ).padding(t.GraphicPadding),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         content = content
     )
@@ -181,10 +202,17 @@ fun GraphicSurface(modifier: Modifier = Modifier, content: @Composable ColumnSco
 /** Small channel chips (Master/R/G/B, HSL bands); optional color dot. */
 @Composable
 fun <T> ChannelChips(
-    items: List<T>, selected: T, label: (T) -> String, dot: ((T) -> Color?)? = null, onSelect: (T) -> Unit
+    items: List<T>,
+    selected: T,
+    label: (T) -> String,
+    dot: ((T) -> Color?)? = null,
+    onSelect: (T) -> Unit
 ) {
     val t = HierarchyTokens
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(
+        Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
         items.forEach { item ->
             val on = item == selected
             Row(
@@ -195,7 +223,12 @@ fun <T> ChannelChips(
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 dot?.invoke(item)?.let { Box(Modifier.size(7.dp).clip(CircleShape).background(it)) }
-                Text(label(item), fontSize = 12.sp, color = if (on) RiseBlack else RiseWhite, maxLines = 1)
+                Text(
+                    label(item),
+                    fontSize = 12.sp,
+                    color = if (on) RiseBlack else RiseWhite,
+                    maxLines = 1
+                )
             }
         }
     }
@@ -204,7 +237,11 @@ fun <T> ChannelChips(
 /** Thin vertical divider used to set the destructive action apart. */
 @Composable
 fun ActionDivider(gap: Dp = HierarchyTokens.DangerGap) {
-    Box(Modifier.padding(horizontal = (gap - 1.dp) / 2).width(1.dp).height(20.dp).background(RiseOutline))
+    Box(
+        Modifier.padding(
+            horizontal = (gap - 1.dp) / 2
+        ).width(1.dp).height(20.dp).background(RiseOutline)
+    )
 }
 
 /**
@@ -212,8 +249,12 @@ fun ActionDivider(gap: Dp = HierarchyTokens.DangerGap) {
  * [primary] actions stay visible; the others collapse into the "mais" menu when they don't fit.
  */
 class PanelAction(
-    val icon: ImageVector, val name: String, val enabled: Boolean = true,
-    val danger: Boolean = false, val primary: Boolean = false, val onClick: () -> Unit
+    val icon: ImageVector,
+    val name: String,
+    val enabled: Boolean = true,
+    val danger: Boolean = false,
+    val primary: Boolean = false,
+    val onClick: () -> Unit
 )
 
 val DangerTint = Color(0xFFFF8A80)
@@ -244,20 +285,37 @@ object ActionOverflow {
  */
 @Composable
 fun ActionBar(
-    actions: List<PanelAction>, modifier: Modifier = Modifier, extraSlots: Int = 0,
+    actions: List<PanelAction>,
+    modifier: Modifier = Modifier,
+    extraSlots: Int = 0,
     extra: (@Composable () -> Unit)? = null
 ) {
     BoxWithConstraints(modifier) {
         val t = HierarchyTokens
         val slots = ((maxWidth + t.ActionGap) / (t.ActionSize + t.ActionGap)).toInt() - extraSlots
         val (inline, menu) = ActionOverflow.split(actions, slots)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(t.ActionGap)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(t.ActionGap)
+        ) {
             extra?.invoke()
-            inline.filterNot { it.danger }.forEach { PanelIconButton(it.icon, it.name, enabled = it.enabled, onClick = it.onClick) }
+            inline.filterNot {
+                it.danger
+            }.forEach {
+                PanelIconButton(it.icon, it.name, enabled = it.enabled, onClick = it.onClick)
+            }
             val danger = inline.filter { it.danger }
             if (danger.isNotEmpty()) {
                 ActionDivider()
-                danger.forEach { PanelIconButton(it.icon, it.name, enabled = it.enabled, tint = DangerTint, onClick = it.onClick) }
+                danger.forEach {
+                    PanelIconButton(
+                        it.icon,
+                        it.name,
+                        enabled = it.enabled,
+                        tint = DangerTint,
+                        onClick = it.onClick
+                    )
+                }
             }
             if (menu.isNotEmpty()) OverflowMenu(menu)
         }
@@ -268,10 +326,15 @@ fun ActionBar(
 private fun OverflowMenu(items: List<PanelAction>) {
     var open by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     Box {
-        PanelIconButton(androidx.compose.material.icons.Icons.Rounded.MoreHoriz, "Mais ações") { open = true }
+        PanelIconButton(androidx.compose.material.icons.Icons.Rounded.MoreHoriz, "Mais ações") {
+            open =
+                true
+        }
         androidx.compose.material3.DropdownMenu(
-            expanded = open, onDismissRequest = { open = false },
-            shape = RoundedCornerShape(16.dp), containerColor = RiseSurfaceHigh
+            expanded = open,
+            onDismissRequest = { open = false },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = RiseSurfaceHigh
         ) {
             ActionMenuItems(items) { open = false }
         }
@@ -283,14 +346,20 @@ private fun OverflowMenu(items: List<PanelAction>) {
 fun ActionMenuItems(items: List<PanelAction>, onPicked: () -> Unit = {}) {
     items.forEachIndexed { i, a ->
         if (a.danger && i > 0 && !items[i - 1].danger) {
-            androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 4.dp), color = RiseOutline)
+            androidx.compose.material3.HorizontalDivider(
+                Modifier.padding(vertical = 4.dp),
+                color = RiseOutline
+            )
         }
         val tint = if (a.danger) DangerTint else RiseWhite
         androidx.compose.material3.DropdownMenuItem(
             text = { Text(a.name, color = tint, fontSize = 14.sp) },
             leadingIcon = { Icon(a.icon, null, Modifier.size(20.dp), tint = tint) },
             enabled = a.enabled,
-            onClick = { onPicked(); a.onClick() }
+            onClick = {
+                onPicked()
+                a.onClick()
+            }
         )
     }
 }

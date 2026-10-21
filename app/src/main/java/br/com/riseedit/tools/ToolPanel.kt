@@ -32,5 +32,6 @@ fun ToolPanel(
         EditorTool.Grade -> GradePanel(vm, state)
         EditorTool.Meters -> MetersPanel(vm, state)
         EditorTool.Subtitles -> SubtitlesPanel(vm, state)
+        EditorTool.Masks -> MaskPanel(vm, state)
     }
 }

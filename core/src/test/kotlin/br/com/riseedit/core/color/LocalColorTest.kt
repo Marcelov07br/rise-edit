@@ -41,10 +41,16 @@ class LocalColorTest {
     }
 
     @Test fun jsonV4RoundTripAndV3Migration() {
-        val a = ColorAdjust(exposure = 0.3f, qualifier = Qualifier.pick(Qualifier(), red).copy(hueShift = 0.2f), vignette = Vignette(-0.4f, cx = 0.3f))
+        val a =
+            ColorAdjust(
+                exposure = 0.3f,
+                qualifier = Qualifier.pick(Qualifier(), red).copy(hueShift = 0.2f),
+                vignette = Vignette(-0.4f, cx = 0.3f)
+            )
         assertEquals(a.qualifier, ColorAdjust.fromMap(ColorAdjust.toMap(a)).qualifier)
         assertEquals(a.vignette, ColorAdjust.fromMap(ColorAdjust.toMap(a)).vignette)
-        val v3 = ColorAdjust.toMap(a).filterKeys { it != "qualifier" && it != "vignette" } + ("v" to 3)
+        val v3 =
+            ColorAdjust.toMap(a).filterKeys { it != "qualifier" && it != "vignette" } + ("v" to 3)
         val old = ColorAdjust.fromMap(v3)
         assertEquals(Qualifier(), old.qualifier)
         assertEquals(Vignette(), old.vignette)
@@ -55,8 +61,18 @@ class LocalColorTest {
         val k = ColorKeyframes()
             .upsert(ColorKeyGroup.VIGNETTE, 0, ColorAdjust(vignette = Vignette(0f)), 1f)
             .upsert(ColorKeyGroup.VIGNETTE, 1000, ColorAdjust(vignette = Vignette(-1f)), 1f)
-            .upsert(ColorKeyGroup.QUALIFIER, 0, ColorAdjust(qualifier = Qualifier(true, hue = 350f)), 1f)
-            .upsert(ColorKeyGroup.QUALIFIER, 1000, ColorAdjust(qualifier = Qualifier(true, hue = 10f)), 1f)
+            .upsert(
+                ColorKeyGroup.QUALIFIER,
+                0,
+                ColorAdjust(qualifier = Qualifier(true, hue = 350f)),
+                1f
+            )
+            .upsert(
+                ColorKeyGroup.QUALIFIER,
+                1000,
+                ColorAdjust(qualifier = Qualifier(true, hue = 10f)),
+                1f
+            )
         val (mid, _) = k.at(500, ColorAdjust.NEUTRAL, ColorGrade())
         assertEquals(-0.5f, mid.vignette.amount, 1e-4f)
         assertEquals(0f, mid.qualifier.hue % 360f, 0.01f) // short way around
@@ -64,16 +80,37 @@ class LocalColorTest {
     }
 
     @Test fun copyGroupsAreIndependent() {
-        val src = Clip(uri = "a", name = "a", sourceDurationMs = 1000, adjustments = ColorAdjust(exposure = 1f, vignette = Vignette(-0.5f), qualifier = Qualifier(true, hue = 120f, saturation = 0.5f)))
-        val dst = Clip(uri = "b", name = "b", sourceDurationMs = 1000, adjustments = ColorAdjust(contrast = 0.2f))
+        val src =
+            Clip(
+                uri = "a",
+                name = "a",
+                sourceDurationMs = 1000,
+                adjustments = ColorAdjust(
+                    exposure = 1f,
+                    vignette = Vignette(-0.5f),
+                    qualifier = Qualifier(true, hue = 120f, saturation = 0.5f)
+                )
+            )
+        val dst =
+            Clip(
+                uri = "b",
+                name = "b",
+                sourceDurationMs = 1000,
+                adjustments = ColorAdjust(contrast = 0.2f)
+            )
         val attrs = ClipAttributes.of(src)
-        assertTrue(AttributeGroup.COLOR_VIGNETTE in attrs.available && AttributeGroup.COLOR_QUALIFIER in attrs.available)
+        assertTrue(
+            AttributeGroup.COLOR_VIGNETTE in attrs.available &&
+                AttributeGroup.COLOR_QUALIFIER in attrs.available
+        )
         val out = attrs.applyTo(dst, setOf(AttributeGroup.COLOR_VIGNETTE))
         assertEquals(-0.5f, out.adjustments.vignette.amount)
         assertEquals(0.2f, out.adjustments.contrast)
         assertEquals(Qualifier(), out.adjustments.qualifier)
         // pasting basic keeps the target's vignette
-        val basic = ClipAttributes.of(dst.copy(adjustments = ColorAdjust(exposure = 0.5f))).applyTo(out, setOf(AttributeGroup.COLOR_BASIC))
+        val basic = ClipAttributes.of(
+            dst.copy(adjustments = ColorAdjust(exposure = 0.5f))
+        ).applyTo(out, setOf(AttributeGroup.COLOR_BASIC))
         assertEquals(-0.5f, basic.adjustments.vignette.amount)
     }
 }

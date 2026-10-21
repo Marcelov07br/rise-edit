@@ -95,7 +95,11 @@ internal object GradeLuts {
         if (!adjust.isNeutral) {
             val o = br.com.riseedit.core.ColorAdjustMath.apply(
                 adjust,
-                floatArrayOf((px shr 16 and 0xFF) / 255f, (px shr 8 and 0xFF) / 255f, (px and 0xFF) / 255f)
+                floatArrayOf(
+                    (px shr 16 and 0xFF) / 255f,
+                    (px shr 8 and 0xFF) / 255f,
+                    (px and 0xFF) / 255f
+                )
             )
             px = (0xFF shl 24) or (channel(o[0]) shl 16) or (channel(o[1]) shl 8) or channel(o[2])
         }

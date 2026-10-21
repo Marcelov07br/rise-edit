@@ -19,14 +19,29 @@ object CubeExport {
         sb.append("DOMAIN_MIN 0.0 0.0 0.0\nDOMAIN_MAX 1.0 1.0 1.0\n")
         val step = 1f / (size - 1)
         val rgb = FloatArray(3)
-        for (b in 0 until size) for (g in 0 until size) for (r in 0 until size) {
-            rgb[0] = r * step; rgb[1] = g * step; rgb[2] = b * step
-            val o = transform(rgb.copyOf())
-            sb.append(String.format(Locale.US, "%.6f %.6f %.6f\n", o[0].coerceIn(0f, 1f), o[1].coerceIn(0f, 1f), o[2].coerceIn(0f, 1f)))
+        for (b in 0 until size) {
+            for (g in 0 until size) {
+                for (r in 0 until size) {
+                    rgb[0] = r * step
+                    rgb[1] = g * step
+                    rgb[2] = b * step
+                    val o = transform(rgb.copyOf())
+                    sb.append(
+                        String.format(
+                            Locale.US,
+                            "%.6f %.6f %.6f\n",
+                            o[0].coerceIn(0f, 1f),
+                            o[1].coerceIn(0f, 1f),
+                            o[2].coerceIn(0f, 1f)
+                        )
+                    )
+                }
+            }
         }
         return sb.toString()
     }
 
     /** Safe file name for SAF's CREATE_DOCUMENT suggestion. */
-    fun fileName(title: String) = title.trim().ifBlank { "grade" }.replace(Regex("[^A-Za-z0-9._ -]"), "_") + ".cube"
+    fun fileName(title: String) =
+        title.trim().ifBlank { "grade" }.replace(Regex("[^A-Za-z0-9._ -]"), "_") + ".cube"
 }

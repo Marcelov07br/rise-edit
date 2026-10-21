@@ -29,14 +29,23 @@ import br.com.riseedit.core.CurvePoint
  * (endpoints stay). Drawn with the same monotone spline used by the shader table.
  */
 @Composable
-fun CurveEditor(points: List<CurvePoint>, color: Color, modifier: Modifier = Modifier, change: (List<CurvePoint>) -> Unit) {
+// detekt: point hit-test/drag branches of one gesture.
+@Suppress("CyclomaticComplexMethod", "LongMethod")
+fun CurveEditor(
+    points: List<CurvePoint>,
+    color: Color,
+    modifier: Modifier = Modifier,
+    change: (List<CurvePoint>) -> Unit
+) {
     val pts by rememberUpdatedState(points)
     var drag by remember { mutableIntStateOf(-1) }
     fun near(o: Offset, w: Float, h: Float) = pts.indexOfFirst {
         (Offset(it.x * w, (1 - it.y) * h) - o).getDistance() < 28f * (w / 300f).coerceAtLeast(1f)
     }
     Canvas(
-        modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp())).background(RiseSurfaceHigh)
+        modifier.fillMaxWidth().aspectRatio(
+            1f
+        ).clip(RoundedCornerShape(16.dp())).background(RiseSurfaceHigh)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { o ->
@@ -44,7 +53,8 @@ fun CurveEditor(points: List<CurvePoint>, color: Color, modifier: Modifier = Mod
                         if (i > 0 && i < pts.lastIndex) change(pts.filterIndexed { k, _ -> k != i })
                     },
                     onTap = { o ->
-                        val w = size.width.toFloat(); val h = size.height.toFloat()
+                        val w = size.width.toFloat()
+                        val h = size.height.toFloat()
                         if (near(o, w, h) < 0 && pts.size < ColorCurves.MAX_POINTS) {
                             change(ColorCurves.normalize(pts + CurvePoint(o.x / w, 1 - o.y / h)))
                         }
@@ -53,22 +63,30 @@ fun CurveEditor(points: List<CurvePoint>, color: Color, modifier: Modifier = Mod
             }
             .pointerInput(Unit) {
                 detectDragGestures(
-                    onDragStart = { o -> drag = near(o, size.width.toFloat(), size.height.toFloat()) },
+                    onDragStart = { o ->
+                        drag = near(o, size.width.toFloat(), size.height.toFloat())
+                    },
                     onDragEnd = { drag = -1 },
                     onDrag = { c, _ ->
                         val i = drag
                         if (i < 0) return@detectDragGestures
-                        val w = size.width.toFloat(); val h = size.height.toFloat()
+                        val w = size.width.toFloat()
+                        val h = size.height.toFloat()
                         val lo = if (i == 0) 0f else pts[i - 1].x + 0.01f
                         val hi = if (i == pts.lastIndex) 1f else pts[i + 1].x - 0.01f
-                        val x = when (i) { 0 -> 0f; pts.lastIndex -> 1f; else -> (c.position.x / w).coerceIn(lo, hi) }
+                        val x = when (i) {
+                            0 -> 0f
+                            pts.lastIndex -> 1f
+                            else -> (c.position.x / w).coerceIn(lo, hi)
+                        }
                         val y = (1 - c.position.y / h).coerceIn(0f, 1f)
                         change(pts.mapIndexed { k, p -> if (k == i) CurvePoint(x, y) else p })
                     }
                 )
             }
     ) {
-        val w = size.width; val h = size.height
+        val w = size.width
+        val h = size.height
         val grid = Color.White.copy(alpha = 0.08f)
         for (k in 1..3) {
             drawLine(grid, Offset(w * k / 4, 0f), Offset(w * k / 4, h))

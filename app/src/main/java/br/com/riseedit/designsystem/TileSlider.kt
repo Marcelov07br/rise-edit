@@ -38,9 +38,9 @@ import androidx.compose.ui.unit.sp
 import br.com.riseedit.RiseMuted
 import br.com.riseedit.RiseSurfaceHigh
 import br.com.riseedit.riseSpring
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 private const val TICKS = 40
 
@@ -51,6 +51,8 @@ private const val TICKS = 40
  * with a light haptic.
  */
 @Composable
+// detekt: single gesture+draw component; splitting would scatter one control.
+@Suppress("LongMethod")
 fun TileSlider(
     label: String,
     value: Float,
@@ -70,7 +72,9 @@ fun TileSlider(
     val valueScale by animateFloatAsState(if (changed) 1.08f else 0.94f, riseSpring(), label = "v")
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(16.dp)).background(RiseSurfaceHigh)
+            Modifier.fillMaxWidth().height(
+                64.dp
+            ).clip(RoundedCornerShape(16.dp)).background(RiseSurfaceHigh)
                 .pointerInput(enabled, range) {
                     if (!enabled) return@pointerInput
                     detectTapGestures(onDoubleTap = {
@@ -98,8 +102,14 @@ fun TileSlider(
                 color = if (changed) Color.White else RiseMuted,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = if (changed) FontWeight.Bold else FontWeight.Normal,
-                fontSize = 13.sp, lineHeight = 13.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 9.dp).graphicsLayer { scaleX = valueScale; scaleY = valueScale }
+                fontSize = 13.sp,
+                lineHeight = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 9.dp).graphicsLayer {
+                    scaleX = valueScale
+                    scaleY =
+                        valueScale
+                }
             )
             Canvas(Modifier.fillMaxSize().padding(top = 30.dp, bottom = 10.dp)) {
                 val cx = size.width / 2f
@@ -112,15 +122,35 @@ fun TileSlider(
                     if (x < 0f || x > size.width) continue
                     val near = 1f - (abs(x - cx) / cx).coerceIn(0f, 1f)
                     val major = i == zeroIndex
-                    val h = size.height * (if (major) 0.9f else if (i % 5 == 0) 0.6f else 0.38f)
+                    val h = size.height * (
+                        if (major) {
+                            0.9f
+                        } else if (i % 5 == 0) {
+                            0.6f
+                        } else {
+                            0.38f
+                        }
+                        )
                     drawLine(
                         Color.White.copy(alpha = 0.15f + 0.55f * near + if (major) 0.2f else 0f),
-                        Offset(x, size.height - h), Offset(x, size.height), strokeWidth = 1.dp.toPx()
+                        Offset(x, size.height - h),
+                        Offset(x, size.height),
+                        strokeWidth = 1.dp.toPx()
                     )
                 }
             }
-            Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp).width(18.dp).height(2.dp).background(Color.White))
+            Box(
+                Modifier.align(
+                    Alignment.BottomCenter
+                ).padding(bottom = 4.dp).width(18.dp).height(2.dp).background(Color.White)
+            )
         }
-        Text(label, color = RiseMuted, fontSize = 11.sp, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
+        Text(
+            label,
+            color = RiseMuted,
+            fontSize = 11.sp,
+            maxLines = 1,
+            modifier = Modifier.padding(top = 6.dp)
+        )
     }
 }

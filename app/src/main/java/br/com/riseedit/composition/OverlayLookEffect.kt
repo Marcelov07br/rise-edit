@@ -17,7 +17,9 @@ import br.com.riseedit.core.VideoOverlay
 
 /** Mask and blend for one overlay; formulas mirror [br.com.riseedit.core.OverlayLook]. */
 internal class OverlayLookEffect(private val overlay: VideoOverlay) : GlEffect {
-    val needed get() = overlay.blend != OverlayBlend.NORMAL || overlay.mask != OverlayMask.NONE
+    val needed get() = overlay.blend != OverlayBlend.NORMAL ||
+        overlay.mask != OverlayMask.NONE ||
+        !overlay.clip.masks.isEmpty
 
     override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram =
         Program(overlay, useHdr)
@@ -51,6 +53,24 @@ internal class OverlayLookEffect(private val overlay: VideoOverlay) : GlEffect {
                 program.setFloatUniform("uFeather", overlay.maskFeather)
                 program.setFloatUniform("uAspect", aspect)
                 program.setFloatUniform("uInvert", if (overlay.maskInvert) 1f else 0f)
+                program.setFloatUniform("uFlipY", 0f)
+                // Ferramenta Máscara (0.17): alpha × coverage. Same mapping as the take color
+                // (sequence time − offset → overlay clip source time); keys in source time.
+                val masks = if (overlay.clip.masks.isEmpty) {
+                    emptyList()
+                } else {
+                    val local = (presentationTimeUs / 1000 - overlay.offsetMs).coerceAtLeast(0)
+                    overlay.clip.masks.at(overlay.clip.startMs + local)
+                }
+                br.com.riseedit.core.mask.MaskMath.uniforms(masks).forEach { (name, v) ->
+                    if (v.size ==
+                        1
+                    ) {
+                        program.setFloatUniform(name, v[0])
+                    } else {
+                        program.setFloatsUniform(name, v)
+                    }
+                }
                 program.bindAttributesAndUniforms()
                 GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
             } catch (error: GlUtil.GlException) {
@@ -69,6 +89,7 @@ internal class OverlayLookEffect(private val overlay: VideoOverlay) : GlEffect {
     }
 
     private companion object {
+        // uAspect / uFlipY / sstep come from LocalColorMath.GLSL.
         const val VERTEX = """
 attribute vec4 aFramePosition;
 varying vec2 vTex;
@@ -79,13 +100,14 @@ void main() {
 """
 
         // v grows downwards in OverlayLook, so the mask uses 1 - vTex.y.
-        const val FRAGMENT = """
-precision mediump float;
+        val FRAGMENT = "precision highp float;\n" + br.com.riseedit.core.ColorAdjustMath.GLSL +
+            br.com.riseedit.core.color.LocalColorMath.GLSL +
+            br.com.riseedit.core.mask.MaskMath.GLSL +
+            """
 uniform sampler2D uTexSampler;
 uniform int uMask;
 uniform int uBlend;
 uniform float uFeather;
-uniform float uAspect;
 uniform float uInvert;
 varying vec2 vTex;
 float maskAt(vec2 p) {
@@ -114,7 +136,8 @@ void main() {
   vec4 color = texture2D(uTexSampler, vTex);
   float m = maskAt(vec2(vTex.x, 1.0 - vTex.y));
   if (uMask != 0 && uInvert > 0.5) m = 1.0 - m;
-  gl_FragColor = vec4(color.rgb, color.a * m * blendAt(color.rgb));
+  float cov = maskCoverage(vec2(vTex.x, 1.0 - vTex.y), uAspect, clamp(color.rgb, 0.0, 1.0));
+  gl_FragColor = vec4(color.rgb, color.a * m * blendAt(color.rgb) * cov);
 }
 """
     }

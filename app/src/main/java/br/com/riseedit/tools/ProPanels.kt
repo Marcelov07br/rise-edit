@@ -8,8 +8,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -23,7 +24,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -48,7 +48,11 @@ import kotlinx.coroutines.withContext
 
 /** Log input, fixed tone curves and user .cube LUTs (no sliders: steps only). */
 @Composable
-internal fun GradePanel(vm: EditorViewModel, state: EditorState, target: ColorTarget? = colorTarget(state)) {
+internal fun GradePanel(
+    vm: EditorViewModel,
+    state: EditorState,
+    target: ColorTarget? = colorTarget(state)
+) {
     val t = target ?: return
     val clip = t.clip
     val g = clip.grade
@@ -61,11 +65,17 @@ internal fun GradePanel(vm: EditorViewModel, state: EditorState, target: ColorTa
                 val result =
                     withContext(Dispatchers.IO) { runCatching { GradeLuts.import(context, uri) } }
                 result.onSuccess { (file, name) ->
-                    vm.commitColor(t, clip.copy(grade = g.copy(lutUri = file, lutName = name, lutIntensity = 1f)))
+                    vm.commitColor(
+                        t,
+                        clip.copy(grade = g.copy(lutUri = file, lutName = name, lutIntensity = 1f))
+                    )
                 }.onFailure { vm.message("LUT inválido: ${it.message}") }
             }
         }
-    val known = (state.project.clips.map { it.grade } + state.project.adjustmentLayers.map { it.grade })
+    val known = (
+        state.project.clips.map { it.grade } +
+            state.project.adjustmentLayers.map { it.grade }
+        )
         .mapNotNull { gr -> gr.lutUri?.let { it to (gr.lutName ?: "LUT") } }.distinctBy { it.first }
     val src = t.sourceMs(state.positionMs)
     GradeControls(clip.colorAt(src).second, known, {
@@ -77,6 +87,8 @@ private const val IMPORT = "\u0000import"
 
 /** Log/curve/LUT as rounded dropdowns + LUT order. Stateless (Paparazzi). */
 @Composable
+// detekt: flat list of grade controls.
+@Suppress("LongMethod")
 internal fun GradeControls(
     g: br.com.riseedit.core.color.ColorGrade,
     knownLuts: List<Pair<String, String>>,
@@ -85,17 +97,39 @@ internal fun GradeControls(
     lutMenuOpen: Boolean = false
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        br.com.riseedit.designsystem.RiseDropdown("Perfil log da câmera", LogProfile.entries.toList(), g.log, text = { it.label }) {
-            change(g.copy(log = it))
-        }
-        br.com.riseedit.designsystem.RiseDropdown("Curva", ToneCurve.entries.toList(), g.curve, text = { it.label }) {
-            change(g.copy(curve = it))
-        }
-        val names = (knownLuts + listOfNotNull(g.lutUri?.let { it to (g.lutName ?: "LUT") })).distinctBy { it.first }.toMap()
+        br.com.riseedit.designsystem.RiseDropdown(
+            "Perfil log da câmera",
+            LogProfile.entries.toList(),
+            g.log,
+            text = { it.label }
+        ) { change(g.copy(log = it)) }
+        br.com.riseedit.designsystem.RiseDropdown(
+            "Curva",
+            ToneCurve.entries.toList(),
+            g.curve,
+            text = { it.label }
+        ) { change(g.copy(curve = it)) }
+        val names = (
+            knownLuts + listOfNotNull(
+                g.lutUri?.let {
+                    it to (g.lutName ?: "LUT")
+                }
+            )
+            ).distinctBy { it.first }.toMap()
         val options = listOf<String?>(null) + names.keys + IMPORT
         br.com.riseedit.designsystem.RiseDropdown(
-            "LUT", options, g.lutUri, expandedInitially = lutMenuOpen,
-            text = { when (it) { null -> "Nenhum"; IMPORT -> "Importar .cube…"; else -> names[it] ?: "LUT" } }
+            "LUT",
+            options,
+            g.lutUri,
+            expandedInitially = lutMenuOpen,
+            text = {
+                when (it) {
+                    null -> "Nenhum"
+                    IMPORT -> "Importar .cube…"
+                    else -> names[it]
+                        ?: "LUT"
+                }
+            }
         ) {
             when (it) {
                 IMPORT -> importLut()
@@ -105,12 +139,18 @@ internal fun GradeControls(
         }
         if (g.lutUri != null) {
             br.com.riseedit.designsystem.TileSlider(
-                "Intensidade do LUT", g.lutIntensity, 0f..1f, Modifier.fillMaxWidth(), default = 1f,
+                "Intensidade do LUT",
+                g.lutIntensity,
+                0f..1f,
+                Modifier.fillMaxWidth(),
+                default = 1f,
                 format = { "${(it * 100).roundToInt()}%" }
             ) { change(g.copy(lutIntensity = it.coerceIn(0f, 1f))) }
         }
         br.com.riseedit.designsystem.RiseDropdown(
-            "Ordem do LUT", listOf(false, true), g.lutBeforeAdjust,
+            "Ordem do LUT",
+            listOf(false, true),
+            g.lutBeforeAdjust,
             text = { if (it) "LUT antes dos ajustes" else "LUT depois dos ajustes" }
         ) { change(g.copy(lutBeforeAdjust = it)) }
         Text(
@@ -140,7 +180,14 @@ internal fun MetersPanel(vm: EditorViewModel, state: EditorState) {
     }
     val sourceMs = vm.previewSourceMs
     var data by remember { mutableStateOf<MeterData?>(null) }
-    LaunchedEffect(clip.id, clip.grade, clip.adjustments, clip.colorKeys, sourceMs / 250, state.project.modifiedAt) {
+    LaunchedEffect(
+        clip.id,
+        clip.grade,
+        clip.adjustments,
+        clip.colorKeys,
+        sourceMs / 250,
+        state.project.modifiedAt
+    ) {
         data = withContext(Dispatchers.Default) { measure(context, clip, sourceMs) }
     }
     val d = data ?: return Text("Lendo quadro…", style = MaterialTheme.typography.bodySmall)

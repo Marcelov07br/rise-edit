@@ -32,6 +32,8 @@ import br.com.riseedit.RiseWhite
 
 /** Level 4 (choices): outlined field with small label above the value + chevron. Rounded field + rounded menu (design system), for picking one option among many. */
 @Composable
+// detekt: one field + its menu; splitting hides the shared state.
+@Suppress("LongMethod")
 fun <T> RiseDropdown(
     label: String,
     options: List<T>,
@@ -47,9 +49,13 @@ fun <T> RiseDropdown(
         val t = HierarchyTokens
         Box {
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(t.FieldRadius)).background(t.FieldBg)
+                Modifier.fillMaxWidth().clip(
+                    RoundedCornerShape(t.FieldRadius)
+                ).background(t.FieldBg)
                     .border(1.dp, t.FieldBorder, RoundedCornerShape(t.FieldRadius))
-                    .clickable { open = true }.padding(start = 14.dp, end = 10.dp, top = 7.dp, bottom = 8.dp),
+                    .clickable {
+                        open = true
+                    }.padding(start = 14.dp, end = 10.dp, top = 7.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
@@ -58,7 +64,9 @@ fun <T> RiseDropdown(
                 }
                 Icon(Icons.Outlined.KeyboardArrowDown, null, tint = RiseMuted)
             }
-            if (open && (expandedInitially || androidx.compose.ui.platform.LocalInspectionMode.current)) {
+            if (open &&
+                (expandedInitially || androidx.compose.ui.platform.LocalInspectionMode.current)
+            ) {
                 // Popups don't render in previews/screenshots: draw the same rounded menu inline.
                 Column(
                     Modifier.padding(top = 58.dp).fillMaxWidth(0.8f).clip(RoundedCornerShape(16.dp))
@@ -67,7 +75,13 @@ fun <T> RiseDropdown(
                     options.forEach { o ->
                         DropdownMenuItem(
                             text = { Text(text(o), color = RiseWhite) },
-                            trailingIcon = { if (o == selected) Icon(Icons.Outlined.Check, null, tint = RiseWhite) },
+                            trailingIcon = {
+                                if (o ==
+                                    selected
+                                ) {
+                                    Icon(Icons.Outlined.Check, null, tint = RiseWhite)
+                                }
+                            },
                             onClick = {}
                         )
                     }
@@ -75,15 +89,25 @@ fun <T> RiseDropdown(
                 return@Box
             }
             DropdownMenu(
-                open, { open = false },
+                open,
+                { open = false },
                 shape = RoundedCornerShape(16.dp),
                 containerColor = RiseSurfaceHigh
             ) {
                 options.forEach { o ->
                     DropdownMenuItem(
                         text = { Text(text(o), color = RiseWhite) },
-                        trailingIcon = { if (o == selected) Icon(Icons.Outlined.Check, null, tint = RiseWhite) },
-                        onClick = { open = false; onSelect(o) }
+                        trailingIcon = {
+                            if (o ==
+                                selected
+                            ) {
+                                Icon(Icons.Outlined.Check, null, tint = RiseWhite)
+                            }
+                        },
+                        onClick = {
+                            open = false
+                            onSelect(o)
+                        }
                     )
                 }
             }

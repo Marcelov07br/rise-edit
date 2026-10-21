@@ -1,8 +1,8 @@
 package br.com.riseedit.core.editing
 
-import br.com.riseedit.core.ColorAdjust
 import br.com.riseedit.core.AudioClip
 import br.com.riseedit.core.Clip
+import br.com.riseedit.core.ColorAdjust
 import br.com.riseedit.core.Marker
 import br.com.riseedit.core.Orientation
 import br.com.riseedit.core.Project
@@ -106,8 +106,12 @@ data class ClipAttributes(
     val stabilization: Stabilization,
     val volume: Float,
     val fadeMs: Long,
-    val groups: Set<AttributeGroup> = AttributeGroup.entries.toSet()
+    val groups: Set<AttributeGroup> = AttributeGroup.entries.toSet(),
+    /** Masks travel as one group ([AttributeGroup.MASKS]), keys included; pasted with fresh ids. */
+    val masks: br.com.riseedit.core.mask.MaskSet = br.com.riseedit.core.mask.MaskSet()
 ) {
+    // detekt: one guarded assignment per AttributeGroup.
+    @Suppress("CyclomaticComplexMethod")
     fun applyTo(clip: Clip, only: Set<AttributeGroup> = groups): Clip {
         val use = AttributeCopy.close(only intersect groups)
         var a = clip.adjustments
@@ -121,50 +125,78 @@ data class ClipAttributes(
         if (AttributeGroup.LOG_PROFILE in use) g = g.copy(log = grade.log)
         if (AttributeGroup.TONE_CURVE in use) g = g.copy(curve = grade.curve)
         if (AttributeGroup.LUT in use) {
-            g = g.copy(lutUri = grade.lutUri, lutName = grade.lutName, lutIntensity = grade.lutIntensity)
+            g =
+                g.copy(
+                    lutUri = grade.lutUri,
+                    lutName = grade.lutName,
+                    lutIntensity = grade.lutIntensity
+                )
         }
         if (AttributeGroup.GRADE_ORDER in use) g = g.copy(lutBeforeAdjust = grade.lutBeforeAdjust)
         return clip.copy(
             adjustments = a,
             grade = g,
             orientation = if (AttributeGroup.ORIENTATION in use) orientation else clip.orientation,
-            stabilization = if (AttributeGroup.STABILIZATION in use) stabilization else clip.stabilization,
+            stabilization = if (AttributeGroup.STABILIZATION in
+                use
+            ) {
+                stabilization
+            } else {
+                clip.stabilization
+            },
             volume = if (AttributeGroup.VOLUME in use) volume else clip.volume,
-            fadeMs = if (AttributeGroup.FADE in use) fadeMs else clip.fadeMs
+            fadeMs = if (AttributeGroup.FADE in use) fadeMs else clip.fadeMs,
+            masks = if (AttributeGroup.MASKS in use) masks.withNewIds() else clip.masks
         )
     }
 
     /** Groups that hold something in this snapshot (the paste dialog lists only these). */
-    val available: List<AttributeGroup> get() = AttributeCopy.available(this).filter { it in groups }
+    val available: List<AttributeGroup> get() = AttributeCopy.available(this).filter {
+        it in groups
+    }
 
     /** External files the selection needs (e.g. the user's .cube for [AttributeGroup.LUT]). */
     fun resources(only: Set<AttributeGroup> = groups): List<String> =
-        if (AttributeGroup.LUT in only && grade.lutUri != null) listOf(grade.lutUri) else emptyList()
+        if (AttributeGroup.LUT in only &&
+            grade.lutUri != null
+        ) {
+            listOf(grade.lutUri)
+        } else {
+            emptyList()
+        }
 
     companion object {
-        fun of(clip: Clip, groups: Set<AttributeGroup> = AttributeGroup.entries.toSet()) = ClipAttributes(
-            clip.adjustments,
-            clip.grade,
-            clip.orientation,
-            clip.stabilization,
-            clip.volume,
-            clip.fadeMs,
-            AttributeCopy.close(groups)
-        )
+        fun of(clip: Clip, groups: Set<AttributeGroup> = AttributeGroup.entries.toSet()) =
+            ClipAttributes(
+                clip.adjustments,
+                clip.grade,
+                clip.orientation,
+                clip.stabilization,
+                clip.volume,
+                clip.fadeMs,
+                AttributeCopy.close(groups),
+                clip.masks
+            )
     }
 }
 
 /** Copyable parts of a clip. [dependsOn]: groups that must travel with this one. */
-enum class AttributeGroup(val label: String, val section: String, val dependsOn: Set<String> = emptySet()) {
+enum class AttributeGroup(
+    val label: String,
+    val section: String,
+    val dependsOn: Set<String> = emptySet()
+) {
     COLOR_BASIC("Ajustes básicos", "Cor"),
     COLOR_CURVES("Curvas", "Cor"),
     COLOR_HSL("HSL por cor", "Cor"),
     COLOR_WHEELS("Rodas lift/gamma/gain", "Cor"),
     COLOR_QUALIFIER("Seleção de cor (qualifier)", "Cor"),
     COLOR_VIGNETTE("Vinheta", "Cor"),
+    MASKS("Máscaras (com keyframes)", "Máscara"),
     LOG_PROFILE("Perfil log", "Correção"),
     TONE_CURVE("Curva pronta", "Correção"),
     LUT("LUT do usuário (.cube)", "Correção"),
+
     /** Before/after only means something together with a grade. */
     GRADE_ORDER("Ordem LUT antes/depois", "Correção", setOf("LUT")),
     ORIENTATION("Orientação", "Clipe"),
@@ -178,6 +210,8 @@ enum class AttributeGroup(val label: String, val section: String, val dependsOn:
 /** Pure selection logic for the copy/paste dialogs (dependency closure, select all, etc.). */
 object AttributeCopy {
     /** Groups whose value differs from a fresh clip (what is worth listing). */
+    // detekt: exhaustive when over AttributeGroup.
+    @Suppress("CyclomaticComplexMethod")
     fun available(a: ClipAttributes): List<AttributeGroup> = AttributeGroup.entries.filter { g ->
         when (g) {
             AttributeGroup.COLOR_BASIC -> !a.adjustments.basic.isNeutral
@@ -186,6 +220,7 @@ object AttributeCopy {
             AttributeGroup.COLOR_WHEELS -> !a.adjustments.wheels.isNeutral
             AttributeGroup.COLOR_QUALIFIER -> a.adjustments.qualifier.active
             AttributeGroup.COLOR_VIGNETTE -> !a.adjustments.vignette.isNeutral
+            AttributeGroup.MASKS -> a.masks.masks.isNotEmpty()
             AttributeGroup.LOG_PROFILE -> a.grade.log != ColorGrade().log
             AttributeGroup.TONE_CURVE -> a.grade.curve != ColorGrade().curve
             AttributeGroup.LUT -> a.grade.lutUri != null
@@ -208,10 +243,17 @@ object AttributeCopy {
     }
 
     /** Checking a group also checks what it depends on; unchecking removes its dependents. */
-    fun toggle(sel: Set<AttributeGroup>, g: AttributeGroup, on: Boolean, shown: Collection<AttributeGroup>): Set<AttributeGroup> {
+    fun toggle(
+        sel: Set<AttributeGroup>,
+        g: AttributeGroup,
+        on: Boolean,
+        shown: Collection<AttributeGroup>
+    ): Set<AttributeGroup> {
         if (on) {
             val out = sel.toMutableSet()
-            fun add(x: AttributeGroup) { if (out.add(x)) x.dependencies.forEach(::add) }
+            fun add(x: AttributeGroup) {
+                if (out.add(x)) x.dependencies.forEach(::add)
+            }
             add(g)
             return out.filter { it in shown }.toSet().let(::close)
         }

@@ -18,8 +18,8 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FilterNone
 import androidx.compose.material.icons.outlined.FontDownload
 import androidx.compose.material.icons.outlined.GraphicEq
-import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Layers
+import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.SkipNext
@@ -127,7 +127,9 @@ private fun baseItems(
                 ui.push(ToolMenu.OVERLAY)
             },
             ToolbarItem("Cor", Icons.Outlined.Palette, enabled) { ui.push(ToolMenu.COLOR) },
-            ToolbarItem("Camada de ajuste", Icons.Outlined.Layers, enabled) { vm.addAdjustmentLayer() },
+            ToolbarItem("Camada de ajuste", Icons.Outlined.Layers, enabled) {
+                vm.addAdjustmentLayer()
+            },
             ui.toolItem(EditorTool.Format, enabled),
             ToolbarItem("Marcadores", Icons.Outlined.Bookmark, enabled) {
                 ui.push(ToolMenu.MARKERS)
@@ -140,6 +142,7 @@ private fun baseItems(
             ui.toolItem(EditorTool.Stabilize, enabled),
             ui.toolItem(EditorTool.Trim, enabled),
             ToolbarItem("Cor", Icons.Outlined.Palette, enabled) { ui.push(ToolMenu.COLOR) },
+            ui.toolItem(EditorTool.Masks, enabled),
             ui.toolItem(EditorTool.ClipAnimation, enabled),
             ui.toolItem(EditorTool.Orientation, enabled),
             ToolbarItem(
@@ -179,6 +182,7 @@ private fun baseItems(
         Base.OVERLAY -> listOf(
             ui.toolItem(EditorTool.OverlayOpacity, enabled),
             ui.toolItem(EditorTool.OverlayBlend, enabled),
+            ui.toolItem(EditorTool.Masks, enabled),
             ui.toolItem(EditorTool.OverlayMask, enabled),
             ui.toolItem(EditorTool.OverlayTrim, enabled),
             delete
@@ -186,8 +190,20 @@ private fun baseItems(
         Base.AUDIO -> listOf(ui.toolItem(EditorTool.AudioLayer, enabled, "Ajustar"), delete)
         Base.ADJUST -> listOf(
             ui.toolItem(EditorTool.Adjust, enabled),
-            ToolbarItem("Copiar atributos", Icons.Outlined.ContentCopy, enabled, onClick = vm::copyAttributes),
-            ToolbarItem("Colar atributos", Icons.Outlined.ContentPaste, enabled && vm.hasClipboard) { vm.pasteAttributes() },
+            ui.toolItem(EditorTool.Masks, enabled),
+            ToolbarItem(
+                "Copiar atributos",
+                Icons.Outlined.ContentCopy,
+                enabled,
+                onClick = vm::copyAttributes
+            ),
+            ToolbarItem(
+                "Colar atributos",
+                Icons.Outlined.ContentPaste,
+                enabled && vm.hasClipboard
+            ) {
+                vm.pasteAttributes()
+            },
             delete
         )
     }

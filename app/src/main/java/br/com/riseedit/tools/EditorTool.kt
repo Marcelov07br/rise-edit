@@ -7,6 +7,7 @@ import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.Contrast
+import androidx.compose.material.icons.outlined.FilterCenterFocus
 import androidx.compose.material.icons.outlined.Gradient
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.MusicNote
@@ -42,7 +43,20 @@ sealed class EditorTool(
     data object Record : EditorTool("Gravar", "Gravar", Icons.Outlined.Mic, "Gravar narração")
     data object OverlayOpacity : EditorTool("Opacidade", "Opacidade", Icons.Outlined.Opacity)
     data object OverlayBlend : EditorTool("Mesclagem", "Mesclagem", Icons.Outlined.Contrast)
-    data object OverlayMask : EditorTool("Máscara", "Máscara", Icons.Outlined.Gradient)
+    data object OverlayMask : EditorTool(
+        "Máscara",
+        "Forma",
+        Icons.Outlined.Gradient,
+        "Forma do overlay"
+    )
+
+    /** 0.17: masks as their own tool (clip color, adjustment layer, overlay alpha). */
+    data object Masks : EditorTool(
+        "Mascaras",
+        "Máscara",
+        Icons.Outlined.FilterCenterFocus,
+        "Máscara"
+    )
     data object OverlayTrim :
         EditorTool("CorteOverlay", "Cortar", Icons.Outlined.ContentCut, "Cortar overlay")
     data object TextTiming : EditorTool("Duração", "Duração", Icons.Outlined.Timer)
@@ -67,7 +81,7 @@ sealed class EditorTool(
         private val all = listOf(
             Trim, Stabilize, Format, Speed, Volume, Adjust, Filters, ClipAnimation, AudioLayer,
             Record, OverlayOpacity, OverlayBlend, OverlayMask, OverlayTrim, TextTiming,
-            Orientation, Keyframe, Grade, Meters, Subtitles
+            Orientation, Keyframe, Grade, Meters, Subtitles, Masks
         )
         val saver =
             Saver<EditorTool?, String>(

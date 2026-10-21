@@ -112,7 +112,8 @@ internal class ProjectCommands(private val document: EditorDocument) {
 
     /** Selected camada de ajuste, if the selection is one. */
     private fun selectedLayer(): br.com.riseedit.core.AdjustmentLayer? {
-        val sel = document.current.selection as? br.com.riseedit.core.Selection.Adjustment ?: return null
+        val sel =
+            document.current.selection as? br.com.riseedit.core.Selection.Adjustment ?: return null
         return document.current.project.adjustmentLayers.firstOrNull { it.id == sel.id }
     }
 
@@ -124,8 +125,14 @@ internal class ProjectCommands(private val document: EditorDocument) {
     fun copyAttributes() {
         val clip = colorSource() ?: return
         val shown = br.com.riseedit.core.editing.ClipAttributes.of(clip).available
-        if (shown.isEmpty()) return document.message("Este clipe não tem atributos alterados para copiar.")
-        document.update { it.copy(attributeDialog = br.com.riseedit.AttributeDialog(false, shown, shown.toSet())) }
+        if (shown.isEmpty()) {
+            return document.message(
+                "Este clipe não tem atributos alterados para copiar."
+            )
+        }
+        document.update {
+            it.copy(attributeDialog = br.com.riseedit.AttributeDialog(false, shown, shown.toSet()))
+        }
     }
 
     fun confirmCopy(groups: Set<br.com.riseedit.core.editing.AttributeGroup>) {
@@ -138,13 +145,18 @@ internal class ProjectCommands(private val document: EditorDocument) {
 
     /** Opens the paste checklist, listing only what is in the clipboard. */
     fun pasteAttributes() {
-        val attributes = clipboard ?: return document.message("Copie atributos de um clipe primeiro.")
+        val attributes =
+            clipboard ?: return document.message("Copie atributos de um clipe primeiro.")
         val shown = attributes.available
-        document.update { it.copy(attributeDialog = br.com.riseedit.AttributeDialog(true, shown, shown.toSet())) }
+        document.update {
+            it.copy(attributeDialog = br.com.riseedit.AttributeDialog(true, shown, shown.toSet()))
+        }
     }
 
     fun closeAttributeDialog() = document.update { it.copy(attributeDialog = null) }
 
+    // detekt: one branch per paste target (clip/layer/all), each guarded.
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun confirmPaste(groups: Set<br.com.riseedit.core.editing.AttributeGroup>, allClips: Boolean) {
         closeAttributeDialog()
         val state = document.current
@@ -154,14 +166,35 @@ internal class ProjectCommands(private val document: EditorDocument) {
         val missing = attributes.resources(use).filterNot { uri ->
             runCatching { java.io.File(java.net.URI(uri)).exists() }.getOrDefault(false)
         }
-        if (missing.isNotEmpty()) use = br.com.riseedit.core.editing.AttributeCopy.close(use - br.com.riseedit.core.editing.AttributeGroup.LUT)
+        if (missing.isNotEmpty()) {
+            use =
+                br.com.riseedit.core.editing.AttributeCopy.close(
+                    use - br.com.riseedit.core.editing.AttributeGroup.LUT
+                )
+        }
         if (use.isEmpty()) return
         // Pasting into a camada de ajuste: only color groups mean something there.
         val layer = selectedLayer()
         if (layer != null && !allClips) {
             val pasted = layer.withColorOf(attributes.applyTo(layer.asClip(), use))
-            if (document.edit(state.project.copy(adjustmentLayers = state.project.adjustmentLayers.map { if (it.id == layer.id) pasted else it }))) {
-                document.message(if (missing.isNotEmpty()) "Colado sem o LUT: arquivo .cube não encontrado." else "Colado na camada de ajuste.", undo = true)
+            if (document.edit(
+                    state.project.copy(
+                        adjustmentLayers = state.project.adjustmentLayers.map {
+                            if (it.id ==
+                                layer.id
+                            ) {
+                                pasted
+                            } else {
+                                it
+                            }
+                        }
+                    )
+                )
+            ) {
+                document.message(
+                    if (missing.isNotEmpty()) "Colado sem o LUT (.cube ausente)." else "Colado.",
+                    undo = true
+                )
             }
             return
         }
@@ -171,7 +204,9 @@ internal class ProjectCommands(private val document: EditorDocument) {
             if (i !in targets) return@mapIndexed clip
             var out = attributes.applyTo(clip, use)
             if (out.stabilization.enabled && !document.analyses.containsKey(clip.uri)) {
-                out = out.copy(stabilization = out.stabilization.copy(enabled = false)); noAnalysis = true
+                out = out.copy(stabilization = out.stabilization.copy(enabled = false))
+                noAnalysis =
+                    true
             }
             out
         }
@@ -189,21 +224,29 @@ internal class ProjectCommands(private val document: EditorDocument) {
     /** Applies this clip's whole color (adjust + grade) to every clip; undoable. */
     fun applyColorToAll(source: Clip) {
         val state = document.current
-        val clips = state.project.clips.map { it.copy(adjustments = source.adjustments, grade = source.grade) }
+        val clips = state.project.clips.map {
+            it.copy(adjustments = source.adjustments, grade = source.grade)
+        }
         if (document.edit(state.project.copy(clips = clips))) {
             document.message("Cor aplicada a ${clips.size} clipes.", undo = true)
         }
     }
 
     /** Combinar cor: per clip (source ms, matched adjust); keyed clips get a key at that time. Undoable. */
-    fun applyColorMatch(result: Map<String, Pair<Long, br.com.riseedit.core.ColorAdjust>>, reference: String) {
+    fun applyColorMatch(
+        result: Map<String, Pair<Long, br.com.riseedit.core.ColorAdjust>>,
+        reference: String
+    ) {
         val state = document.current
         val clips = state.project.clips.map { c ->
             val (ms, a) = result[c.id] ?: return@map c
             br.com.riseedit.core.color.ColorKeyEdits.editAdjust(c, ms, a)
         }
         if (document.edit(state.project.copy(clips = clips))) {
-            document.message("Cor combinada com \"$reference\" em ${result.size} clipe(s).", undo = true)
+            document.message(
+                "Cor combinada com \"$reference\" em ${result.size} clipe(s).",
+                undo = true
+            )
         }
     }
 
@@ -212,9 +255,30 @@ internal class ProjectCommands(private val document: EditorDocument) {
         val state = document.current
         selectedLayer()?.let { layer ->
             if (layer.adjust.isNeutral && layer.colorKeys.isEmpty) return
-            val keys = br.com.riseedit.core.color.ColorKeyframes(layer.colorKeys.tracks.filterKeys { it == br.com.riseedit.core.color.ColorKeyGroup.LUT })
-            val reset = layer.copy(adjust = br.com.riseedit.core.ColorAdjust.NEUTRAL, colorKeys = keys)
-            if (document.edit(state.project.copy(adjustmentLayers = state.project.adjustmentLayers.map { if (it.id == layer.id) reset else it }))) {
+            val keys = br.com.riseedit.core.color.ColorKeyframes(
+                layer.colorKeys.tracks.filterKeys {
+                    it ==
+                        br.com.riseedit.core.color.ColorKeyGroup.LUT
+                }
+            )
+            val reset = layer.copy(
+                adjust = br.com.riseedit.core.ColorAdjust.NEUTRAL,
+                colorKeys = keys
+            )
+            if (document.edit(
+                    state.project.copy(
+                        adjustmentLayers = state.project.adjustmentLayers.map {
+                            if (it.id ==
+                                layer.id
+                            ) {
+                                reset
+                            } else {
+                                it
+                            }
+                        }
+                    )
+                )
+            ) {
                 document.message("Ajustes da camada resetados.", undo = true)
             }
             return
@@ -222,8 +286,22 @@ internal class ProjectCommands(private val document: EditorDocument) {
         val clip = state.project.clips.getOrNull(state.selected) ?: return
         if (clip.adjustments.isNeutral && clip.colorKeys.isEmpty) return
         // Keeps only LUT-intensity keys (grade is not part of "Resetar todos").
-        val keys = br.com.riseedit.core.color.ColorKeyframes(clip.colorKeys.tracks.filterKeys { it == br.com.riseedit.core.color.ColorKeyGroup.LUT })
-        if (document.edit(state.project.replace(state.selected, clip.copy(adjustments = br.com.riseedit.core.ColorAdjust.NEUTRAL, colorKeys = keys)))) {
+        val keys = br.com.riseedit.core.color.ColorKeyframes(
+            clip.colorKeys.tracks.filterKeys {
+                it ==
+                    br.com.riseedit.core.color.ColorKeyGroup.LUT
+            }
+        )
+        if (document.edit(
+                state.project.replace(
+                    state.selected,
+                    clip.copy(
+                        adjustments = br.com.riseedit.core.ColorAdjust.NEUTRAL,
+                        colorKeys = keys
+                    )
+                )
+            )
+        ) {
             document.message("Ajustes de cor resetados.", undo = true)
         }
     }

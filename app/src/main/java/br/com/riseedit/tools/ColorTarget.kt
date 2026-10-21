@@ -14,15 +14,24 @@ internal class ColorTarget(val clip: Clip, val offsetMs: Long, val layer: Adjust
     val isLayer get() = layer != null
 
     /** Source (clip) / local (layer) time under the playhead. */
-    fun sourceMs(positionMs: Long): Long =
-        if (layer != null) (positionMs - layer.startMs).coerceIn(0, layer.durationMs)
-        else clip.sourceAt((positionMs - offsetMs).coerceIn(0, clip.durationMs))
+    fun sourceMs(positionMs: Long): Long = if (layer != null) {
+        (positionMs - layer.startMs).coerceIn(0, layer.durationMs)
+    } else {
+        clip.sourceAt((positionMs - offsetMs).coerceIn(0, clip.durationMs))
+    }
 
     /** Project time of a source/local time. */
-    fun projectMs(sourceMs: Long): Long = offsetMs + if (layer != null) sourceMs else outputOfSource(clip, sourceMs)
+    fun projectMs(sourceMs: Long): Long =
+        offsetMs + if (layer != null) sourceMs else outputOfSource(clip, sourceMs)
 
     /** Key times inside the visible range. */
-    fun inRange(t: Long) = if (layer != null) t in 0..layer.durationMs else t in clip.startMs..clip.endMs
+    fun inRange(t: Long) = if (layer !=
+        null
+    ) {
+        t in 0..layer.durationMs
+    } else {
+        t in clip.startMs..clip.endMs
+    }
 }
 
 internal fun colorTarget(state: EditorState): ColorTarget? {
@@ -49,6 +58,11 @@ internal fun EditorViewModel.commitColor(target: ColorTarget, edited: Clip) {
 /** Latest version of the target's clip from the current state (for async callbacks). */
 internal fun EditorViewModel.latestColorClip(target: ColorTarget): Clip? {
     val p = state.value.project
-    return if (target.layer != null) p.adjustmentLayers.firstOrNull { it.id == target.layer.id }?.asClip()
-    else p.clips.firstOrNull { it.id == target.clip.id }
+    return if (target.layer !=
+        null
+    ) {
+        p.adjustmentLayers.firstOrNull { it.id == target.layer.id }?.asClip()
+    } else {
+        p.clips.firstOrNull { it.id == target.clip.id }
+    }
 }

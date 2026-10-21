@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+
 package br.com.riseedit.editor
 
 import android.app.Notification
@@ -65,7 +67,9 @@ class ExportService : Service() {
                 try {
                     check(file.delete())
                     withContext(Dispatchers.Main) {
-                        ExportRenderer(applicationContext).render(project, analyses, file) { progress ->
+                        ExportRenderer(
+                            applicationContext
+                        ).render(project, analyses, file) { progress ->
                             ExportBus.progress(progress)
                             notify(progress, "Exportando MP4 ${project.export.height}p…")
                         }

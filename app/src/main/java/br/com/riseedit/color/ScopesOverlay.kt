@@ -43,16 +43,23 @@ import androidx.compose.ui.unit.dp
 import br.com.riseedit.core.Clip
 import br.com.riseedit.core.color.Meters
 import br.com.riseedit.designsystem.ChannelChips
+import kotlin.math.cos
+import kotlin.math.ln
+import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
-import kotlin.math.cos
-import kotlin.math.ln
-import kotlin.math.sin
 
-enum class ScopeKind(val label: String) { WAVEFORM("Luma"), PARADE("RGB"), VECTOR("Vetor"), HISTOGRAM("Hist") }
+enum class ScopeKind(val label: String) {
+    WAVEFORM(
+        "Luma"
+    ),
+    PARADE("RGB"),
+    VECTOR("Vetor"),
+    HISTOGRAM("Hist")
+}
 
 /** Scope overlay state (app-wide, survives panel changes). */
 object Scopes {
@@ -71,7 +78,14 @@ object Scopes {
  * by the CPU mirror at [Clip.colorAt], async ~10 fps, latest wins, never on the UI thread.
  */
 @Composable
-fun ScopesOverlay(clip: Clip, sourceMs: () -> Long, playing: Boolean, modifier: Modifier = Modifier) {
+// detekt: source selection (paused bitmap vs retriever) per scope mode.
+@Suppress("CyclomaticComplexMethod", "LongMethod")
+fun ScopesOverlay(
+    clip: Clip,
+    sourceMs: () -> Long,
+    playing: Boolean,
+    modifier: Modifier = Modifier
+) {
     if (!Scopes.visible) return
     val context = LocalContext.current
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
@@ -88,23 +102,49 @@ fun ScopesOverlay(clip: Clip, sourceMs: () -> Long, playing: Boolean, modifier: 
                 val c = currentClip
                 val ms = currentSource()
                 val out = withContext(Dispatchers.Default) {
-                    grab(context, c.effectiveUri(true), ms, Scopes.SAMPLE_W)?.let { colorCpu(it, c, ms) }?.let { renderScope(kind, it) }
+                    grab(context, c.effectiveUri(true), ms, Scopes.SAMPLE_W)?.let {
+                        colorCpu(it, c, ms)
+                    }?.let { renderScope(kind, it) }
                 }
-                if (out != null) { image = out.asImageBitmap(); frames++ }
-                if (t0 - since > 3000) { Log.d(TAG, "scopes rate ${frames * 1000 / (t0 - since)}fps"); frames = 0; since = t0 }
-                delay((Scopes.PLAY_INTERVAL_MS - (System.currentTimeMillis() - t0)).coerceAtLeast(10))
+                if (out != null) {
+                    image = out.asImageBitmap()
+                    frames++
+                }
+                if (t0 - since >
+                    3000
+                ) {
+                    Log.d(TAG, "scopes rate ${frames * 1000 / (t0 - since)}fps")
+                    frames = 0
+                    since =
+                        t0
+                }
+                delay(
+                    (Scopes.PLAY_INTERVAL_MS - (System.currentTimeMillis() - t0)).coerceAtLeast(10)
+                )
             }
         } else {
-            snapshotFlow { Triple(ColorLive.scopeFrame.value, currentSource(), currentClip) }.collectLatest { (shaded, ms, c) ->
+            snapshotFlow {
+                Triple(ColorLive.scopeFrame.value, currentSource(), currentClip)
+            }.collectLatest { (shaded, ms, c) ->
                 delay(60)
                 val t0 = System.nanoTime()
                 val out = withContext(Dispatchers.Default) {
-                    val src = if (shaded != null && ColorLive.overlayActive) shaded.scaledTo(Scopes.SAMPLE_W)
-                    else grab(context, c.effectiveUri(true), ms, Scopes.SAMPLE_W)?.let { colorCpu(it, c, ms) }
+                    val src = if (shaded != null &&
+                        ColorLive.overlayActive
+                    ) {
+                        shaded.scaledTo(Scopes.SAMPLE_W)
+                    } else {
+                        grab(context, c.effectiveUri(true), ms, Scopes.SAMPLE_W)?.let {
+                            colorCpu(it, c, ms)
+                        }
+                    }
                     src?.let { renderScope(kind, it) }
                 }
                 if (out != null) image = out.asImageBitmap()
-                Log.d(TAG, "scope ${kind.name} paused src=${if (shaded != null && ColorLive.overlayActive) "shader" else "cpu"} in ${(System.nanoTime() - t0) / 1_000_000}ms")
+                Log.d(
+                    TAG,
+                    "scope ${kind.name} paused src=${if (shaded != null && ColorLive.overlayActive) "shader" else "cpu"} in ${(System.nanoTime() - t0) / 1_000_000}ms"
+                )
             }
         }
     }
@@ -126,14 +166,35 @@ fun ScopesBox(image: ImageBitmap?, kind: ScopeKind, modifier: Modifier = Modifie
     ) {
         ChannelChips(ScopeKind.entries.toList(), kind, { it.label }) { Scopes.kind = it }
         Box(Modifier.fillMaxWidth().aspectRatio(if (kind == ScopeKind.VECTOR) 1f else 16f / 9f)) {
-            image?.let { Image(it, null, Modifier.fillMaxWidth().aspectRatio(if (kind == ScopeKind.VECTOR) 1f else 16f / 9f), contentScale = ContentScale.FillBounds, alpha = 0.92f) }
+            image?.let {
+                Image(
+                    it,
+                    null,
+                    Modifier.fillMaxWidth().aspectRatio(
+                        if (kind ==
+                            ScopeKind.VECTOR
+                        ) {
+                            1f
+                        } else {
+                            16f / 9f
+                        }
+                    ),
+                    contentScale = ContentScale.FillBounds,
+                    alpha = 0.92f
+                )
+            }
             Icon(
-                Icons.Rounded.OpenInFull, "Redimensionar scope",
+                Icons.Rounded.OpenInFull,
+                "Redimensionar scope",
                 Modifier.align(Alignment.BottomStart).size(18.dp).pointerInput(Unit) {
                     detectDragGestures { change, drag ->
                         change.consume()
                         // Anchored top-end: dragging the bottom-start handle left/down grows it.
-                        Scopes.widthDp = (Scopes.widthDp + (-drag.x + drag.y) / density).coerceIn(Scopes.MIN_W, Scopes.MAX_W)
+                        Scopes.widthDp =
+                            (Scopes.widthDp + (-drag.x + drag.y) / density).coerceIn(
+                                Scopes.MIN_W,
+                                Scopes.MAX_W
+                            )
                     }
                 },
                 tint = Color.White.copy(alpha = 0.7f)
@@ -142,7 +203,13 @@ fun ScopesBox(image: ImageBitmap?, kind: ScopeKind, modifier: Modifier = Modifie
     }
 }
 
-private fun Bitmap.scaledTo(w: Int): Bitmap = if (width <= w) this else Bitmap.createScaledBitmap(this, w, (height * w / width).coerceAtLeast(1), true)
+private fun Bitmap.scaledTo(w: Int): Bitmap = if (width <=
+    w
+) {
+    this
+} else {
+    Bitmap.createScaledBitmap(this, w, (height * w / width).coerceAtLeast(1), true)
+}
 
 /** CPU mirror (adjust + grade at [ms]) over a small frame. */
 private fun colorCpu(frame: Bitmap, clip: Clip, ms: Long): Bitmap {
@@ -150,7 +217,11 @@ private fun colorCpu(frame: Bitmap, clip: Clip, ms: Long): Bitmap {
     val (a, g) = clip.colorAt(ms)
     val px = IntArray(f.width * f.height)
     f.getPixels(px, 0, f.width, 0, 0, f.width, f.height)
-    if (!a.isNeutral || !g.isIdentity) for (i in px.indices) px[i] = GradeLuts.applyFull(a, g, px[i])
+    if (!a.isNeutral ||
+        !g.isIdentity
+    ) {
+        for (i in px.indices) px[i] = GradeLuts.applyFull(a, g, px[i])
+    }
     return Bitmap.createBitmap(px, f.width, f.height, Bitmap.Config.ARGB_8888)
 }
 
@@ -164,31 +235,62 @@ fun renderScope(kind: ScopeKind, frame: Bitmap): Bitmap {
 fun renderScope(kind: ScopeKind, px: IntArray, width: Int): Bitmap {
     val total = px.size.coerceAtLeast(1)
     return when (kind) {
-        ScopeKind.WAVEFORM -> traces(listOf(Meters.waveform(px, width, 192, 108)), listOf(0xFFE8F0FF.toInt()), 192, 108, total)
+        ScopeKind.WAVEFORM -> traces(
+            listOf(Meters.waveform(px, width, 192, 108)),
+            listOf(0xFFE8F0FF.toInt()),
+            192,
+            108,
+            total
+        )
         ScopeKind.PARADE -> {
             val p = Meters.parade(px, width, 64, 108)
-            traces(p.map { arrayOf(*it) }, listOf(0xFFFF5A5A.toInt(), 0xFF5AE07A.toInt(), 0xFF5AA0FF.toInt()), 192, 108, total, side = true)
+            traces(
+                p.map {
+                    arrayOf(*it)
+                },
+                listOf(0xFFFF5A5A.toInt(), 0xFF5AE07A.toInt(), 0xFF5AA0FF.toInt()),
+                192,
+                108,
+                total,
+                side = true
+            )
         }
         ScopeKind.VECTOR -> vector(Meters.vectorscope(px, 128), 128, total)
         ScopeKind.HISTOGRAM -> histogram(Meters.histogramRgb(px), 192, 108)
     }
 }
 
-private fun traces(chs: List<Array<IntArray>>, colors: List<Int>, w: Int, h: Int, total: Int, side: Boolean = false): Bitmap {
+private fun traces(
+    chs: List<Array<IntArray>>,
+    colors: List<Int>,
+    w: Int,
+    h: Int,
+    total: Int,
+    side: Boolean = false
+): Bitmap {
     val out = IntArray(w * h)
     // graticule 0/25/50/75/100%
-    for (q in 0..4) { val y = ((h - 1) * (1 - q / 4f)).toInt(); for (x in 0 until w) out[y * w + x] = 0x33FFFFFF }
+    for (q in 0..4) {
+        val y = ((h - 1) * (1 - q / 4f)).toInt()
+        for (x in 0 until w) {
+            out[y * w + x] =
+                0x33FFFFFF
+        }
+    }
     val norm = ln(1f + total / 40f)
     chs.forEachIndexed { ci, cols ->
         val c = colors[ci]
         val x0 = if (side) ci * w / chs.size else 0
         val span = if (side) w / chs.size else w
-        for (col in cols.indices) for (lv in cols[col].indices) {
-            val n = cols[col][lv]; if (n == 0) continue
-            val a = (ln(1f + n) / norm * 255f * 2.2f).toInt().coerceIn(40, 255)
-            val x = x0 + col * span / cols.size
-            val y = h - 1 - lv * h / cols[col].size
-            out[y * w + x] = blend(out[y * w + x], c, a)
+        for (col in cols.indices) {
+            for (lv in cols[col].indices) {
+                val n = cols[col][lv]
+                if (n == 0) continue
+                val a = (ln(1f + n) / norm * 255f * 2.2f).toInt().coerceIn(40, 255)
+                val x = x0 + col * span / cols.size
+                val y = h - 1 - lv * h / cols[col].size
+                out[y * w + x] = blend(out[y * w + x], c, a)
+            }
         }
     }
     return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
@@ -198,14 +300,27 @@ private fun vector(bins: IntArray, n: Int, total: Int): Bitmap {
     val out = IntArray(n * n)
     val c = (n - 1) / 2f
     // circle + skin-tone line (I line) + 75% targets as dots
-    for (k in 0 until 360) { val t = Math.toRadians(k.toDouble()); val x = (c + c * cos(t)).toInt(); val y = (c - c * sin(t)).toInt(); out[y * n + x] = 0x44FFFFFF }
+    for (k in 0 until 360) {
+        val t = Math.toRadians(k.toDouble())
+        val x = (c + c * cos(t)).toInt()
+        val y = (
+            c -
+                c * sin(t)
+            ).toInt()
+        out[y * n + x] = 0x44FFFFFF
+    }
     for (r in 0 until n / 2) {
-        val x = (c + r * cos(Meters.SKIN_LINE_RAD)).toInt(); val y = (c - r * sin(Meters.SKIN_LINE_RAD)).toInt()
+        val x = (c + r * cos(Meters.SKIN_LINE_RAD)).toInt()
+        val y = (
+            c -
+                r * sin(Meters.SKIN_LINE_RAD)
+            ).toInt()
         if (x in 0 until n && y in 0 until n) out[y * n + x] = 0xAAFFC28A.toInt()
     }
     val norm = ln(1f + total / 60f)
     for (i in bins.indices) {
-        val v = bins[i]; if (v == 0) continue
+        val v = bins[i]
+        if (v == 0) continue
         val a = (ln(1f + v) / norm * 255f * 2.4f).toInt().coerceIn(50, 255)
         out[i] = blend(out[i], 0xFF9CFFB0.toInt(), a)
     }
@@ -214,12 +329,18 @@ private fun vector(bins: IntArray, n: Int, total: Int): Bitmap {
 
 private fun histogram(h4: Array<IntArray>, w: Int, h: Int): Bitmap {
     val out = IntArray(w * h)
-    val colors = intArrayOf(0xFFFF5A5A.toInt(), 0xFF5AE07A.toInt(), 0xFF5AA0FF.toInt(), 0xFFE8E8E8.toInt())
+    val colors =
+        intArrayOf(0xFFFF5A5A.toInt(), 0xFF5AE07A.toInt(), 0xFF5AA0FF.toInt(), 0xFFE8E8E8.toInt())
     val max = h4.maxOf { ch -> ch.drop(1).dropLast(1).maxOrNull() ?: 1 }.coerceAtLeast(1)
-    for (ch in 0..3) for (x in 0 until w) {
-        val bin = x * 256 / w
-        val top = h - (h4[ch][bin].toFloat() / max * (h - 1)).toInt().coerceIn(0, h - 1)
-        for (y in top until h) out[y * w + x] = blend(out[y * w + x], colors[ch], if (ch == 3) 70 else 110)
+    for (ch in 0..3) {
+        for (x in 0 until w) {
+            val bin = x * 256 / w
+            val top = h - (h4[ch][bin].toFloat() / max * (h - 1)).toInt().coerceIn(0, h - 1)
+            for (y in top until h) {
+                out[y * w + x] =
+                    blend(out[y * w + x], colors[ch], if (ch == 3) 70 else 110)
+            }
+        }
     }
     return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
 }

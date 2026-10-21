@@ -25,7 +25,9 @@ class CubeExportTest {
         val text = CubeExport.write("id", 33) { it }
         val lut = CubeLut.parse(text)
         val o = lut.sample(0.3, 0.6, 0.9)
-        assertEquals(0.3, o[0], 1e-4); assertEquals(0.6, o[1], 1e-4); assertEquals(0.9, o[2], 1e-4)
+        assertEquals(0.3, o[0], 1e-4)
+        assertEquals(0.6, o[1], 1e-4)
+        assertEquals(0.9, o[2], 1e-4)
     }
 
     @Test fun gradeMatchesCpuMirror() {

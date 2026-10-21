@@ -42,10 +42,31 @@ data class Clip(
     val tracks: br.com.riseedit.core.keys.TransformTracks? = null,
     val grade: br.com.riseedit.core.color.ColorGrade = br.com.riseedit.core.color.ColorGrade(),
     /** Color animation (source time); empty = static [adjustments]/[grade]. */
-    val colorKeys: br.com.riseedit.core.color.ColorKeyframes = br.com.riseedit.core.color.ColorKeyframes()
+    val colorKeys: br.com.riseedit.core.color.ColorKeyframes =
+        br.com.riseedit.core.color.ColorKeyframes(),
+    /**
+     * Masks (0.17), key times in SOURCE time. Main clip: the take color applies only inside.
+     * Overlay clip ([VideoOverlay.clip]): the masks drive the overlay alpha.
+     */
+    val masks: br.com.riseedit.core.mask.MaskSet = br.com.riseedit.core.mask.MaskSet()
 ) {
-    /** Adjust + grade at [sourceMs] (keyframes applied); identical for preview and export. */
-    fun colorAt(sourceMs: Long) = colorKeys.at(sourceMs, adjustments, grade)
+    /**
+     * Adjust + grade at [sourceMs] (keyframes applied, masks evaluated into [ColorAdjust.masks]);
+     * identical for preview and export.
+     */
+    fun colorAt(sourceMs: Long): Pair<ColorAdjust, br.com.riseedit.core.color.ColorGrade> {
+        val (a, g) = colorKeys.at(sourceMs, adjustments, grade)
+        return (
+            if (masks.isEmpty) {
+                a.copy(
+                    masks = emptyList()
+                )
+            } else {
+                a.copy(masks = masks.at(sourceMs))
+            }
+            ) to
+            g
+    }
 
     init {
         require(

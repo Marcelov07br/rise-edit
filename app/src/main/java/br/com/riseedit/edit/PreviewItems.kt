@@ -93,6 +93,8 @@ internal fun previewItems(
     }
 }
 
+internal fun overlayAspect(clip: Clip): Float = aspectOf(clip)
+
 private fun aspectOf(clip: Clip): Float {
     val info = clip.sourceInfo ?: return 16f / 9f
     if (info.width <= 0 || info.height <= 0) return 16f / 9f

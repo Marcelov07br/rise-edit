@@ -36,13 +36,13 @@ import br.com.riseedit.core.color.CubeExport
 import br.com.riseedit.core.color.UserPreset
 import br.com.riseedit.core.editing.AttributeCopy
 import br.com.riseedit.core.editing.AttributeGroup
+import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
-import java.util.UUID
 
 /** App-wide user presets ("Meus" in Filtros): filesDir/user_presets.json (versioned list). */
 internal object UserPresetStore {
@@ -60,7 +60,11 @@ internal object UserPresetStore {
             val o = JSONObject(f.readText())
             val arr = o.optJSONArray("presets") ?: JSONArray()
             presets.clear()
-            for (i in 0 until arr.length()) UserPreset.fromMap(GradeJson.plain(arr.getJSONObject(i)))?.let(presets::add)
+            for (i in 0 until arr.length()) {
+                UserPreset.fromMap(
+                    GradeJson.plain(arr.getJSONObject(i))
+                )?.let(presets::add)
+            }
         }.onFailure { Log.w("RiseColor", "user presets unreadable", it) }
     }
 
@@ -74,7 +78,10 @@ internal object UserPresetStore {
 
     fun add(c: Context, name: String, a: ColorAdjust, groups: Set<ColorKeyGroup>) {
         load(c)
-        presets += UserPreset(UUID.randomUUID().toString(), name.trim(), a, groups).let { it.copy(adjust = it.owned()) }
+        presets +=
+            UserPreset(UUID.randomUUID().toString(), name.trim(), a, groups).let {
+                it.copy(adjust = it.owned())
+            }
         save(c)
     }
 
@@ -91,8 +98,12 @@ internal object UserPresetStore {
 }
 
 internal val PRESET_ATTRIBUTES = listOf(
-    AttributeGroup.COLOR_BASIC, AttributeGroup.COLOR_CURVES, AttributeGroup.COLOR_HSL, AttributeGroup.COLOR_WHEELS,
-    AttributeGroup.COLOR_QUALIFIER, AttributeGroup.COLOR_VIGNETTE
+    AttributeGroup.COLOR_BASIC,
+    AttributeGroup.COLOR_CURVES,
+    AttributeGroup.COLOR_HSL,
+    AttributeGroup.COLOR_WHEELS,
+    AttributeGroup.COLOR_QUALIFIER,
+    AttributeGroup.COLOR_VIGNETTE
 )
 
 internal fun AttributeGroup.keyGroup() = when (this) {
@@ -132,7 +143,9 @@ internal fun SavePresetDialog(
         title = { Text("Salvar preset") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                OutlinedTextField(name, { name = it.take(32) }, label = { Text("Nome") }, singleLine = true)
+                OutlinedTextField(name, {
+                    name = it.take(32)
+                }, label = { Text("Nome") }, singleLine = true)
                 Text("Incluir", color = RiseMuted, fontSize = 12.sp)
                 shown.forEach { g ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -140,11 +153,19 @@ internal fun SavePresetDialog(
                         Text(g.label)
                     }
                 }
-                Text("Aparece em Filtros › Meus. LUT/log não entram no preset.", color = RiseMuted, fontSize = 11.sp)
+                Text(
+                    "Aparece em Filtros › Meus. LUT/log não entram no preset.",
+                    color = RiseMuted,
+                    fontSize = 11.sp
+                )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(name, sel.map { it.keyGroup() }.toSet()) }, enabled = name.isNotBlank() && sel.isNotEmpty()) { Text("Salvar") }
+            TextButton(
+                onClick = { onSave(name, sel.map { it.keyGroup() }.toSet()) },
+                enabled =
+                name.isNotBlank() && sel.isNotEmpty()
+            ) { Text("Salvar") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
     )
@@ -152,17 +173,32 @@ internal fun SavePresetDialog(
 
 /** Long-press on a "Meus" preset: rename or delete. */
 @Composable
-internal fun ManagePresetDialog(preset: UserPreset, onDismiss: () -> Unit, onRename: (String) -> Unit, onDelete: () -> Unit) {
+internal fun ManagePresetDialog(
+    preset: UserPreset,
+    onDismiss: () -> Unit,
+    onRename: (String) -> Unit,
+    onDelete: () -> Unit
+) {
     var name by remember(preset.id) { mutableStateOf(preset.name) }
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
         title = { Text("Preset") },
-        text = { OutlinedTextField(name, { name = it.take(32) }, label = { Text("Nome") }, singleLine = true) },
-        confirmButton = { TextButton(onClick = { onRename(name) }, enabled = name.isNotBlank()) { Text("Renomear") } },
+        text = {
+            OutlinedTextField(name, {
+                name = it.take(32)
+            }, label = { Text("Nome") }, singleLine = true)
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onRename(name)
+            }, enabled = name.isNotBlank()) { Text("Renomear") }
+        },
         dismissButton = {
             Row {
-                TextButton(onClick = onDelete) { Text("Excluir", color = androidx.compose.ui.graphics.Color(0xFFFF8A80)) }
+                TextButton(onClick = onDelete) {
+                    Text("Excluir", color = androidx.compose.ui.graphics.Color(0xFFFF8A80))
+                }
                 TextButton(onClick = onDismiss) { Text("Cancelar") }
             }
         }
@@ -172,8 +208,16 @@ internal fun ManagePresetDialog(preset: UserPreset, onDismiss: () -> Unit, onRen
 /** CPU mirror of the shader for one rgb (same order as ColorPass: LUT before/after adjust). */
 internal fun gradeTransform(adjust: ColorAdjust, grade: ColorGrade): (FloatArray) -> FloatArray {
     val lut = GradeLuts.lut(grade.lutUri)
-    fun g(c: FloatArray): FloatArray =
-        if (grade.isIdentity) c else grade.apply(doubleArrayOf(c[0].toDouble(), c[1].toDouble(), c[2].toDouble()), lut).let { o -> FloatArray(3) { o[it].toFloat() } }
+    fun g(c: FloatArray): FloatArray = if (grade.isIdentity) {
+        c
+    } else {
+        grade.apply(
+            doubleArrayOf(c[0].toDouble(), c[1].toDouble(), c[2].toDouble()),
+            lut
+        ).let { o ->
+            FloatArray(3) { o[it].toFloat() }
+        }
+    }
     return { c ->
         var x = if (grade.lutBeforeAdjust) g(c) else c
         if (!adjust.isNeutral) x = br.com.riseedit.core.ColorAdjustMath.apply(adjust, x)
@@ -183,39 +227,78 @@ internal fun gradeTransform(adjust: ColorAdjust, grade: ColorGrade): (FloatArray
 
 /** Size choice (33/65) + keyframe warning, then SAF CREATE_DOCUMENT and write the .cube. */
 @Composable
-internal fun ExportCubeDialog(vm: EditorViewModel, clip: Clip, adjust: ColorAdjust, grade: ColorGrade, onDismiss: () -> Unit) {
+internal fun ExportCubeDialog(
+    vm: EditorViewModel,
+    clip: Clip,
+    adjust: ColorAdjust,
+    grade: ColorGrade,
+    onDismiss: () -> Unit
+) {
     var size by remember { mutableStateOf(33) }
     val scope = rememberCoroutineScope()
     val title = clip.name.substringBeforeLast('.').ifBlank { "Rise Edit" }
-    val create = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri: Uri? ->
-        onDismiss()
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            val t0 = System.nanoTime()
-            val ok = withContext(Dispatchers.Default) {
-                runCatching {
-                    val text = CubeExport.write(title, size, gradeTransform(adjust, grade))
-                    vm.appContext.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(text.toByteArray()) }
-                }.onFailure { Log.w("RiseColor", "cube export failed", it) }.isSuccess
+    val create =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.CreateDocument("application/octet-stream")
+        ) { uri: Uri? ->
+            onDismiss()
+            if (uri == null) return@rememberLauncherForActivityResult
+            scope.launch {
+                val t0 = System.nanoTime()
+                val ok = withContext(Dispatchers.Default) {
+                    runCatching {
+                        val text = CubeExport.write(title, size, gradeTransform(adjust, grade))
+                        vm.appContext.contentResolver.openOutputStream(uri, "wt")!!.use {
+                            it.write(text.toByteArray())
+                        }
+                    }.onFailure { Log.w("RiseColor", "cube export failed", it) }.isSuccess
+                }
+                Log.i(
+                    "RiseColor",
+                    "cube export $size³ ok=$ok in ${(System.nanoTime() - t0) / 1_000_000}ms"
+                )
+                vm.message(
+                    if (ok) "LUT .cube $size³ exportado." else "Não foi possível salvar o .cube."
+                )
             }
-            Log.i("RiseColor", "cube export ${size}³ ok=$ok in ${(System.nanoTime() - t0) / 1_000_000}ms")
-            vm.message(if (ok) "LUT .cube ${size}³ exportado." else "Não foi possível salvar o .cube.")
         }
-    }
-    ExportCubeContent(size, { size = it }, !clip.colorKeys.isEmpty, onDismiss) { create.launch(CubeExport.fileName(title)) }
+    ExportCubeContent(size, {
+        size = it
+    }, !clip.colorKeys.isEmpty, onDismiss) { create.launch(CubeExport.fileName(title)) }
 }
 
 @Composable
-internal fun ExportCubeContent(size: Int, onSize: (Int) -> Unit, hasKeys: Boolean, onDismiss: () -> Unit, onExport: () -> Unit) {
+internal fun ExportCubeContent(
+    size: Int,
+    onSize: (Int) -> Unit,
+    hasKeys: Boolean,
+    onDismiss: () -> Unit,
+    onExport: () -> Unit
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
         title = { Text("Exportar LUT .cube") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                br.com.riseedit.designsystem.RiseDropdown("Tamanho", CubeExport.SIZES, size, text = { "$it³" + if (it == 65) " (mais preciso, ~9 MB)" else " (padrão)" }) { onSize(it) }
-                if (hasKeys) Text("Este clipe tem keyframes de cor: o .cube usa só o valor no cursor (LUT não anima).", color = androidx.compose.ui.graphics.Color(0xFFFFC94D), fontSize = 12.sp)
-                Text("Ajustes + LUT/log do clipe no tempo atual, mesma matemática da prévia/exportação. Funciona no Resolve, Premiere, CapCut.", color = RiseMuted, fontSize = 12.sp)
+                br.com.riseedit.designsystem.RiseDropdown(
+                    "Tamanho",
+                    CubeExport.SIZES,
+                    size,
+                    text = { "$it³" + if (it == 65) " (mais preciso, ~9 MB)" else " (padrão)" }
+                ) { onSize(it) }
+                if (hasKeys) {
+                    Text(
+                        "Este clipe tem keyframes de cor: o .cube usa só o valor no cursor (LUT não anima).",
+                        color = androidx.compose.ui.graphics.Color(0xFFFFC94D),
+                        fontSize = 12.sp
+                    )
+                }
+                Text(
+                    "Ajustes + LUT/log do clipe no tempo atual, mesma matemática da prévia/exportação. Funciona no Resolve, Premiere, CapCut.",
+                    color = RiseMuted,
+                    fontSize = 12.sp
+                )
             }
         },
         confirmButton = { TextButton(onClick = onExport) { Text("Salvar…") } },

@@ -120,12 +120,15 @@ fun PreviewPanel(
     val outputRatio = state.project.aspectRatio.takeIf { it > 0 } ?: sourceRatio
     // Color keyframes: evaluated at the current source time (paused overlay uses this value;
     // while playing the live effect reads ColorLive.sourceMs, updated here every frame).
-    val animatedColor = clip?.colorKeys?.isEmpty == false
+    val animatedColor = clip?.colorKeys?.isEmpty == false || clip?.masks?.isAnimated == true
     br.com.riseedit.color.ColorLive.sourceMs = vm.previewSourceMs
     // Camadas de ajuste: live effect reads these (project time); paused overlay gets the passes.
     br.com.riseedit.color.ColorLive.layers = state.project.adjustmentLayers
     br.com.riseedit.color.ColorLive.projectMs = state.positionMs
-    val layerPasses = androidx.compose.runtime.remember(state.project.adjustmentLayers, state.positionMs) {
+    val layerPasses = androidx.compose.runtime.remember(
+        state.project.adjustmentLayers,
+        state.positionMs
+    ) {
         br.com.riseedit.core.AdjustmentStack.at(state.project.adjustmentLayers, state.positionMs)
     }
     val (adjust, grade) = clip?.colorAt(vm.previewSourceMs)
@@ -136,7 +139,12 @@ fun PreviewPanel(
         br.com.riseedit.color.ColorLive.grade = grade
         br.com.riseedit.color.ColorLive.keys = clip?.takeIf { animatedColor }
         if (state.playing && animatedColor) return@LaunchedEffect // live effect samples per frame
-        if (animatedColor) android.util.Log.d("RiseColor", "keyframed color at ${vm.previewSourceMs}ms groups=${clip?.colorKeys?.tracks?.keys}")
+        if (animatedColor) {
+            android.util.Log.d(
+                "RiseColor",
+                "keyframed color at ${vm.previewSourceMs}ms groups=${clip?.colorKeys?.tracks?.keys}"
+            )
+        }
         redrawColor(previewPlayer)
     }
     val index = state.project.clips.indexOfFirst { it.id == clip?.id }
@@ -190,9 +198,14 @@ fun PreviewPanel(
             null
         ) {
             val tech = (state.previewFault as? br.com.riseedit.core.MediaFault.PreviewFailed)?.technical
-            var open by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+            var open by androidx.compose.runtime.saveable.rememberSaveable {
+                androidx.compose.runtime.mutableStateOf(false)
+            }
             androidx.compose.foundation.layout.Column(Modifier.padding(16.dp)) {
-                Text(state.previewFault.displayMessage(), style = MaterialTheme.typography.bodySmall)
+                Text(
+                    state.previewFault.displayMessage(),
+                    style = MaterialTheme.typography.bodySmall
+                )
                 if (tech != null) {
                     Text(
                         if (open) "Ocultar detalhes ▲" else "Detalhes técnicos ▼",
@@ -200,7 +213,13 @@ fun PreviewPanel(
                         color = Color.Gray,
                         style = MaterialTheme.typography.labelSmall
                     )
-                    if (open) Text(tech, color = Color.Gray, style = MaterialTheme.typography.labelSmall)
+                    if (open) {
+                        Text(
+                            tech,
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
             }
         } else {
@@ -294,8 +313,28 @@ fun PreviewPanel(
                                 scaleX = zoom
                                 scaleY = zoom
                                 rotationZ = (pose.angle * 180 / PI).toFloat()
-                                translationX = if (analysis == null) 0f else (pose.x * videoWidth * density / analysis.width).toFloat()
-                                translationY = if (analysis == null) 0f else (pose.y * videoHeight * density / analysis.height).toFloat()
+                                translationX =
+                                    if (analysis ==
+                                        null
+                                    ) {
+                                        0f
+                                    } else {
+                                        (
+                                            pose.x * videoWidth * density /
+                                                analysis.width
+                                            ).toFloat()
+                                    }
+                                translationY =
+                                    if (analysis ==
+                                        null
+                                    ) {
+                                        0f
+                                    } else {
+                                        (
+                                            pose.y * videoHeight * density /
+                                                analysis.height
+                                            ).toFloat()
+                                    }
                             }
                         )
                     }
@@ -334,8 +373,19 @@ fun PreviewPanel(
                     PreviewEditLayer(vm, state, edit, items, selectedId, fast, onSelect, textDraft?.id, onDraftTransform, pick)
                     // Vinheta tab open: draggable center on top of the edit layer, in video-frame coordinates.
                     if (br.com.riseedit.tools.ColorTools.vignetteCenter != null) {
-                        Box(Modifier.requiredSize(videoWidth.dp, videoHeight.dp)) { br.com.riseedit.tools.VignetteHandle() }
+                        Box(Modifier.requiredSize(videoWidth.dp, videoHeight.dp)) {
+                            br.com.riseedit.tools.VignetteHandle()
+                        }
                     }
+                    // Ferramenta Máscara open: outlines + handles in the target's frame.
+                    MaskHandleLayer(
+                        state,
+                        outWidth,
+                        outHeight,
+                        videoWidth,
+                        videoHeight,
+                        outputRatio
+                    )
                 }
             }
         }
@@ -355,7 +405,9 @@ fun PreviewPanel(
         }
         if (clip != null) {
             br.com.riseedit.color.ScopesOverlay(
-                clip, { vm.previewSourceMs }, state.playing,
+                clip,
+                { vm.previewSourceMs },
+                state.playing,
                 Modifier.align(Alignment.TopEnd).padding(6.dp)
             )
         }
@@ -398,7 +450,67 @@ internal fun redrawColor(player: androidx.media3.common.Player?) {
     // VideoFrameProcessor.REDRAW needs a replayable frame cache that ExoPlayer never enables:
     // redraw() throws UnsupportedOperationException on the playback thread -> player error.
     // An exact seek to the same position re-decodes the frame through the live effect instead.
-    if (!exo.isPlaying && exo.mediaItemCount > 0 && exo.playbackState != androidx.media3.common.Player.STATE_IDLE) {
+    if (!exo.isPlaying &&
+        exo.mediaItemCount > 0 &&
+        exo.playbackState != androidx.media3.common.Player.STATE_IDLE
+    ) {
         runCatching { exo.seekTo(exo.currentMediaItemIndex, exo.currentPosition) }
+    }
+}
+
+/**
+ * Mask handles over the preview while the Máscara tool is open: clip = video frame box (same
+ * coords as the take shader), layer = output frame, overlay = the overlay's own box (rotated).
+ */
+@Composable
+private fun MaskHandleLayer(
+    state: EditorState,
+    outWidth: Float,
+    outHeight: Float,
+    videoWidth: Float,
+    videoHeight: Float,
+    outputRatio: Float
+) {
+    val live = br.com.riseedit.tools.MaskLive
+    val owner = live.owner ?: return
+    if (live.shown.none { it.isGeometric }) return
+    val handles = @Composable { m: Modifier ->
+        br.com.riseedit.tools.MaskHandles(
+            live.shown,
+            live.selectedId,
+            { live.selectedId = it },
+            { id, g -> live.onGeom?.invoke(id, g) },
+            m
+        )
+    }
+    when (owner) {
+        br.com.riseedit.tools.MaskOwner.CLIP -> Box(
+            Modifier.requiredSize(videoWidth.dp, videoHeight.dp)
+        ) {
+            handles(Modifier)
+        }
+        br.com.riseedit.tools.MaskOwner.LAYER -> Box(
+            Modifier.requiredSize(outWidth.dp, outHeight.dp)
+        ) {
+            handles(Modifier)
+        }
+        br.com.riseedit.tools.MaskOwner.OVERLAY -> {
+            val o = state.project.overlays.firstOrNull { it.id == live.ownerId } ?: return
+            val t = o.transformAt((state.positionMs - o.offsetMs).coerceAtLeast(0))
+            val (fw, fh) = 1f to outputRatio / br.com.riseedit.edit.overlayAspect(o.clip)
+            val w = fw * t.scale * outWidth
+            val h = fh * t.scale * outHeight
+            val cx = (t.x + 1) / 2 * outWidth
+            val cy = (1 - t.y) / 2 * outHeight
+            Box(Modifier.requiredSize(outWidth.dp, outHeight.dp)) {
+                Box(
+                    Modifier.offset(
+                        (cx - w / 2).dp,
+                        (cy - h / 2).dp
+                    ).size(w.coerceAtLeast(1f).dp, h.coerceAtLeast(1f).dp)
+                        .graphicsLayer { rotationZ = -t.rotation }
+                ) { handles(Modifier) }
+            }
+        }
     }
 }
