@@ -23,7 +23,6 @@ internal class TimelineActions(
     fun seek(timeUs: Double) = vm.seek((timeUs / 1000).roundToLong())
     fun endScrub() = vm.scrubbing(false)
     fun beginTrim() = vm.pausePreview()
-    fun split() = vm.split()
 
     fun commitTrim(ui: TimelineUiState) {
         when (val draft = ui.trimDraft) {

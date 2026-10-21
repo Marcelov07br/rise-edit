@@ -13,8 +13,17 @@ import br.com.riseedit.core.audibleAudio
 import kotlin.math.min
 
 internal fun buildAudioSequences(project: Project): List<EditedMediaItemSequence> =
-    project.audibleAudio().map { audio ->
+    project.audibleAudio().also { list ->
+        android.util.Log.i(
+            "RiseAudio",
+            "composição (fiel/export): ${list.size} de ${project.audio.size} faixa(s) de áudio"
+        )
+    }.map { audio ->
         val durationMs = min(audio.durationMs, project.durationMs - audio.offsetMs)
+        android.util.Log.i(
+            "RiseAudio",
+            "seq ${audio.name}: gap=${audio.offsetMs} src=${audio.startMs}+$durationMs vol=${audio.volume}"
+        )
         val media = MediaItem.Builder()
             .setUri(audio.uri)
             .setClippingConfiguration(

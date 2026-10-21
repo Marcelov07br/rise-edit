@@ -6,14 +6,16 @@ import android.graphics.Paint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.TextFields
+import androidx.compose.material.icons.rounded.ContentCut
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -34,7 +36,6 @@ import br.com.riseedit.core.editing.ClipEdits
 import br.com.riseedit.designsystem.ActionMenuItems
 import br.com.riseedit.designsystem.ActionOverflow
 import br.com.riseedit.designsystem.GraphicSurface
-import br.com.riseedit.timeline.SplitAtCursorButton
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -128,43 +129,93 @@ class CutShots {
         }
     }
 
-    /** Timeline stand-in (the real stage needs the view model): lanes + playhead + real button. */
-    @Test fun timelineSplitButton() = p.snapshot {
-        Screen("Timeline · dividir no cursor") {
-            Box(Modifier.fillMaxWidth().height(150.dp).background(Color(0xFF101013))) {
-                Column(
-                    Modifier.padding(top = 24.dp),
-                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(
-                        6.dp
+    @Test fun toolbarSplit() = p.snapshot {
+        Screen("Barra principal · Dividir na agulha") {
+            Column(
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)
+            ) {
+                br.com.riseedit.BottomToolbar(
+                    listOf(
+                        br.com.riseedit.ToolbarItem(
+                            "Dividir",
+                            androidx.compose.material.icons.Icons.Rounded.ContentCut
+                        ) {
+                        },
+                        br.com.riseedit.ToolbarItem(
+                            "Vídeo",
+                            androidx.compose.material.icons.Icons.Outlined.Add
+                        ) {
+                        },
+                        br.com.riseedit.ToolbarItem(
+                            "Texto",
+                            androidx.compose.material.icons.Icons.Outlined.TextFields
+                        ) {
+                        },
+                        br.com.riseedit.ToolbarItem(
+                            "Áudio",
+                            androidx.compose.material.icons.Icons.Outlined.MusicNote
+                        ) {
+                        }
                     )
-                ) {
-                    Row {
-                        Box(
-                            Modifier.width(
-                                110.dp
-                            ).height(
-                                44.dp
-                            ).clip(RoundedCornerShape(6.dp)).background(Color(0x553D7BFF))
-                        )
-                        Box(
-                            Modifier.padding(
-                                start = 2.dp
-                            ).width(170.dp).height(44.dp).clip(RoundedCornerShape(6.dp))
-                                .background(Color(0x553D7BFF)).background(Color.Transparent)
-                        )
-                    }
-                    Box(
-                        Modifier.offset(
-                            x = 60.dp
-                        ).width(
-                            140.dp
-                        ).height(30.dp).clip(RoundedCornerShape(6.dp)).background(Color(0x5543C59E))
+                )
+                Text("Agulha a < 1 quadro da borda:", color = RiseWhite, fontSize = 12.sp)
+                br.com.riseedit.BottomToolbar(
+                    listOf(
+                        br.com.riseedit.ToolbarItem(
+                            "Dividir",
+                            androidx.compose.material.icons.Icons.Rounded.ContentCut,
+                            false
+                        ) {
+                        },
+                        br.com.riseedit.ToolbarItem(
+                            "Vídeo",
+                            androidx.compose.material.icons.Icons.Outlined.Add
+                        ) {
+                        }
                     )
-                }
-                Box(Modifier.offset(x = 190.dp).width(2.dp).fillMaxSize().background(RiseWhite))
-                with(androidx.compose.ui.platform.LocalDensity.current) {
-                    SplitAtCursorButton(x = 191.dp.toPx(), visible = true) {}
-                }
+                )
+            }
+        }
+    }
+
+    /** Same layout as TimelineClip.ClipBackground: tiles anchored to source time, cut at edges. */
+    @Composable
+    private fun Strip(c: Clip, pps: Double) {
+        val d = androidx.compose.ui.platform.LocalDensity.current.density
+        val w = br.com.riseedit.core.timeline.FilmStrip.outputAt(c, c.endMs) * pps / 1000
+        Box(
+            Modifier.padding(
+                start = 8.dp
+            ).width((w / d).dp).height(44.dp).clip(RoundedCornerShape(6.dp))
+                .background(Color(0x553D7BFF))
+        ) {
+            br.com.riseedit.core.timeline.FilmStrip.tiles(c, pps, 40.0 * d).forEach { t ->
+                androidx.compose.foundation.Image(
+                    frame(t.sourceMs),
+                    null,
+                    Modifier.offset(x = (t.xPx / d).dp).width((t.widthPx / d).dp).height(44.dp),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            }
+        }
+    }
+
+    @Test fun timelineFilmStrip() = p.snapshot {
+        Screen("Timeline · miniaturas pelo tempo de fonte") {
+            val base = Clip(uri = "file:///praia.mp4", name = "Praia", sourceDurationMs = 8000)
+            Column(
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)
+            ) {
+                Text("inteiro (8 s)", color = RiseWhite, fontSize = 12.sp)
+                Strip(base, 40.0 * 2.75)
+                Text(
+                    "início cortado em 2,5 s (mesmos quadros, borda corta o tile)",
+                    color = RiseWhite,
+                    fontSize = 12.sp
+                )
+                Strip(base.trim(2500, 8000), 40.0 * 2.75)
+                Text("2× (tiles = 2× mais fonte)", color = RiseWhite, fontSize = 12.sp)
+                Strip(ClipEdits.speed(base, 2.0), 40.0 * 2.75)
             }
         }
     }

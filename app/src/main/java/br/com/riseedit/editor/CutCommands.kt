@@ -52,4 +52,26 @@ internal class CutCommands(
             document.edit(SeparateAudio.sync(state.project.replace(state.selected, next), clip.id))
         }
     }
+
+    /** 0.18.1: split at the playhead (see [br.com.riseedit.core.editing.SplitAtPlayhead]). */
+    fun split() {
+        val state = document.current
+        val result = br.com.riseedit.core.editing.SplitAtPlayhead.apply(
+            state.project,
+            state.selection,
+            state.positionMs,
+            state.project.export.fps
+        ) ?: return document.message(
+            "Posicione a agulha dentro do item (a mais de 1 quadro da borda)."
+        )
+        if (document.edit(result.project)) {
+            val index = result.project.clips.indexOfFirst { it.id == result.rightId }
+            document.update {
+                it.copy(
+                    selected = if (index >= 0) index else it.selected,
+                    selectionId = result.rightId
+                )
+            }
+        }
+    }
 }

@@ -91,7 +91,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     }
     fun moveClip(id: String, target: Int) = commands.moveClip(id, target)
     fun separateAudio(track: Int = 0) = commands.separateAudio(track)
-    fun split() = commands.split()
+    fun split() = cuts.split()
     fun remove() = commands.remove()
     fun duplicate() = cuts.duplicate()
     fun cutToCursor(left: Boolean) = cuts.cutToCursor(left)

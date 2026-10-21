@@ -36,6 +36,7 @@ internal class FastPreview(context: Context, colorEffect: Boolean = true) {
         }
     }
     private val sources = DefaultMediaSourceFactory(context)
+    private val audioLayers = FastAudioLayers(context)
     private var timeline = PreviewTimeline(emptyList())
     private var slots = emptyList<PreviewSlot>()
     private var faults = emptyMap<String, MediaFault>()
@@ -58,6 +59,7 @@ internal class FastPreview(context: Context, colorEffect: Boolean = true) {
                 project.clips.map { it.speedPoints to it.keepPitch }
         timeline = PreviewTimeline(project.clips)
         faults = newFaults
+        audioLayers.update(project)
         val newSlots = project.clips.map { clip ->
             PreviewSlot(
                 clip.id,
@@ -171,8 +173,12 @@ internal class FastPreview(context: Context, colorEffect: Boolean = true) {
             (clip.volume * envelope).coerceIn(0f, 1f)
         }
         if (player.volume != volume) player.volume = volume
+        audioLayers.tick(positionMs, player.isPlaying, muted)
     }
-    fun release() = player.release()
+    fun release() {
+        audioLayers.release()
+        player.release()
+    }
 }
 
 private const val PREVIEW_MAX_SPEED = 8f

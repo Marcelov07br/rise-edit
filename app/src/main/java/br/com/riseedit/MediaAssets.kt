@@ -27,13 +27,13 @@ import java.nio.ByteOrder
 import kotlin.math.*
 
 object MediaAssets {
-    private val thumbnails = LruCache<String,Bitmap>(48)
+    private val thumbnails = LruCache<String,Bitmap>(96)
     private val waves = LruCache<String,List<Float>>(32)
     private val workers = Semaphore(2)
     suspend fun thumbnail(context: Context, uri: String, time: Long): Bitmap? = withContext(Dispatchers.IO) { workers.withPermit {
         val key = "$uri:$time"; thumbnails.get(key)?.let { return@withPermit it }
         val r = MediaMetadataRetriever()
-        try { r.setDataSource(context,Uri.parse(uri)); (r.getScaledFrameAtTime(time*1000,MediaMetadataRetriever.OPTION_CLOSEST_SYNC,256,144)
+        try { r.setDataSource(context,Uri.parse(uri)); (r.getScaledFrameAtTime(time*1000,MediaMetadataRetriever.OPTION_CLOSEST,256,144)
             ?: throw MediaFault.AssetDecodeFailed()).also { thumbnails.put(key,it) } }
         catch(e: CancellationException) { throw e }
         catch(e: Exception) { android.util.Log.w("RiseMedia", "Thumbnail failed", e); throw MediaFault.AssetDecodeFailed(e) }

@@ -26,8 +26,8 @@ import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material.icons.outlined.SpaceDashboard
 import androidx.compose.material.icons.outlined.TextFields
-import androidx.compose.material.icons.outlined.VerticalSplit
 import androidx.compose.material.icons.outlined.VideoLibrary
+import androidx.compose.material.icons.rounded.ContentCut
 import br.com.riseedit.core.TextLayer
 import br.com.riseedit.tools.EditorTool
 import kotlin.math.min
@@ -74,7 +74,20 @@ internal fun toolbarLevel(
     } else {
         null
     }
-    return ToolbarLevel(back, items)
+    // 0.18.1: one clear "Dividir" on every toolbar level, splitting at the playhead.
+    val canSplit = br.com.riseedit.core.editing.SplitAtPlayhead.target(
+        state.project,
+        state.selection,
+        state.positionMs,
+        state.project.export.fps
+    ) != null
+    val split = ToolbarItem(
+        "Dividir",
+        Icons.Rounded.ContentCut,
+        enabled && canSplit,
+        onClick = vm::split
+    )
+    return ToolbarLevel(back, listOf(split) + items)
 }
 
 /** Pops one level: closes a panel, then a sub-toolbar, then the selection. */
@@ -136,7 +149,6 @@ private fun baseItems(
             }
         )
         Base.CLIP -> listOf(
-            ToolbarItem("Dividir", Icons.Outlined.VerticalSplit, enabled, onClick = vm::split),
             ui.toolItem(EditorTool.Speed, enabled),
             ui.toolItem(EditorTool.Volume, enabled),
             ui.toolItem(EditorTool.Stabilize, enabled),

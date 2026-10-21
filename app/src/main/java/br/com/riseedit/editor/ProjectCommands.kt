@@ -59,18 +59,6 @@ internal class ProjectCommands(private val document: EditorDocument) {
         }
     }
 
-    fun split() {
-        val state = document.current
-        val clip = state.project.clips.getOrNull(state.selected) ?: return
-        val relative =
-            state.positionMs - state.project.clips.take(state.selected).sumOf { it.durationMs }
-        if (relative <= 0 || relative >= clip.durationMs) {
-            document.message("Posicione o cursor dentro do clipe selecionado.")
-            return
-        }
-        document.edit(state.project.split(state.selected, relative))
-    }
-
     fun remove() {
         val state = document.current
         document.edit(

@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -56,7 +55,12 @@ internal fun BoxScope.TimelineClip(
                 }
             }
     ) {
-        ClipBackground(entry)
+        ClipBackground(
+            entry,
+            left - visibleLeft,
+            ui.viewport.pixelsPerSecond,
+            visibleRight - visibleLeft
+        )
         Text(
             entry.name,
             maxLines = 1,
@@ -83,22 +87,44 @@ internal fun BoxScope.TimelineClip(
     }
 }
 
+/**
+ * Film strip anchored to source time ([br.com.riseedit.core.timeline.FilmStrip]): each tile is a
+ * fixed source interval for the current zoom, positioned by real time (speed included) and cut at
+ * the clip edges by the parent clip, so trimming reveals/hides frames live instead of stretching.
+ * [originPx] = clip left edge relative to this box (≤ 0 when scrolled off screen).
+ */
 @Composable
-private fun ClipBackground(entry: TimelineEntry) {
+private fun ClipBackground(
+    entry: TimelineEntry,
+    originPx: Double,
+    pxPerSecond: Double,
+    widthPx: Double
+) {
     val clip = entry.clip
-    if (clip != null) {
-        Row(Modifier.fillMaxSize()) {
-            repeat(3) { frame ->
+    if (clip != null && clip.uri != br.com.riseedit.core.AdjustmentLayer.URI) {
+        val density = LocalDensity.current.density
+        val tiles = br.com.riseedit.core.timeline.FilmStrip.tiles(
+            clip,
+            pxPerSecond,
+            TILE_TARGET_DP * density,
+            visibleFromPx = -originPx,
+            visibleToPx = widthPx - originPx
+        )
+        tiles.forEach { t ->
+            androidx.compose.runtime.key(t.sourceMs) {
                 MediaThumbnail(
                     clip.effectiveUri(true),
-                    clip.sourceAt(clip.durationMs * frame / 3),
-                    Modifier.weight(1f).fillMaxHeight()
+                    t.sourceMs.coerceIn(0, clip.sourceDurationMs - 1),
+                    Modifier.offset(x = ((originPx + t.xPx) / density).dp)
+                        .width((t.widthPx / density).dp).fillMaxHeight()
                 )
             }
         }
     }
     entry.audio?.let { TimelineWaveform(it) }
 }
+
+private const val TILE_TARGET_DP = 40.0
 
 @Composable
 private fun BoxScope.TrimHandle(x: Float, label: String) {

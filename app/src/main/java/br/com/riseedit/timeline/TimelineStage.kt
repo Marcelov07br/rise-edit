@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -17,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.rounded.ContentCut
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -98,16 +96,6 @@ internal fun TimelineStage(
                 TimelineTrackList(lanes, entries.value, ui, actions, scroll)
             }
             PlayheadNeedle(ui, state, density, Modifier.matchParentSize())
-            val s = state.value
-            val clip = s.project.clips.getOrNull(s.selected)?.takeIf { it.id == s.selectionId }
-            val start = s.project.clips.take(s.selected).sumOf { it.durationMs }
-            val inside =
-                clip != null && s.positionMs > start && s.positionMs < start + clip.durationMs
-            SplitAtCursorButton(
-                x = ui.viewport.pxAtTime(s.positionMs * 1000.0).toFloat(),
-                visible = inside && s.busy == null && ui.trimDraft == null && ui.movingId == null,
-                onClick = actions::split
-            )
         }
     }
 }
@@ -228,38 +216,6 @@ private fun AddLaneButton(ui: TimelineUiState, lanes: List<Int>) {
                     open = false
                 })
             }
-        }
-    }
-}
-
-/**
- * 0.18: floating "Dividir" riding the playhead while a main clip under it is selected.
- * Low-bounce spring in/out + light haptic on tap.
- */
-@Composable
-internal fun androidx.compose.foundation.layout.BoxScope.SplitAtCursorButton(
-    x: Float,
-    visible: Boolean,
-    onClick: () -> Unit
-) {
-    val density = LocalDensity.current.density
-    val haptic = LocalHapticFeedback.current
-    androidx.compose.animation.AnimatedVisibility(
-        visible,
-        Modifier.align(
-            Alignment.BottomStart
-        ).offset(x = (x / density - 18).dp).padding(bottom = 6.dp),
-        enter = androidx.compose.animation.scaleIn(br.com.riseedit.riseSpring()) +
-            androidx.compose.animation.fadeIn(),
-        exit = androidx.compose.animation.scaleOut(br.com.riseedit.riseSpring()) +
-            androidx.compose.animation.fadeOut()
-    ) {
-        br.com.riseedit.designsystem.PanelIconButton(
-            androidx.compose.material.icons.Icons.Rounded.ContentCut,
-            "Dividir no cursor"
-        ) {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            onClick()
         }
     }
 }
