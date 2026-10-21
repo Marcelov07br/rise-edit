@@ -96,7 +96,8 @@ internal fun ColumnScope.EditorWorkspace(
             fps = state.project.export.fps,
             enabled = enabled,
             onToggle = vm::togglePlay,
-            onSeek = vm::seek
+            onSeek = vm::seek,
+            marks = br.com.riseedit.tools.colorKeyMarks(state)
         )
     }
     DockedToolPanel(vm, state, ui, media, sheetMax)

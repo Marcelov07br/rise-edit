@@ -68,7 +68,7 @@ private fun buildClipEffects(
         add(StabilizationEffect(clip, analysis, offsetMs))
     }
     add(ClipTransform(clip, offsetMs))
-    ColorAdjustEffect(clip.adjustments, clip.grade, preview)
+    ColorAdjustEffect(clip, offsetMs, preview)
         .takeUnless { it.neutral && !preview }?.let(::add)
     add(ClipColor(clip, offsetMs))
 }

@@ -1,5 +1,7 @@
 package br.com.riseedit
 
+import androidx.compose.ui.graphics.graphicsLayer
+
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.offset
@@ -153,7 +155,9 @@ fun MiniScrubBar(
     enabled: Boolean,
     onToggle: () -> Unit,
     onSeek: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Color keyframe positions (output ms) drawn as small diamonds on the scrub line. */
+    marks: List<Long> = emptyList()
 ) {
     Row(
         modifier.fillMaxWidth().height(36.dp).padding(horizontal = 12.dp),
@@ -191,6 +195,13 @@ fun MiniScrubBar(
         ) {
             Box(Modifier.fillMaxWidth().height(3.dp).clip(CircleShape).background(RiseOutline))
             Box(Modifier.fillMaxWidth(fraction).height(3.dp).clip(CircleShape).background(RiseWhite))
+            if (durationMs > 0) marks.forEach { m ->
+                Box(
+                    Modifier.offset(x = maxWidth * (m.toFloat() / durationMs).coerceIn(0f, 1f) - 4.dp)
+                        .size(8.dp).graphicsLayer { rotationZ = 45f }
+                        .background(androidx.compose.ui.graphics.Color(0xFFFFC94D))
+                )
+            }
             Box(
                 Modifier.offset(x = maxWidth * fraction - 5.dp).size(10.dp).clip(CircleShape).background(RiseWhite)
             )

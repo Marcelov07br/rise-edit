@@ -27,6 +27,15 @@ internal object ColorLive {
     val tick = androidx.compose.runtime.mutableIntStateOf(0)
     /** True while the paused GL overlay covers the player (no seek-redraw needed). */
     @Volatile var overlayActive = false
+    /** Keyframed color of the selected clip; null = static [adjust]/[grade]. */
+    @Volatile var keys: br.com.riseedit.core.Clip? = null
+    /** Source position of the playing clip (set by PreviewPanel each frame); drives [keys]. */
+    @Volatile var sourceMs: Long = 0
+    /** Last paused frame rendered by the export shader (scopes reuse it, no extra GPU pass). */
+    val scopeFrame = androidx.compose.runtime.mutableStateOf<android.graphics.Bitmap?>(null)
+
+    /** What the live effect draws now. */
+    fun current(): Pair<ColorAdjust, ColorGrade> = keys?.colorAt(sourceMs) ?: (adjust to grade)
 }
 
 /**
@@ -37,14 +46,26 @@ internal object ColorLive {
  * [ColorLive] every frame so the fast preview needs no pipeline rebuild on slider changes.
  */
 internal class ColorAdjustEffect private constructor(
-    private val source: () -> Pair<ColorAdjust, ColorGrade>,
+    private val source: (Long) -> Pair<ColorAdjust, ColorGrade>,
     private val static: Boolean,
-    private val preview: Boolean
+    private val preview: Boolean,
+    private val animated: Boolean = false
 ) : GlEffect {
     constructor(adjust: ColorAdjust, grade: ColorGrade, preview: Boolean) :
-        this({ adjust to grade }, true, preview)
+        this({ _ -> adjust to grade }, true, preview)
 
-    val neutral get() = source().let { it.first.isNeutral && it.second.isIdentity }
+    /**
+     * Export/faithful preview of a clip with color keyframes: values come from
+     * [br.com.riseedit.core.Clip.colorAt] at the source time of each frame (same mapping as
+     * ClipTransform: presentationTimeUs/1000 − offset → clip.sourceAt). Uniforms only, no rebuild.
+     */
+    constructor(clip: br.com.riseedit.core.Clip, offsetMs: Long, preview: Boolean) : this(
+        if (clip.colorKeys.isEmpty) { _ -> clip.adjustments to clip.grade }
+        else { us -> clip.colorAt(clip.sourceAt((us / 1000 - offsetMs).coerceIn(0, clip.durationMs))) },
+        true, preview, !clip.colorKeys.isEmpty
+    )
+
+    val neutral get() = !animated && source(0).let { it.first.isNeutral && it.second.isIdentity }
 
     override fun isNoOp(inputWidth: Int, inputHeight: Int) = static && neutral
 
@@ -52,11 +73,11 @@ internal class ColorAdjustEffect private constructor(
         Program(source, preview, useHdr)
 
     companion object {
-        val live = ColorAdjustEffect({ ColorLive.adjust to ColorLive.grade }, false, true)
+        val live = ColorAdjustEffect({ _ -> ColorLive.current() }, false, true)
     }
 
     private class Program(
-        private val source: () -> Pair<ColorAdjust, ColorGrade>,
+        private val source: (Long) -> Pair<ColorAdjust, ColorGrade>,
         private val preview: Boolean,
         useHdr: Boolean
     ) :
@@ -71,7 +92,7 @@ internal class ColorAdjustEffect private constructor(
 
         override fun drawFrame(inputTexId: Int, presentationTimeUs: Long) {
             try {
-                val (adjust, grade) = source()
+                val (adjust, grade) = source(presentationTimeUs)
                 pass.draw(inputTexId, adjust, grade, preview && ColorLive.holdOriginal)
             } catch (error: GlUtil.GlException) {
                 throw VideoFrameProcessingException(error, presentationTimeUs)

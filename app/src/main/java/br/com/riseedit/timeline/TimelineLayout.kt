@@ -121,8 +121,8 @@ private fun mainEntries(state: EditorState, ui: TimelineUiState): List<TimelineE
                 original.id, original.name, 0, offset * 1000.0 + leftDelta,
                 clip.durationMs * 1000, state.layerId == null && index == state.selected,
                 LaneVideo, original, mainIndex = index,
-                keyOffsetsUs = clip.keyframes
-                    .mapNotNull { outputMsOf(clip, it.sourceMs)?.times(1000.0) }
+                keyOffsetsUs = (clip.keyframes.map { it.sourceMs } + clip.colorKeys.times()).distinct()
+                    .mapNotNull { outputMsOf(clip, it)?.times(1000.0) }
             )
         )
         offset +=

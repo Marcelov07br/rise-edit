@@ -40,8 +40,13 @@ data class Clip(
     val orientation: Orientation = Orientation(),
     /** Per-parameter tracks; null means evaluate [keyframes] via legacy migration. */
     val tracks: br.com.riseedit.core.keys.TransformTracks? = null,
-    val grade: br.com.riseedit.core.color.ColorGrade = br.com.riseedit.core.color.ColorGrade()
+    val grade: br.com.riseedit.core.color.ColorGrade = br.com.riseedit.core.color.ColorGrade(),
+    /** Color animation (source time); empty = static [adjustments]/[grade]. */
+    val colorKeys: br.com.riseedit.core.color.ColorKeyframes = br.com.riseedit.core.color.ColorKeyframes()
 ) {
+    /** Adjust + grade at [sourceMs] (keyframes applied); identical for preview and export. */
+    fun colorAt(sourceMs: Long) = colorKeys.at(sourceMs, adjustments, grade)
+
     init {
         require(
             sourceDurationMs > 0 && startMs >= 0 && endMs <= sourceDurationMs && endMs > startMs

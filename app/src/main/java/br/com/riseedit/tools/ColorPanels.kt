@@ -27,6 +27,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Compare
+import androidx.compose.material.icons.rounded.BookmarkAdd
+import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.LibraryAdd
@@ -41,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 
 private data class AdjustRow(
@@ -66,25 +70,52 @@ private val adjustRows = listOf(
 @Composable
 internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
     val clip = state.project.clips.getOrNull(state.selected) ?: return
-    val a = clip.adjustments
+    val src = clipSourceMs(state, clip)
+    // Shown values are the evaluated ones at the playhead (keyframes applied).
+    val (a, shownGrade) = clip.colorAt(src)
     var tab by remember { mutableStateOf(AdjustTab.BASIC) }
     // Curves and wheels need room: expand the sheet automatically (handle still toggles).
     androidx.compose.runtime.LaunchedEffect(tab) {
         br.com.riseedit.ToolSheetDetent.expanded = tab == AdjustTab.CURVES || tab == AdjustTab.WHEELS
     }
+    val offset = state.project.clips.take(state.selected).sumOf { it.durationMs }
+    val times = clip.colorKeys.keys(tab.group()).map { it.timeMs }.filter { it in clip.startMs..clip.endMs }
+    fun jump(t: Long?) = t?.let { { vm.seek(offset + outputOfSource(clip, it)) } }
     AdjustContent(
         a, tab, { tab = it },
-        change = { vm.clipSettings(clip.copy(adjustments = it)) },
+        change = { vm.clipSettings(br.com.riseedit.core.color.ColorKeyEdits.editAdjust(clip, src, it)) },
         actions = AdjustActions(
             reset = vm::resetColor, copy = vm::copyAttributes, paste = vm::pasteAttributes,
             canPaste = vm.hasClipboard, applyAll = vm::applyColorToAll,
-            canReset = !a.isNeutral
+            canReset = !a.isNeutral || !clip.colorKeys.isEmpty,
+            savePreset = { savePresetOpen = true }, exportCube = { cubeOpen = true },
+            scopes = { br.com.riseedit.color.Scopes.visible = !br.com.riseedit.color.Scopes.visible }
         ),
         compare = { CompareHoldButton(vm, enabled = !a.isNeutral || !clip.grade.isIdentity) },
         grade = { GradePanel(vm, state) },
-        gradeActive = !clip.grade.isIdentity
+        gradeActive = !shownGrade.isIdentity,
+        keys = ColorKeyUi(
+            hasKeyHere = { clip.colorKeys.hasKeyAt(it.group(), src) },
+            animated = { clip.colorKeys.keys(it.group()).isNotEmpty() },
+            toggle = {
+                val g = it.group()
+                android.util.Log.i("RiseColor", "key toggle ${g.id} at ${src}ms (had=${clip.colorKeys.hasKeyAt(g, src)})")
+                vm.clipSettings(br.com.riseedit.core.color.ColorKeyEdits.toggle(clip, g, src))
+            },
+            prev = jump(times.lastOrNull { it < src - 20 }),
+            next = jump(times.firstOrNull { it > src + 20 })
+        )
     )
+    if (savePresetOpen) SavePresetDialog(a, onDismiss = { savePresetOpen = false }) { name, groups ->
+        savePresetOpen = false
+        UserPresetStore.add(vm.appContext, name, a, groups)
+        vm.message("Preset \"$name\" salvo em Filtros › Meus.")
+    }
+    if (cubeOpen) ExportCubeDialog(vm, clip, a, shownGrade, onDismiss = { cubeOpen = false })
 }
+
+private var savePresetOpen by mutableStateOf(false)
+private var cubeOpen by mutableStateOf(false)
 
 internal enum class AdjustTab(val label: String) { BASIC("Básico"), CURVES("Curvas"), HSL("HSL"), WHEELS("Rodas"), GRADE("LUT/log") }
 
@@ -94,7 +125,10 @@ internal class AdjustActions(
     val paste: () -> Unit = {},
     val canPaste: Boolean = false,
     val applyAll: () -> Unit = {},
-    val canReset: Boolean = true
+    val canReset: Boolean = true,
+    val savePreset: (() -> Unit)? = null,
+    val exportCube: (() -> Unit)? = null,
+    val scopes: (() -> Unit)? = null
 )
 
 /** Header (reset/copy/paste/apply to all) + tab content. Stateless, used by Paparazzi too. */
@@ -110,18 +144,26 @@ internal fun AdjustContent(
     band: Int = 0,
     compare: (@Composable () -> Unit)? = null,
     grade: (@Composable () -> Unit)? = null,
-    gradeActive: Boolean = false
+    gradeActive: Boolean = false,
+    keys: ColorKeyUi? = null
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         // Level 2: icon-only actions in the top corner; reset set apart (gap + divider).
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            // Keyframe diamond of the open tab lives at the start (it belongs to the tab, not the clip).
+            keys?.let { Row(horizontalArrangement = Arrangement.spacedBy(br.com.riseedit.designsystem.HierarchyTokens.ActionGap)) { KeyActions(it, tab) } }
+            Spacer(Modifier.weight(1f).width(8.dp))
             br.com.riseedit.designsystem.ActionBar(
-                listOf(
+                listOfNotNull(
+                    actions.scopes?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.Insights, if (br.com.riseedit.color.Scopes.visible) "Ocultar scopes" else "Mostrar scopes", onClick = it) },
+                    actions.savePreset?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.BookmarkAdd, "Salvar como preset", onClick = it) },
+                    actions.exportCube?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.FileDownload, "Exportar LUT .cube", onClick = it) },
                     br.com.riseedit.designsystem.PanelAction(Icons.Rounded.ContentCopy, "Copiar ajustes", onClick = actions.copy),
                     br.com.riseedit.designsystem.PanelAction(Icons.Rounded.ContentPaste, "Colar ajustes", actions.canPaste, onClick = actions.paste),
                     br.com.riseedit.designsystem.PanelAction(Icons.Rounded.LibraryAdd, "Aplicar a todos os clipes", onClick = actions.applyAll),
-                    br.com.riseedit.designsystem.PanelAction(Icons.Rounded.RestartAlt, "Resetar todos", actions.canReset && !a.isNeutral, danger = true, onClick = actions.reset)
+                    br.com.riseedit.designsystem.PanelAction(Icons.Rounded.RestartAlt, "Resetar todos", actions.canReset, danger = true, onClick = actions.reset)
                 ),
+                modifier = Modifier.weight(1f, fill = false).horizontalScroll(rememberScrollState()),
                 extra = compare
             )
         }

@@ -148,6 +148,7 @@ class ProjectStore(private val context: Context) {
             )
             .put("tracks", TracksJson.encode(c.tracks))
             .put("grade", GradeJson.encode(c.grade))
+            .apply { if (!c.colorKeys.isEmpty) put("colorKeys", JSONObject(br.com.riseedit.core.color.ColorKeyframes.toMap(c.colorKeys))) }
             .put(
                 "stabilization",
                 JSONObject().put(
@@ -202,7 +203,8 @@ class ProjectStore(private val context: Context) {
             muted = c.optBoolean("muted", false),
             orientation = readOrientation(c.optJSONObject("orientation")),
             tracks = TracksJson.decode(c.optJSONObject("tracks")),
-            grade = GradeJson.decode(c.optJSONObject("grade"))
+            grade = GradeJson.decode(c.optJSONObject("grade")),
+            colorKeys = br.com.riseedit.core.color.ColorKeyframes.fromMap(c.optJSONObject("colorKeys")?.let(GradeJson::plain))
         )
     }
 

@@ -118,12 +118,19 @@ fun PreviewPanel(
         16f / 9
     }
     val outputRatio = state.project.aspectRatio.takeIf { it > 0 } ?: sourceRatio
-    val adjust = clip?.adjustments ?: ColorAdjust.NEUTRAL
-    val grade = clip?.grade ?: br.com.riseedit.core.color.ColorGrade()
+    // Color keyframes: evaluated at the current source time (paused overlay uses this value;
+    // while playing the live effect reads ColorLive.sourceMs, updated here every frame).
+    val animatedColor = clip?.colorKeys?.isEmpty == false
+    br.com.riseedit.color.ColorLive.sourceMs = vm.previewSourceMs
+    val (adjust, grade) = clip?.colorAt(vm.previewSourceMs)
+        ?: (ColorAdjust.NEUTRAL to br.com.riseedit.core.color.ColorGrade())
     androidx.compose.runtime.LaunchedEffect(adjust, grade, fast) {
         if (!fast) return@LaunchedEffect
         br.com.riseedit.color.ColorLive.adjust = adjust
         br.com.riseedit.color.ColorLive.grade = grade
+        br.com.riseedit.color.ColorLive.keys = clip?.takeIf { animatedColor }
+        if (state.playing && animatedColor) return@LaunchedEffect // live effect samples per frame
+        if (animatedColor) android.util.Log.d("RiseColor", "keyframed color at ${vm.previewSourceMs}ms groups=${clip?.colorKeys?.tracks?.keys}")
         redrawColor(previewPlayer)
     }
     val index = state.project.clips.indexOfFirst { it.id == clip?.id }
@@ -334,6 +341,12 @@ fun PreviewPanel(
                     vm.previewQuality(PreviewQuality.Faithful)
                 }) { Text(if (fast) "Fiel" else "• Fiel") }
             }
+        }
+        if (clip != null) {
+            br.com.riseedit.color.ScopesOverlay(
+                clip, { vm.previewSourceMs }, state.playing,
+                Modifier.align(Alignment.TopEnd).padding(6.dp)
+            )
         }
         if (state.comparing) {
             Text(

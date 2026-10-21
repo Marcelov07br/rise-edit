@@ -7,7 +7,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -82,38 +82,54 @@ private object FilterThumbCache {
 internal fun FiltersPanel(vm: EditorViewModel, state: EditorState) {
     val clip = state.project.clips.getOrNull(state.selected) ?: return
     val context = LocalContext.current
-    val presets = FilterRegistry.all
+    UserPresetStore.load(context)
+    val users = UserPresetStore.presets.toList()
+    val presets = FilterRegistry.all + users.map { FilterPreset(USER + it.id, it.name, it.adjust, MINE) }
+    var managing by remember { mutableStateOf<br.com.riseedit.core.color.UserPreset?>(null) }
     // Frame of the clip when the panel opened; the rest of the clip's look (exposure, curves, LUT…)
     // is kept in the thumbnail so it shows what the clip will really look like.
     val sourceMs = remember(clip.id) { if (vm.previewClip?.id == clip.id) vm.previewSourceMs else clip.startMs }
     val base = clip.adjustments
     val grade = clip.grade
     val uri = clip.effectiveUri(true)
-    val cacheKey = "$uri@$sourceMs|${base.withFilter(ColorAdjust())}|$grade|${presets.size}"
+    fun lookOf(p: FilterPreset): ColorAdjust =
+        users.firstOrNull { USER + it.id == p.id }?.applyTo(base) ?: base.withFilter(p.adjust)
+    val cacheKey = "$uri@$sourceMs|$base|$grade|${presets.map { it.id + it.adjust.hashCode() }.hashCode()}"
     val thumbs by produceState(FilterThumbCache.cache.get(cacheKey), cacheKey) {
         if (value != null) return@produceState
         val frame = withContext(Dispatchers.IO) { grab(context, uri, sourceMs, THUMB_PX) }
-        val rendered = frame?.let { f -> PausedColorRenderer.thumbnails(f, presets.map { base.withFilter(it.adjust) }, grade) }
+        val rendered = frame?.let { f -> PausedColorRenderer.thumbnails(f, presets.map(::lookOf), grade) }
         val map = if (rendered != null) {
             presets.zip(rendered).associate { (p, b) -> p.id to b.asImageBitmap() }
         } else {
-            withContext(Dispatchers.Default) { sampleThumbnails(presets, base) }
+            withContext(Dispatchers.Default) { sampleThumbnails(presets, base, ::lookOf) }
         }
         FilterThumbCache.cache.put(cacheKey, map)
         value = map
     }
     val match = FilterRegistry.match(base)
+    val userMatch = users.firstOrNull { !it.owned().isNeutral && it.matches(base) }
     FiltersContent(
         presets = presets,
-        selectedId = match?.preset?.id,
+        selectedId = if (userMatch != null && (match == null || match.preset.isNone)) USER + userMatch.id else match?.preset?.id,
         intensity = match?.intensity ?: 1f,
         thumbnail = { thumbs?.get(it.id) },
-        onSelect = { p -> vm.clipSettings(clip.copy(adjustments = base.withFilter(p.adjust))) },
+        onSelect = { p -> vm.clipSettings(clip.copy(adjustments = lookOf(p))) },
+        onLongPress = { p -> managing = users.firstOrNull { USER + it.id == p.id } },
         onIntensity = { k ->
             match?.preset?.let { p -> vm.clipSettings(clip.copy(adjustments = base.withFilter(p.at(k)))) }
         }
     )
+    managing?.let { up ->
+        ManagePresetDialog(up, onDismiss = { managing = null },
+            onRename = { UserPresetStore.rename(context, up.id, it); managing = null },
+            onDelete = { UserPresetStore.delete(context, up.id); managing = null; vm.message("Preset \"${up.name}\" excluído.") })
+    }
 }
+
+internal const val USER = "user:"
+internal const val MINE = "Meus"
+
 
 /** Stateless content (also used by Paparazzi). Hierarchy: level 4 (escolhas) boxes + slider. */
 @Composable
@@ -123,10 +139,12 @@ internal fun FiltersContent(
     intensity: Float,
     thumbnail: (FilterPreset) -> ImageBitmap?,
     onSelect: (FilterPreset) -> Unit,
-    onIntensity: (Float) -> Unit
+    onIntensity: (Float) -> Unit,
+    onLongPress: (FilterPreset) -> Unit = {},
+    initialCategory: String = ALL
 ) {
     val categories = remember(presets) { listOf(ALL) + presets.mapNotNull { it.category }.distinct() }
-    var category by remember { mutableStateOf(ALL) }
+    var category by remember { mutableStateOf(initialCategory) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (categories.size > 2) {
             ChannelChips(categories, category, label = { it }) { category = it }
@@ -134,11 +152,11 @@ internal fun FiltersContent(
         val shown = presets.filter { it.isNone || category == ALL || it.category == category }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             items(shown, key = { it.id }) { p ->
-                FilterBox(p, p.id == selectedId, thumbnail(p)) { onSelect(p) }
+                FilterBox(p, p.id == selectedId, thumbnail(p), { onLongPress(p) }.takeIf { p.id.startsWith(USER) }) { onSelect(p) }
             }
         }
         val selected = presets.firstOrNull { it.id == selectedId }
-        if (selected != null && !selected.isNone) {
+        if (selected != null && !selected.isNone && !selected.id.startsWith(USER)) {
             TileSlider(
                 "Intensidade · ${selected.name}",
                 intensity * 100f,
@@ -154,14 +172,15 @@ internal fun FiltersContent(
 }
 
 @Composable
-private fun FilterBox(preset: FilterPreset, selected: Boolean, image: ImageBitmap?, onClick: () -> Unit) {
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun FilterBox(preset: FilterPreset, selected: Boolean, image: ImageBitmap?, onLongClick: (() -> Unit)?, onClick: () -> Unit) {
     val border by animateDpAsState(if (selected) 2.dp else 1.dp, riseSpring(), label = "border")
     val scale by animateFloatAsState(if (selected) 1f else 0.94f, riseSpring(), label = "scale")
     val shape = RoundedCornerShape(14.dp)
     Column(
         Modifier.width(72.dp).graphicsLayer { scaleX = scale; scaleY = scale }
             .semantics { contentDescription = "Filtro ${preset.name}"; this.selected = selected }
-            .clickable(onClick = onClick),
+            .combinedClickable(onLongClick = onLongClick, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -195,7 +214,7 @@ private fun Image(it: ImageBitmap) =
     androidx.compose.foundation.Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
 
 /** Built-in sample (sky / skin / foliage bands) colored with the CPU mirror of the shader. */
-internal fun sampleThumbnails(presets: List<FilterPreset>, base: ColorAdjust = ColorAdjust()): Map<String, ImageBitmap> {
+internal fun sampleThumbnails(presets: List<FilterPreset>, base: ColorAdjust = ColorAdjust(), lookOf: (FilterPreset) -> ColorAdjust = { base.withFilter(it.adjust) }): Map<String, ImageBitmap> {
     val n = 64
     val src = FloatArray(n * n * 3)
     for (y in 0 until n) for (x in 0 until n) {
@@ -210,7 +229,7 @@ internal fun sampleThumbnails(presets: List<FilterPreset>, base: ColorAdjust = C
         src[i] = r; src[i + 1] = g; src[i + 2] = b
     }
     return presets.associate { p ->
-        val look = base.withFilter(p.adjust)
+        val look = lookOf(p)
         val px = IntArray(n * n) { k ->
             val o = ColorAdjustMath.apply(look, floatArrayOf(src[k * 3], src[k * 3 + 1], src[k * 3 + 2]))
             fun c(f: Float) = (f.coerceIn(0f, 1f) * 255f).toInt()

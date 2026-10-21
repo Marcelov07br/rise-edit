@@ -180,8 +180,10 @@ internal class ProjectCommands(private val document: EditorDocument) {
     fun resetColor() {
         val state = document.current
         val clip = state.project.clips.getOrNull(state.selected) ?: return
-        if (clip.adjustments.isNeutral) return
-        if (document.edit(state.project.replace(state.selected, clip.copy(adjustments = br.com.riseedit.core.ColorAdjust.NEUTRAL)))) {
+        if (clip.adjustments.isNeutral && clip.colorKeys.isEmpty) return
+        // Keeps only LUT-intensity keys (grade is not part of "Resetar todos").
+        val keys = br.com.riseedit.core.color.ColorKeyframes(clip.colorKeys.tracks.filterKeys { it == br.com.riseedit.core.color.ColorKeyGroup.LUT })
+        if (document.edit(state.project.replace(state.selected, clip.copy(adjustments = br.com.riseedit.core.ColorAdjust.NEUTRAL, colorKeys = keys)))) {
             document.message("Ajustes de cor resetados.", undo = true)
         }
     }

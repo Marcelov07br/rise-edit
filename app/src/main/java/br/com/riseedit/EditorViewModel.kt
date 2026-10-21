@@ -52,6 +52,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     val previewSourceMs get() = preview.engine.activeSourceMs
     fun motionAnalysis(uri: String) = document.analyses[uri]
     fun message(text: String?) = document.message(text)
+    val appContext: android.content.Context get() = getApplication()
     fun open(project: Project) = loader.open(project)
     fun undo() = document.undo()
     fun redo() = document.redo()

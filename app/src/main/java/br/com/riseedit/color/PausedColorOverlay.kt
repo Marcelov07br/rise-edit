@@ -88,6 +88,7 @@ internal fun PausedColorOverlay(
                 val out = PausedColorRenderer.render(it.first, it.second, ColorLive.holdOriginal)
                 if (out != null) {
                     shown = out
+                    ColorLive.scopeFrame.value = out
                     if (!ColorLive.overlayActive) Log.i(TAG, "overlay active (paused)")
                     ColorLive.overlayActive = true
                 }

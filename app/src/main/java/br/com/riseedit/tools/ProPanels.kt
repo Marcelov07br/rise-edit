@@ -67,7 +67,10 @@ internal fun GradePanel(vm: EditorViewModel, state: EditorState) {
             }
         }
     val known = state.project.clips.mapNotNull { c -> c.grade.lutUri?.let { it to (c.grade.lutName ?: "LUT") } }.distinctBy { it.first }
-    GradeControls(g, known, { vm.clipSettings(clip.copy(grade = it)) }, { picker.launch(arrayOf("*/*")) })
+    val src = clipSourceMs(state, clip)
+    GradeControls(clip.colorAt(src).second, known, {
+        vm.clipSettings(br.com.riseedit.core.color.ColorKeyEdits.editGrade(clip, src, it))
+    }, { picker.launch(arrayOf("*/*")) })
 }
 
 private const val IMPORT = "\u0000import"
@@ -137,7 +140,7 @@ internal fun MetersPanel(vm: EditorViewModel, state: EditorState) {
     }
     val sourceMs = vm.previewSourceMs
     var data by remember { mutableStateOf<MeterData?>(null) }
-    LaunchedEffect(clip.id, clip.grade, clip.adjustments, sourceMs / 250, state.project.modifiedAt) {
+    LaunchedEffect(clip.id, clip.grade, clip.adjustments, clip.colorKeys, sourceMs / 250, state.project.modifiedAt) {
         data = withContext(Dispatchers.Default) { measure(context, clip, sourceMs) }
     }
     val d = data ?: return Text("Lendo quadro…", style = MaterialTheme.typography.bodySmall)
@@ -197,7 +200,8 @@ private fun measure(
         val px = IntArray(w * h)
         bmp.getPixels(px, 0, w, 0, 0, w, h)
         bmp.recycle()
-        for (i in px.indices) px[i] = GradeLuts.applyFull(clip.adjustments, clip.grade, px[i])
+        val (adj, grd) = clip.colorAt(sourceMs)
+        for (i in px.indices) px[i] = GradeLuts.applyFull(adj, grd, px[i])
         val zebra = Meters.zebra(px)
         val shown = px.copyOf()
         for (i in shown.indices) {
