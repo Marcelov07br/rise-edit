@@ -29,6 +29,7 @@ internal class TimelineActions(
             is TrimDraft.Main -> vm.trimClip(draft.session.original, draft.draft)
             is TrimDraft.Overlay -> vm.trimOverlay(draft.session.original, draft.draft)
             is TrimDraft.Audio -> vm.trimAudio(draft.session.original, draft.draft)
+            is TrimDraft.Adjust -> vm.trimAdjustment(draft.original, draft.draft)
             null -> Unit
         }
     }

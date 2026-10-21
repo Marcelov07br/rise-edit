@@ -25,6 +25,8 @@ val LaneVideo = Color(0xFFEDEDED)
 val LaneOverlay = Color(0xFFB5B5B5)
 val LaneText = Color(0xFF9A9A9A)
 val LaneAudio = Color(0xFF7C7C7C)
+/** Camada de ajuste: the only tinted lane, so it reads as "color" at a glance. */
+val LaneAdjust = Color(0xFFC9A6FF)
 
 /** Springs with a gentle, clamped bounce for panels and presses. */
 fun <T> riseSpring(): SpringSpec<T> =

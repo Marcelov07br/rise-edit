@@ -74,7 +74,7 @@ internal fun ColumnScope.EditorWorkspace(
                     state,
                     trackAreaHeight = 168.dp,
                     onSelect = { ui.contextual = true },
-                    onAddToLane = { lane -> addToLane(lane, ui, media) },
+                    onAddToLane = { lane -> addToLane(lane, ui, media, vm) },
                     onKeyframe = {
                         ui.contextual = true
                         ui.lastTool = br.com.riseedit.tools.EditorTool.Keyframe
@@ -146,9 +146,10 @@ private fun DockedToolPanel(
     }
 }
 
-private fun addToLane(lane: Int, ui: EditorUiState, media: EditorMediaActions) {
+private fun addToLane(lane: Int, ui: EditorUiState, media: EditorMediaActions, vm: EditorViewModel) {
     when (lane) {
         0 -> media.videos()
+        br.com.riseedit.timeline.LANE_ADJUST -> vm.addAdjustmentLayer()
         1, 2 -> {
             ui.overlayTrack = lane - 1
             media.overlay()

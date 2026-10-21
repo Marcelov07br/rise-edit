@@ -190,7 +190,7 @@ private fun LaneLabel(row: Int, empty: Boolean, onAdd: () -> Unit) {
 @Composable
 private fun AddLaneButton(ui: TimelineUiState, lanes: List<Int>) {
     var open by remember { mutableStateOf(false) }
-    val options = listOf("Overlay" to 1..2, "Texto" to 3..3, "Áudio" to 4..6)
+    val options = listOf("Overlay" to 1..2, "Camada de ajuste" to LANE_ADJUST..LANE_ADJUST, "Texto" to 3..3, "Áudio" to 4..6)
         .mapNotNull { (label, kind) -> nextLane(kind, lanes)?.let { label to it } }
     if (options.isEmpty()) return
     Box {

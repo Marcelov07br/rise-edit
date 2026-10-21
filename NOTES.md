@@ -69,3 +69,11 @@
   - Shader: `LocalColorMath.GLSL` (+ espelho CPU `LocalColorMath`) concatenado ao `ColorAdjustMath.GLSL`; novo `uAmount` (mix original→resultado; base da opacidade da camada de ajuste). Validado com glslangValidator (ES 1.00 e 3.00).
   - JSON: `"color".v = 4` com `qualifier`/`vignette`; v3 migra para neutro. Presets sem lista de grupos (≤0.14) = 4 grupos antigos. `ColorAdjust.isNeutral` trata qualifier sem ajustes como neutro; `isGlobalNeutral` controla `uNeutral`.
   - Prints: screenshots/0.15.0/. Não testado em aparelho.
+
+## 0.16.0 (versionCode 27) — Camada de ajuste
+- `core/AdjustmentLayer.kt`: AdjustmentLayer (trilha própria, início/duração/trim, opacidade, cor completa com keyframes em tempo local) + AdjustmentStack (ordem trilha→início, aplicação de baixo→cima). Base `MaskTarget` para máscaras em 0.17 (não implementadas).
+- JSON schema 9 (`adjustmentLayers`); schemas 1..8 migram sem camadas. Testes: AdjustmentLayerTest.
+- Export: `Composition.Builder.setEffects` (pós-composição). Preview Rápida: efeito live lendo `ColorLive.layers`; pausado/Fiel: passes extras via FBO ping-pong.
+- UI: faixa "Ajuste" (lane 7), botão '+' e menus "Camada de ajuste"; painel de cor com cabeçalho de camada + opacidade; copiar/colar entre camadas e clipes.
+- Riscos: TODO do Media3 1.9 sobre efeitos de composição; na Rápida a camada é aplicada ao frame do clipe (vinheta pode diferir com corte de aspecto); não testado em aparelho.
+- Pré-existente: `./build-local.sh check` falha em ktlint/detekt/lint (ExportService UnstableApi, FiltersPanel produceState) — fora do escopo.

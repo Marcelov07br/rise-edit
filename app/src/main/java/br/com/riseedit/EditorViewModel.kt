@@ -127,6 +127,10 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun audio(layer: AudioClip) = layers.audio(layer)
     fun overlay(layer: VideoOverlay) = layers.overlay(layer)
     fun removeLayer() = layers.remove()
+    fun adjustmentLayer(layer: br.com.riseedit.core.AdjustmentLayer) = layers.adjustment(layer)
+    fun addAdjustmentLayer() = layers.addAdjustment()
+    fun trimAdjustment(original: br.com.riseedit.core.AdjustmentLayer, trimmed: br.com.riseedit.core.AdjustmentLayer) =
+        layers.trimAdjustment(original, trimmed)
     fun moveLayer(id: String, offset: Long, snapping: Boolean) = layers.move(id, offset, snapping)
     fun trimOverlay(original: VideoOverlay, trimmed: VideoOverlay) =
         layers.trimOverlay(original, trimmed)

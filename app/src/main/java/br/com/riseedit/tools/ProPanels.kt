@@ -48,8 +48,9 @@ import kotlinx.coroutines.withContext
 
 /** Log input, fixed tone curves and user .cube LUTs (no sliders: steps only). */
 @Composable
-internal fun GradePanel(vm: EditorViewModel, state: EditorState) {
-    val clip = state.project.clips.getOrNull(state.selected) ?: return
+internal fun GradePanel(vm: EditorViewModel, state: EditorState, target: ColorTarget? = colorTarget(state)) {
+    val t = target ?: return
+    val clip = t.clip
     val g = clip.grade
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -60,16 +61,15 @@ internal fun GradePanel(vm: EditorViewModel, state: EditorState) {
                 val result =
                     withContext(Dispatchers.IO) { runCatching { GradeLuts.import(context, uri) } }
                 result.onSuccess { (file, name) ->
-                    vm.clipSettings(
-                        clip.copy(grade = g.copy(lutUri = file, lutName = name, lutIntensity = 1f))
-                    )
+                    vm.commitColor(t, clip.copy(grade = g.copy(lutUri = file, lutName = name, lutIntensity = 1f)))
                 }.onFailure { vm.message("LUT inválido: ${it.message}") }
             }
         }
-    val known = state.project.clips.mapNotNull { c -> c.grade.lutUri?.let { it to (c.grade.lutName ?: "LUT") } }.distinctBy { it.first }
-    val src = clipSourceMs(state, clip)
+    val known = (state.project.clips.map { it.grade } + state.project.adjustmentLayers.map { it.grade })
+        .mapNotNull { gr -> gr.lutUri?.let { it to (gr.lutName ?: "LUT") } }.distinctBy { it.first }
+    val src = t.sourceMs(state.positionMs)
     GradeControls(clip.colorAt(src).second, known, {
-        vm.clipSettings(br.com.riseedit.core.color.ColorKeyEdits.editGrade(clip, src, it))
+        vm.commitColor(t, br.com.riseedit.core.color.ColorKeyEdits.editGrade(clip, src, it))
     }, { picker.launch(arrayOf("*/*")) })
 }
 

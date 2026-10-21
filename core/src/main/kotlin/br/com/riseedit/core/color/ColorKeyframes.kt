@@ -55,6 +55,10 @@ data class ColorKeyframes(val tracks: Map<ColorKeyGroup, List<ColorKey>> = empty
 
     fun clear(g: ColorKeyGroup) = copy(tracks = tracks - g)
 
+    /** Every key moved by [deltaMs] (negative keys clamp to 0). */
+    fun shifted(deltaMs: Long) = if (deltaMs == 0L) this else
+        copy(tracks = tracks.mapValues { (_, k) -> k.map { it.copy(timeMs = (it.timeMs + deltaMs).coerceAtLeast(0)) } })
+
     /**
      * Values at [sourceMs]: groups without keys keep [base]/[grade]; a group with keys follows them
      * (a single key acts as a constant). Editing a slider while a group is keyed should go through

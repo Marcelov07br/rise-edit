@@ -34,6 +34,8 @@ internal object PausedColorRenderer {
     private var srcTex = 0
     private var fbo = 0
     private var outTex = 0
+    private var fbo2 = 0
+    private var outTex2 = 0
     private var width = 0
     private var height = 0
     private var buffer: ByteBuffer? = null
@@ -58,6 +60,12 @@ internal object PausedColorRenderer {
                 if (fbo == 0) fbo = IntArray(1).also { GLES20.glGenFramebuffers(1, it, 0) }[0]
                 GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo)
                 GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, outTex, 0)
+                if (outTex2 == 0) outTex2 = genTexture()
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, outTex2)
+                GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null)
+                if (fbo2 == 0) fbo2 = IntArray(1).also { GLES20.glGenFramebuffers(1, it, 0) }[0]
+                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo2)
+                GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, outTex2, 0)
                 buffer = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.nativeOrder())
             }
             source = frame
@@ -69,15 +77,30 @@ internal object PausedColorRenderer {
         }
     }
 
-    /** Renders the uploaded frame with [adjust]/[grade]; null on failure. */
-    suspend fun render(adjust: ColorAdjust, grade: ColorGrade, bypass: Boolean): Bitmap? = withContext(dispatcher) {
+    /**
+     * Renders the uploaded frame with [adjust]/[grade] (take color), then each adjustment layer
+     * pass bottom→top (ping-pong between two FBOs, same ColorPass); null on failure.
+     */
+    suspend fun render(
+        adjust: ColorAdjust, grade: ColorGrade, bypass: Boolean,
+        layers: List<br.com.riseedit.core.AdjustmentPass> = emptyList()
+    ): Bitmap? = withContext(dispatcher) {
         try {
             val p = pass ?: return@withContext null
             val buf = buffer ?: return@withContext null
             val t0 = System.nanoTime()
+            val aspect = width.toFloat() / height
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo)
             GLES20.glViewport(0, 0, width, height)
-            p.draw(srcTex, adjust, grade, bypass, aspect = width.toFloat() / height, flipY = true, showMask = ColorLive.showMask)
+            p.draw(srcTex, adjust, grade, bypass, aspect = aspect, flipY = true, showMask = ColorLive.showMask)
+            if (!bypass) {
+                val targets = listOf(fbo to outTex, fbo2 to outTex2)
+                layers.forEachIndexed { i, l ->
+                    GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, targets[(i + 1) % 2].first)
+                    p.draw(targets[i % 2].second, l.adjust, l.grade, false, aspect = aspect, flipY = true, amount = l.opacity)
+                }
+                if (layers.isNotEmpty()) Log.d(TAG, "paused: ${layers.size} adjustment layer pass(es)")
+            }
             buf.rewind()
             GLES20.glReadPixels(0, 0, width, height, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf)
             buf.rewind()

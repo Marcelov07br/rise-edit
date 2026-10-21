@@ -36,6 +36,12 @@ internal object ColorLive {
     /** Last paused frame rendered by the export shader (scopes reuse it, no extra GPU pass). */
     val scopeFrame = androidx.compose.runtime.mutableStateOf<android.graphics.Bitmap?>(null)
 
+    /** Adjustment layers of the project + playhead (project time), for the fast preview. */
+    @Volatile var layers: List<br.com.riseedit.core.AdjustmentLayer> = emptyList()
+    @Volatile var projectMs: Long = 0
+
+    fun layerPasses() = br.com.riseedit.core.AdjustmentStack.at(layers, projectMs)
+
     /** What the live effect draws now. */
     fun current(): Pair<ColorAdjust, ColorGrade> = keys?.colorAt(sourceMs) ?: (adjust to grade)
 }

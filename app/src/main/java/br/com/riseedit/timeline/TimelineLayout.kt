@@ -11,7 +11,13 @@ import br.com.riseedit.core.Clip
 import br.com.riseedit.core.editing.TrimEdge
 
 internal val trackNames =
-    listOf("Vídeo", "Overlay 1", "Overlay 2", "Texto", "Áudio 1", "Áudio 2", "Áudio 3")
+    listOf("Vídeo", "Overlay 1", "Overlay 2", "Texto", "Áudio 1", "Áudio 2", "Áudio 3", "Ajuste")
+
+/** Camada de ajuste lane id; shown right below the overlays it affects (above texts). */
+internal const val LANE_ADJUST = 7
+
+/** Display order of lane ids, top to bottom. */
+private val LANE_ORDER = listOf(0, 1, 2, LANE_ADJUST, 3, 4, 5, 6)
 
 /** Video, one overlay and one audio lane are always present; others appear on demand. */
 internal val BASE_LANES = listOf(0, 1, 4)
@@ -22,7 +28,7 @@ internal fun visibleLanes(entries: List<TimelineEntry>, extra: Set<Int>): List<I
     BASE_LANES + entries.map {
         it.row
     } + extra
-    ).distinct().filter { it in trackNames.indices }.sorted()
+    ).distinct().filter { it in trackNames.indices }.sortedBy { LANE_ORDER.indexOf(it) }
 
 /** Next hidden lane of a kind: overlay (1-2), text (3) or audio (4-6). */
 internal fun nextLane(kind: IntRange, shown: List<Int>): Int? = kind.firstOrNull { it !in shown }
@@ -39,6 +45,7 @@ internal data class TimelineEntry(
     val audio: AudioClip? = null,
     val mainIndex: Int? = null,
     val overlay: br.com.riseedit.core.VideoOverlay? = null,
+    val adjustment: br.com.riseedit.core.AdjustmentLayer? = null,
     /** Keyframe times relative to the entry start, drawn as diamonds. */
     val keyOffsetsUs: List<Double> = emptyList()
 ) {
@@ -63,6 +70,21 @@ internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<Time
                     it.clip,
                     overlay = live,
                     keyOffsetsUs = it.keyframes.map { key -> key.sourceMs * 1000.0 }
+                )
+            )
+        }
+        state.project.adjustmentLayers.forEach { live ->
+            val it = (ui.trimDraft as? TrimDraft.Adjust)?.draft?.takeIf { d -> d.id == live.id } ?: live
+            add(
+                TimelineEntry(
+                    it.id,
+                    if (it.opacity < 1f) "${it.name} · ${(it.opacity * 100).toInt()}%" else it.name,
+                    LANE_ADJUST,
+                    it.startMs * 1000.0,
+                    it.durationMs * 1000,
+                    state.layerId == it.id,
+                    br.com.riseedit.LaneAdjust,
+                    adjustment = live
                 )
             )
         }

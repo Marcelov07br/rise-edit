@@ -232,7 +232,9 @@ data class Project(
     val overlays: List<VideoOverlay> = emptyList(),
     val aspectRatio: Float = 0f,
     val export: ExportSettings = ExportSettings(),
-    val markers: List<Marker> = emptyList()
+    val markers: List<Marker> = emptyList(),
+    /** Camadas de ajuste (0.16), applied after composition; see [AdjustmentStack]. */
+    val adjustmentLayers: List<AdjustmentLayer> = emptyList()
 ) {
     val durationMs get() = clips.sumOf { it.durationMs }
     fun replace(index: Int, clip: Clip) =

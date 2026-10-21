@@ -110,9 +110,19 @@ internal class ProjectCommands(private val document: EditorDocument) {
     private var clipboard: br.com.riseedit.core.editing.ClipAttributes? = null
     val hasClipboard get() = clipboard != null
 
-    /** Opens the copy checklist with every group the selected clip actually has. */
+    /** Selected camada de ajuste, if the selection is one. */
+    private fun selectedLayer(): br.com.riseedit.core.AdjustmentLayer? {
+        val sel = document.current.selection as? br.com.riseedit.core.Selection.Adjustment ?: return null
+        return document.current.project.adjustmentLayers.firstOrNull { it.id == sel.id }
+    }
+
+    /** Copy source: the selected adjustment layer (as a clip) or the selected clip. */
+    private fun colorSource(): Clip? = selectedLayer()?.asClip()
+        ?: document.current.project.clips.getOrNull(document.current.selected)
+
+    /** Opens the copy checklist with every group the selected clip (or layer) actually has. */
     fun copyAttributes() {
-        val clip = document.current.project.clips.getOrNull(document.current.selected) ?: return
+        val clip = colorSource() ?: return
         val shown = br.com.riseedit.core.editing.ClipAttributes.of(clip).available
         if (shown.isEmpty()) return document.message("Este clipe não tem atributos alterados para copiar.")
         document.update { it.copy(attributeDialog = br.com.riseedit.AttributeDialog(false, shown, shown.toSet())) }
@@ -120,7 +130,7 @@ internal class ProjectCommands(private val document: EditorDocument) {
 
     fun confirmCopy(groups: Set<br.com.riseedit.core.editing.AttributeGroup>) {
         closeAttributeDialog()
-        val clip = document.current.project.clips.getOrNull(document.current.selected) ?: return
+        val clip = colorSource() ?: return
         if (groups.isEmpty()) return
         clipboard = br.com.riseedit.core.editing.ClipAttributes.of(clip, groups)
         document.message("Copiado: " + clipboard!!.available.joinToString { it.label } + ".")
@@ -146,6 +156,15 @@ internal class ProjectCommands(private val document: EditorDocument) {
         }
         if (missing.isNotEmpty()) use = br.com.riseedit.core.editing.AttributeCopy.close(use - br.com.riseedit.core.editing.AttributeGroup.LUT)
         if (use.isEmpty()) return
+        // Pasting into a camada de ajuste: only color groups mean something there.
+        val layer = selectedLayer()
+        if (layer != null && !allClips) {
+            val pasted = layer.withColorOf(attributes.applyTo(layer.asClip(), use))
+            if (document.edit(state.project.copy(adjustmentLayers = state.project.adjustmentLayers.map { if (it.id == layer.id) pasted else it }))) {
+                document.message(if (missing.isNotEmpty()) "Colado sem o LUT: arquivo .cube não encontrado." else "Colado na camada de ajuste.", undo = true)
+            }
+            return
+        }
         var noAnalysis = false
         val targets = if (allClips) state.project.clips.indices.toList() else listOf(state.selected)
         val clips = state.project.clips.mapIndexed { i, clip ->
@@ -191,6 +210,15 @@ internal class ProjectCommands(private val document: EditorDocument) {
     /** "Resetar todos" in Ajustar: neutral ColorAdjust (sliders, curves, HSL, wheels); undoable. */
     fun resetColor() {
         val state = document.current
+        selectedLayer()?.let { layer ->
+            if (layer.adjust.isNeutral && layer.colorKeys.isEmpty) return
+            val keys = br.com.riseedit.core.color.ColorKeyframes(layer.colorKeys.tracks.filterKeys { it == br.com.riseedit.core.color.ColorKeyGroup.LUT })
+            val reset = layer.copy(adjust = br.com.riseedit.core.ColorAdjust.NEUTRAL, colorKeys = keys)
+            if (document.edit(state.project.copy(adjustmentLayers = state.project.adjustmentLayers.map { if (it.id == layer.id) reset else it }))) {
+                document.message("Ajustes da camada resetados.", undo = true)
+            }
+            return
+        }
         val clip = state.project.clips.getOrNull(state.selected) ?: return
         if (clip.adjustments.isNeutral && clip.colorKeys.isEmpty) return
         // Keeps only LUT-intensity keys (grade is not part of "Resetar todos").

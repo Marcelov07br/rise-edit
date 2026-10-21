@@ -54,10 +54,34 @@ internal class LayerCommands(private val document: EditorDocument) {
         )
     }
 
+    fun adjustment(layer: br.com.riseedit.core.AdjustmentLayer) {
+        val project = document.current.project
+        document.edit(project.copy(adjustmentLayers = project.adjustmentLayers.map { if (it.id == layer.id) layer else it }))
+    }
+
+    /** New camada de ajuste at the playhead (3 s), selected; undoable. */
+    fun addAdjustment() {
+        val state = document.current
+        if (state.project.clips.isEmpty()) return document.message("Adicione um vídeo antes da camada de ajuste.")
+        val layer = br.com.riseedit.core.AdjustmentLayer.at(state.project, state.positionMs)
+        android.util.Log.i("RiseColor", "adjustment layer added ${layer.id} ${layer.startMs}+${layer.durationMs}ms")
+        if (document.edit(state.project.copy(adjustmentLayers = state.project.adjustmentLayers + layer))) {
+            select(layer.id)
+            document.message("Camada de ajuste adicionada. Toque em Ajustar para editar a cor.", undo = true)
+        }
+    }
+
+    fun trimAdjustment(original: br.com.riseedit.core.AdjustmentLayer, trimmed: br.com.riseedit.core.AdjustmentLayer): Boolean {
+        val project = document.current.project
+        if (project.adjustmentLayers.none { it == original }) return false
+        return document.edit(project.copy(adjustmentLayers = project.adjustmentLayers.map { if (it.id == original.id) trimmed else it }))
+    }
+
     fun remove() {
         val project = document.current.project
         val id = document.current.layerId
         val edited = project.copy(
+            adjustmentLayers = project.adjustmentLayers.filter { it.id != id },
             audio = project.audio.filter { it.id != id },
             texts = project.texts.filter { it.id != id },
             overlays = project.overlays.filter { it.id != id }
@@ -130,6 +154,9 @@ internal class LayerCommands(private val document: EditorDocument) {
                     } else {
                         it
                     }
+                },
+                adjustmentLayers = project.adjustmentLayers.map {
+                    if (it.id == id) br.com.riseedit.core.AdjustmentStack.move(it, time) else it
                 }
             )
         )

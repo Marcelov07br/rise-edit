@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.FilterNone
 import androidx.compose.material.icons.outlined.FontDownload
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.LibraryMusic
+import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.SkipNext
@@ -34,13 +35,14 @@ import kotlin.math.min
 /** Bottom toolbar content: leading back button (when nested) plus the current level's items. */
 internal class ToolbarLevel(val leading: ToolbarItem?, val items: List<ToolbarItem>)
 
-private enum class Base { ROOT, CLIP, TEXT, OVERLAY, AUDIO }
+private enum class Base { ROOT, CLIP, TEXT, OVERLAY, AUDIO, ADJUST }
 
 private fun base(state: EditorState, ui: EditorUiState): Base = when {
     state.project.clips.isEmpty() -> Base.ROOT
     state.selection is br.com.riseedit.core.Selection.Text -> Base.TEXT
     state.selection is br.com.riseedit.core.Selection.Overlay -> Base.OVERLAY
     state.selection is br.com.riseedit.core.Selection.Audio -> Base.AUDIO
+    state.selection is br.com.riseedit.core.Selection.Adjustment -> Base.ADJUST
     ui.contextual -> Base.CLIP
     else -> Base.ROOT
 }
@@ -56,6 +58,7 @@ internal fun toolbarLevel(
     val base = base(state, ui)
     val items = if (nested != null) {
         menuItems(
+            vm,
             nested,
             state,
             ui,
@@ -124,6 +127,7 @@ private fun baseItems(
                 ui.push(ToolMenu.OVERLAY)
             },
             ToolbarItem("Cor", Icons.Outlined.Palette, enabled) { ui.push(ToolMenu.COLOR) },
+            ToolbarItem("Camada de ajuste", Icons.Outlined.Layers, enabled) { vm.addAdjustmentLayer() },
             ui.toolItem(EditorTool.Format, enabled),
             ToolbarItem("Marcadores", Icons.Outlined.Bookmark, enabled) {
                 ui.push(ToolMenu.MARKERS)
@@ -180,10 +184,17 @@ private fun baseItems(
             delete
         )
         Base.AUDIO -> listOf(ui.toolItem(EditorTool.AudioLayer, enabled, "Ajustar"), delete)
+        Base.ADJUST -> listOf(
+            ui.toolItem(EditorTool.Adjust, enabled),
+            ToolbarItem("Copiar atributos", Icons.Outlined.ContentCopy, enabled, onClick = vm::copyAttributes),
+            ToolbarItem("Colar atributos", Icons.Outlined.ContentPaste, enabled && vm.hasClipboard) { vm.pasteAttributes() },
+            delete
+        )
     }
 }
 
 private fun menuItems(
+    vm: EditorViewModel,
     menu: ToolMenu,
     state: EditorState,
     ui: EditorUiState,
@@ -213,7 +224,8 @@ private fun menuItems(
         ui.toolItem(EditorTool.Adjust, enabled),
         ui.toolItem(EditorTool.Filters, enabled),
         ui.toolItem(EditorTool.Grade, enabled),
-        ui.toolItem(EditorTool.Meters, enabled)
+        ui.toolItem(EditorTool.Meters, enabled),
+        ToolbarItem("Camada de ajuste", Icons.Outlined.Layers, enabled) { vm.addAdjustmentLayer() }
     )
     ToolMenu.MARKERS -> listOf(
         ToolbarItem(

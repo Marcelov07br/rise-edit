@@ -17,7 +17,7 @@ internal class FastPreview(context: Context, colorEffect: Boolean = true) {
     val player = ExoPlayer.Builder(context).build().apply {
         setSeekParameters(androidx.media3.exoplayer.SeekParameters.EXACT)
         // Same shader as export; reads ColorLive each frame. Must be set before the first prepare().
-        if (colorEffect) runCatching { setVideoEffects(listOf(br.com.riseedit.color.ColorAdjustEffect.live)) }
+        if (colorEffect) runCatching { setVideoEffects(listOf(br.com.riseedit.color.ColorAdjustEffect.live, br.com.riseedit.color.AdjustmentLayersEffect.live)) }
             .onFailure { br.com.riseedit.diagnostics.Diagnostics.log("cor", "Efeito de cor indisponível na prévia", it) }
     }
     private val sources = DefaultMediaSourceFactory(context)

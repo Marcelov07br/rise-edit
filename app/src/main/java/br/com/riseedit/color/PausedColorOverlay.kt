@@ -41,13 +41,15 @@ internal fun PausedColorOverlay(
     playing: Boolean,
     adjust: ColorAdjust,
     grade: ColorGrade,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    layers: List<br.com.riseedit.core.AdjustmentPass> = emptyList()
 ) {
     val context = LocalContext.current
     var ready by remember { mutableStateOf(false) }
     var shown by remember { mutableStateOf<Bitmap?>(null) }
     val currentAdjust by rememberUpdatedState(adjust)
     val currentGrade by rememberUpdatedState(grade)
+    val currentLayers by rememberUpdatedState(layers)
     val uri = clip.effectiveUri(true)
     DisposableEffect(Unit) { onDispose { ColorLive.overlayActive = false } }
     val currentSourceMs by rememberUpdatedState(sourceMs)
@@ -80,12 +82,12 @@ internal fun PausedColorOverlay(
     LaunchedEffect(ready) {
         if (!ready) return@LaunchedEffect
         var last = 0L
-        snapshotFlow { Triple(currentAdjust, currentGrade, ColorLive.tick.intValue) }
+        snapshotFlow { listOf(currentAdjust, currentGrade, ColorLive.tick.intValue, currentLayers) }
             .collectLatest {
                 val wait = FRAME_INTERVAL_MS - (System.currentTimeMillis() - last)
                 if (wait > 0) delay(wait)
                 last = System.currentTimeMillis()
-                val out = PausedColorRenderer.render(it.first, it.second, ColorLive.holdOriginal)
+                val out = PausedColorRenderer.render(currentAdjust, currentGrade, ColorLive.holdOriginal, currentLayers)
                 if (out != null) {
                     shown = out
                     ColorLive.scopeFrame.value = out

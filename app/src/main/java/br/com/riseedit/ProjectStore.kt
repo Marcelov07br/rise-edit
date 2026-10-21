@@ -222,7 +222,15 @@ class ProjectStore(private val context: Context) {
     }
     private fun encode(p: Project) = JSONObject().put(
         "schema",
-        8
+        9
+    ).put(
+        // schema 9 (0.16): adjustment layers; absent in ≤ 8 → none.
+        "adjustmentLayers",
+        JSONArray(
+            p.adjustmentLayers.map {
+                JSONObject(br.com.riseedit.core.AdjustmentLayer.toMap(it)).put("grade", GradeJson.encode(it.grade))
+            }
+        )
     ).put(
         "id",
         p.id
@@ -334,7 +342,7 @@ class ProjectStore(private val context: Context) {
             )
         )
     private fun decode(j: JSONObject): Project {
-        require(j.getInt("schema") in 1..8) { "Formato de projeto não reconhecido" }
+        require(j.getInt("schema") in 1..9) { "Formato de projeto não reconhecido" }
         val e = j.optJSONArray("export")
         return Project(
             clips = objects(
@@ -367,6 +375,11 @@ class ProjectStore(private val context: Context) {
             },
             markers = objects(j.optJSONArray("markers")).map {
                 Marker(it.getString("id"), it.getLong("t"), it.optString("label"))
+            },
+            adjustmentLayers = objects(j.optJSONArray("adjustmentLayers")).mapNotNull {
+                runCatching {
+                    br.com.riseedit.core.AdjustmentLayer.fromMap(GradeJson.plain(it), GradeJson.decode(it.optJSONObject("grade")))
+                }.getOrNull()
             },
             audio = objects(j.optJSONArray("audio")).map { a ->
                 AudioClip(

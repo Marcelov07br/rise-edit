@@ -63,6 +63,8 @@ private fun hint(ui: TimelineUiState): String = when (val d = ui.trimDraft) {
         "Corte: ${d.draft.clip.startMs}–${d.draft.clip.endMs} ms · solte para salvar"
     is br.com.riseedit.timeline.TrimDraft.Audio ->
         "Corte: ${d.draft.startMs}–${d.draft.endMs} ms · solte para salvar"
+    is br.com.riseedit.timeline.TrimDraft.Adjust ->
+        "Camada de ajuste: ${d.draft.startMs}–${d.draft.endMs} ms · solte para salvar"
     null -> "Pinça para zoom · segure para mover"
 }
 

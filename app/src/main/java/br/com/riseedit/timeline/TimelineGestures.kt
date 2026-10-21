@@ -155,7 +155,7 @@ private fun initialMode(
 }
 
 private fun trimmable(entry: TimelineEntry) =
-    entry.mainIndex != null || entry.overlay != null || entry.audio != null
+    entry.mainIndex != null || entry.overlay != null || entry.audio != null || entry.adjustment != null
 
 private fun startTrim(entry: TimelineEntry, edge: TrimEdge): TrimDraft = when {
     entry.mainIndex != null && entry.clip != null ->
@@ -164,6 +164,8 @@ private fun startTrim(entry: TimelineEntry, edge: TrimEdge): TrimDraft = when {
         TrimDraft.Audio(AudioTrimSession(entry.audio, edge), entry.audio)
     entry.overlay != null ->
         TrimDraft.Overlay(OverlayTrimSession(entry.overlay, edge), entry.overlay)
+    entry.adjustment != null ->
+        TrimDraft.Adjust(entry.adjustment, edge, entry.adjustment)
     else -> error("not trimmable")
 }
 
@@ -269,6 +271,7 @@ private fun applyMovement(
                 is TrimDraft.Main -> t.copy(draft = t.session.dragged(deltaUs))
                 is TrimDraft.Overlay -> t.copy(draft = t.session.dragged(deltaUs))
                 is TrimDraft.Audio -> t.copy(draft = t.session.dragged(deltaUs))
+                is TrimDraft.Adjust -> t.dragged(deltaUs)
                 null -> null
             }
         }

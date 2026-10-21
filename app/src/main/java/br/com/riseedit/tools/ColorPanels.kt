@@ -70,8 +70,9 @@ private val adjustRows = listOf(
 
 @Composable
 internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
-    val clip = state.project.clips.getOrNull(state.selected) ?: return
-    val src = clipSourceMs(state, clip)
+    val target = colorTarget(state) ?: return
+    val clip = target.clip
+    val src = target.sourceMs(state.positionMs)
     // Shown values are the evaluated ones at the playhead (keyframes applied).
     val (a, shownGrade) = clip.colorAt(src)
     var tab by remember { mutableStateOf(AdjustTab.BASIC) }
@@ -80,14 +81,14 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
         br.com.riseedit.ToolSheetDetent.expanded = tab == AdjustTab.CURVES || tab == AdjustTab.WHEELS || tab == AdjustTab.QUALIFIER
     }
     // On-preview tools: eyedropper (Seleção) and vignette center (Vinheta); cleared on tab/panel exit.
-    val latestClip by androidx.compose.runtime.rememberUpdatedState(clip)
+    val latestTarget by androidx.compose.runtime.rememberUpdatedState(target)
     val latestSrc by androidx.compose.runtime.rememberUpdatedState(src)
     fun editLatest(f: (ColorAdjust) -> ColorAdjust) {
-        val c = vm.state.value.project.clips.firstOrNull { it.id == latestClip.id } ?: return
+        val c = vm.latestColorClip(latestTarget) ?: return
         val shown = c.colorAt(latestSrc).first
-        vm.clipSettings(br.com.riseedit.core.color.ColorKeyEdits.editAdjust(c, latestSrc, f(shown)))
+        vm.commitColor(latestTarget, br.com.riseedit.core.color.ColorKeyEdits.editAdjust(c, latestSrc, f(shown)))
     }
-    DisposableEffect(tab) {
+    DisposableEffect(tab, target.clip.id) {
         if (tab == AdjustTab.VIGNETTE) {
             ColorTools.vignetteCenter = androidx.compose.ui.geometry.Offset(a.vignette.cx, a.vignette.cy)
             ColorTools.onVignetteCenter = { u, v -> editLatest { it.copy(vignette = it.vignette.copy(cx = u, cy = v)) } }
@@ -99,12 +100,13 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
             if (ColorTools.showMask) ColorTools.setMask(false, vm.player)
         }
     }
-    val offset = state.project.clips.take(state.selected).sumOf { it.durationMs }
-    val times = clip.colorKeys.keys(tab.group()).map { it.timeMs }.filter { it in clip.startMs..clip.endMs }
-    fun jump(t: Long?) = t?.let { { vm.seek(offset + outputOfSource(clip, it)) } }
+    val times = clip.colorKeys.keys(tab.group()).map { it.timeMs }.filter(target::inRange)
+    fun jump(t: Long?) = t?.let { { vm.seek(target.projectMs(it)) } }
+    val layer = target.layer
+    if (layer != null) LayerHeader(layer) { vm.adjustmentLayer(layer.copy(opacity = it)) }
     AdjustContent(
         a, tab, { tab = it },
-        change = { vm.clipSettings(br.com.riseedit.core.color.ColorKeyEdits.editAdjust(clip, src, it)) },
+        change = { vm.commitColor(target, br.com.riseedit.core.color.ColorKeyEdits.editAdjust(clip, src, it)) },
         local = LocalColorUi(
             picking = ColorTools.eyedropper != null,
             onEyedropper = {
@@ -120,14 +122,14 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
         ),
         actions = AdjustActions(
             reset = vm::resetColor, copy = vm::copyAttributes, paste = vm::pasteAttributes,
-            canPaste = vm.hasClipboard, applyAll = vm::applyColorToAll,
+            canPaste = vm.hasClipboard, applyAll = if (layer == null) vm::applyColorToAll else null,
             canReset = !a.isNeutral || !clip.colorKeys.isEmpty,
             savePreset = { savePresetOpen = true }, exportCube = { cubeOpen = true },
             scopes = { br.com.riseedit.color.Scopes.visible = !br.com.riseedit.color.Scopes.visible },
-            match = if (state.project.clips.size > 1) { { matchOpen = true } } else null
+            match = if (layer == null && state.project.clips.size > 1) { { matchOpen = true } } else null
         ),
         compare = { CompareHoldButton(vm, enabled = !a.isNeutral || !clip.grade.isIdentity) },
-        grade = { GradePanel(vm, state) },
+        grade = { GradePanel(vm, state, target) },
         gradeActive = !shownGrade.isIdentity,
         keys = ColorKeyUi(
             hasKeyHere = { clip.colorKeys.hasKeyAt(it.group(), src) },
@@ -135,7 +137,7 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
             toggle = {
                 val g = it.group()
                 android.util.Log.i("RiseColor", "key toggle ${g.id} at ${src}ms (had=${clip.colorKeys.hasKeyAt(g, src)})")
-                vm.clipSettings(br.com.riseedit.core.color.ColorKeyEdits.toggle(clip, g, src))
+                vm.commitColor(target, br.com.riseedit.core.color.ColorKeyEdits.toggle(clip, g, src))
             },
             prev = jump(times.lastOrNull { it < src - 20 }),
             next = jump(times.firstOrNull { it > src + 20 })
@@ -163,7 +165,7 @@ internal class AdjustActions(
     val copy: () -> Unit = {},
     val paste: () -> Unit = {},
     val canPaste: Boolean = false,
-    val applyAll: () -> Unit = {},
+    val applyAll: (() -> Unit)? = {},
     val canReset: Boolean = true,
     val savePreset: (() -> Unit)? = null,
     val exportCube: (() -> Unit)? = null,
@@ -200,7 +202,7 @@ internal fun AdjustContent(
                     actions.scopes?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.Insights, if (br.com.riseedit.color.Scopes.visible) "Ocultar scopes" else "Mostrar scopes", primary = true, onClick = it) },
                     br.com.riseedit.designsystem.PanelAction(Icons.Rounded.ContentCopy, "Copiar ajustes", onClick = actions.copy),
                     br.com.riseedit.designsystem.PanelAction(Icons.Rounded.ContentPaste, "Colar ajustes", actions.canPaste, onClick = actions.paste),
-                    br.com.riseedit.designsystem.PanelAction(Icons.Rounded.LibraryAdd, "Aplicar a todos os clipes", onClick = actions.applyAll),
+                    actions.applyAll?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.LibraryAdd, "Aplicar a todos os clipes", onClick = it) },
                     actions.match?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.AutoFixHigh, "Combinar cor com outro clipe", onClick = it) },
                     actions.savePreset?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.BookmarkAdd, "Salvar como preset", onClick = it) },
                     actions.exportCube?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.FileDownload, "Exportar LUT .cube", onClick = it) },

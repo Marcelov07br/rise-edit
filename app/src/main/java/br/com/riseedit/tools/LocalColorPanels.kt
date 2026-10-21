@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CenterFocusStrong
@@ -220,5 +222,32 @@ internal fun VignetteHandle(modifier: Modifier = Modifier) {
             drawCircle(Color.White, 14.dp.toPx(), p, style = Stroke(2.dp.toPx()))
             drawCircle(Color.White, 3.dp.toPx(), p)
         }
+    }
+}
+
+/** Shown on top of Ajustar when editing a camada de ajuste: indicator + opacity. */
+@Composable
+internal fun LayerHeader(layer: br.com.riseedit.core.AdjustmentLayer, onOpacity: (Float) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.material3.Icon(
+                    androidx.compose.material.icons.Icons.Rounded.Layers, null,
+                    Modifier.size(16.dp), tint = br.com.riseedit.LaneAdjust
+                )
+                Text("Camada de ajuste", color = Color.White, fontSize = 13.sp)
+            }
+            Text(
+                "${layer.name} · afeta vídeo e overlays abaixo, de %.1fs a %.1fs".format(layer.startMs / 1000f, layer.endMs / 1000f),
+                color = RiseMuted, fontSize = 11.sp
+            )
+        }
+        TileSlider(
+            "Opacidade", layer.opacity, 0f..1f, Modifier.width(150.dp), default = 1f,
+            format = { "%.0f%%".format(it * 100f) }, change = onOpacity
+        )
     }
 }

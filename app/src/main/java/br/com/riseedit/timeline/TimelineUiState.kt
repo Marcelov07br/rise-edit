@@ -32,6 +32,16 @@ internal sealed class TrimDraft {
         override val edge get() = session.edge
         override val entryId get() = session.original.id
     }
+
+    /** Camada de ajuste: edge drag in µs → [AdjustmentLayer.trimmed]. */
+    data class Adjust(
+        val original: br.com.riseedit.core.AdjustmentLayer,
+        override val edge: TrimEdge,
+        val draft: br.com.riseedit.core.AdjustmentLayer
+    ) : TrimDraft() {
+        override val entryId get() = original.id
+        fun dragged(deltaUs: Double) = copy(draft = original.trimmed(edge, (deltaUs / 1000).toLong()))
+    }
 }
 
 internal class TimelineUiState(density: Float) {

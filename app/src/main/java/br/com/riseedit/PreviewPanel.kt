@@ -122,9 +122,15 @@ fun PreviewPanel(
     // while playing the live effect reads ColorLive.sourceMs, updated here every frame).
     val animatedColor = clip?.colorKeys?.isEmpty == false
     br.com.riseedit.color.ColorLive.sourceMs = vm.previewSourceMs
+    // Camadas de ajuste: live effect reads these (project time); paused overlay gets the passes.
+    br.com.riseedit.color.ColorLive.layers = state.project.adjustmentLayers
+    br.com.riseedit.color.ColorLive.projectMs = state.positionMs
+    val layerPasses = androidx.compose.runtime.remember(state.project.adjustmentLayers, state.positionMs) {
+        br.com.riseedit.core.AdjustmentStack.at(state.project.adjustmentLayers, state.positionMs)
+    }
     val (adjust, grade) = clip?.colorAt(vm.previewSourceMs)
         ?: (ColorAdjust.NEUTRAL to br.com.riseedit.core.color.ColorGrade())
-    androidx.compose.runtime.LaunchedEffect(adjust, grade, fast) {
+    androidx.compose.runtime.LaunchedEffect(adjust, grade, fast, layerPasses) {
         if (!fast) return@LaunchedEffect
         br.com.riseedit.color.ColorLive.adjust = adjust
         br.com.riseedit.color.ColorLive.grade = grade
@@ -283,6 +289,7 @@ fun PreviewPanel(
                             playing = state.playing,
                             adjust = adjust,
                             grade = grade,
+                            layers = layerPasses,
                             modifier = Modifier.fillMaxSize().graphicsLayer {
                                 scaleX = zoom
                                 scaleY = zoom
