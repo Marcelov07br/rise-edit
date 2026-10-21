@@ -1,5 +1,12 @@
 package br.com.riseedit
 
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,6 +41,15 @@ import androidx.compose.ui.unit.dp
  * Compact panel docked just above the toolbar. The preview stays visible; back and the check
  * both return to the toolbar.
  */
+/** Tool sheet detents, shared by every tool panel. */
+object ToolSheetDetent {
+    var expanded by androidx.compose.runtime.mutableStateOf(false)
+
+    /** Max scrollable content height for the sheet given the workspace height. */
+    fun maxContent(workspace: Dp, expanded: Boolean = this.expanded): Dp =
+        if (expanded) workspace * 0.60f else workspace * 0.38f
+}
+
 @Composable
 fun ToolSheet(
     title: String,
@@ -47,10 +63,25 @@ fun ToolSheet(
             .clip(RoundedCornerShape(22.dp))
             .background(RiseSurface)
     ) {
+        // Drag handle: drag up/down or tap to switch detents (normal / expanded).
         Box(
-            Modifier.align(Alignment.CenterHorizontally).padding(top = 6.dp)
-                .width(32.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(RiseOutline)
-        )
+            Modifier.fillMaxWidth().height(18.dp)
+                .pointerInput(Unit) {
+                    var total = 0f
+                    detectVerticalDragGestures(
+                        onDragStart = { total = 0f },
+                        onDragEnd = {
+                            if (total < -24f) ToolSheetDetent.expanded = true
+                            if (total > 24f) ToolSheetDetent.expanded = false
+                        }
+                    ) { _, dy -> total += dy }
+                }
+                .pointerInput(Unit) { detectTapGestures { ToolSheetDetent.expanded = !ToolSheetDetent.expanded } }
+                .semantics { contentDescription = if (ToolSheetDetent.expanded) "Recolher painel" else "Expandir painel" },
+            contentAlignment = Alignment.Center
+        ) {
+            Box(Modifier.width(32.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(RiseOutline))
+        }
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -74,8 +105,11 @@ fun ToolSheet(
                 }
             }
         }
+        val animatedMax by androidx.compose.animation.core.animateDpAsState(
+            maxContentHeight, riseSpring(), label = "sheetDetent"
+        )
         Column(
-            Modifier.heightIn(max = maxContentHeight)
+            Modifier.heightIn(max = animatedMax)
                 .verticalScroll(rememberScrollState())
                 .padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),

@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -29,8 +31,13 @@ internal fun ColumnScope.EditorWorkspace(
     state: EditorState,
     ui: EditorUiState,
     media: EditorMediaActions,
-    sheetMax: Dp
+    workspaceHeight: Dp
 ) {
+    val toolOpen = ui.tool != null
+    androidx.compose.runtime.LaunchedEffect(toolOpen) {
+        if (!toolOpen) ToolSheetDetent.expanded = false
+    }
+    val sheetMax = ToolSheetDetent.maxContent(workspaceHeight)
     val enabled = state.busy == null
     val draft = ui.textDraft
     if (ui.full) {
@@ -52,19 +59,44 @@ internal fun ColumnScope.EditorWorkspace(
         TextEditorSheet(vm, ui, draft)
         return
     }
-    TransportBar(vm, state, enabled, onFullscreen = { ui.full = true })
-    Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-        TimelinePanel(
-            vm,
-            state,
-            trackAreaHeight = if (ui.tool == null) 168.dp else 112.dp,
-            onSelect = { ui.contextual = true },
-            onAddToLane = { lane -> addToLane(lane, ui, media) },
-            onKeyframe = {
-                ui.contextual = true
-                ui.lastTool = br.com.riseedit.tools.EditorTool.Keyframe
-                ui.tool = br.com.riseedit.tools.EditorTool.Keyframe
+    // With a tool panel open the timeline collapses to a mini scrub bar (generic for every panel),
+    // giving its height to the preview; it springs back when the panel closes.
+    AnimatedVisibility(
+        visible = !toolOpen,
+        enter = expandVertically(riseSpring()) + fadeIn(tween(160)),
+        exit = shrinkVertically(riseSpring()) + fadeOut(tween(100))
+    ) {
+        androidx.compose.foundation.layout.Column {
+            TransportBar(vm, state, enabled, onFullscreen = { ui.full = true })
+            Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                TimelinePanel(
+                    vm,
+                    state,
+                    trackAreaHeight = 168.dp,
+                    onSelect = { ui.contextual = true },
+                    onAddToLane = { lane -> addToLane(lane, ui, media) },
+                    onKeyframe = {
+                        ui.contextual = true
+                        ui.lastTool = br.com.riseedit.tools.EditorTool.Keyframe
+                        ui.tool = br.com.riseedit.tools.EditorTool.Keyframe
+                    }
+                )
             }
+        }
+    }
+    AnimatedVisibility(
+        visible = toolOpen,
+        enter = expandVertically(riseSpring()) + fadeIn(tween(160)),
+        exit = shrinkVertically(riseSpring()) + fadeOut(tween(100))
+    ) {
+        MiniScrubBar(
+            playing = state.playing,
+            positionMs = state.positionMs,
+            durationMs = state.project.durationMs,
+            fps = state.project.export.fps,
+            enabled = enabled,
+            onToggle = vm::togglePlay,
+            onSeek = vm::seek
         )
     }
     DockedToolPanel(vm, state, ui, media, sheetMax)

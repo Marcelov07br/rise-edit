@@ -1,5 +1,11 @@
 package br.com.riseedit
 
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -131,5 +137,69 @@ private fun TransportExtraActions(
         IconButton(onClick = onFullscreen) {
             Icon(Icons.Outlined.Fullscreen, "Tela cheia", tint = RiseWhite)
         }
+    }
+}
+
+/**
+ * Collapsed timeline shown while a tool panel is open: play/pause, timecode and a thin scrub
+ * line, so the preview keeps the height the tracks used to take.
+ */
+@Composable
+fun MiniScrubBar(
+    playing: Boolean,
+    positionMs: Long,
+    durationMs: Long,
+    fps: Int,
+    enabled: Boolean,
+    onToggle: () -> Unit,
+    onSeek: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier.fillMaxWidth().height(36.dp).padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        IconButton(onClick = onToggle, enabled = enabled, modifier = Modifier.size(32.dp)) {
+            Icon(
+                if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                if (playing) "Pausar" else "Reproduzir",
+                tint = RiseWhite
+            )
+        }
+        Text(
+            Timeline.timecode(positionMs, fps),
+            style = MaterialTheme.typography.labelSmall,
+            color = RiseMuted,
+            maxLines = 1
+        )
+        val fraction = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+        androidx.compose.foundation.layout.BoxWithConstraints(
+            Modifier.weight(1f).height(28.dp)
+                .pointerInput(durationMs, enabled) {
+                    if (!enabled || durationMs <= 0) return@pointerInput
+                    detectTapGestures { onSeek((it.x / size.width * durationMs).toLong().coerceIn(0, durationMs)) }
+                }
+                .pointerInput(durationMs, enabled) {
+                    if (!enabled || durationMs <= 0) return@pointerInput
+                    detectHorizontalDragGestures { change, _ ->
+                        onSeek((change.position.x / size.width * durationMs).toLong().coerceIn(0, durationMs))
+                    }
+                }
+                .semantics { contentDescription = "Posição" },
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Box(Modifier.fillMaxWidth().height(3.dp).clip(CircleShape).background(RiseOutline))
+            Box(Modifier.fillMaxWidth(fraction).height(3.dp).clip(CircleShape).background(RiseWhite))
+            Box(
+                Modifier.offset(x = maxWidth * fraction - 5.dp).size(10.dp).clip(CircleShape).background(RiseWhite)
+            )
+        }
+        Text(
+            Timeline.timecode(durationMs, fps),
+            style = MaterialTheme.typography.labelSmall,
+            color = RiseMuted,
+            maxLines = 1
+        )
     }
 }

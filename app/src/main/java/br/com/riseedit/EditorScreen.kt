@@ -34,7 +34,7 @@ fun EditorScreen(
     val hasClips = state.project.clips.isNotEmpty()
     EditorScreenEffects(vm, state, ui)
     BoxWithConstraints(Modifier.fillMaxSize().background(RiseBlack).safeDrawingPadding()) {
-        val sheetMax = maxHeight * 0.28f
+        val workspaceHeight = maxHeight
         Column(Modifier.fillMaxSize()) {
             EditorTopBar(
                 state.project.name,
@@ -68,7 +68,7 @@ fun EditorScreen(
                 }
             }
             if (hasClips) {
-                EditorWorkspace(vm, state, ui, media, sheetMax)
+                EditorWorkspace(vm, state, ui, media, workspaceHeight)
             } else {
                 EditorEmptyPanel(enabled, media.videos)
             }

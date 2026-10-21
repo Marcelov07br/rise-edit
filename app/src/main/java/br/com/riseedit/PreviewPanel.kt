@@ -269,6 +269,22 @@ fun PreviewPanel(
                             onRelease = { it.player = null }
                         )
                     }
+                    if (fast && clip != null) {
+                        br.com.riseedit.color.PausedColorOverlay(
+                            clip = clip,
+                            sourceMs = vm.previewSourceMs,
+                            playing = state.playing,
+                            adjust = adjust,
+                            grade = grade,
+                            modifier = Modifier.fillMaxSize().graphicsLayer {
+                                scaleX = zoom
+                                scaleY = zoom
+                                rotationZ = (pose.angle * 180 / PI).toFloat()
+                                translationX = if (analysis == null) 0f else (pose.x * videoWidth * density / analysis.width).toFloat()
+                                translationY = if (analysis == null) 0f else (pose.y * videoHeight * density / analysis.height).toFloat()
+                            }
+                        )
+                    }
                 }
                 if (editable) {
                     val items =
@@ -348,7 +364,13 @@ fun PreviewPanel(
 
 /** Repaints the paused frame after a live color change (fast preview only). */
 internal fun redrawColor(player: androidx.media3.common.Player?) {
+    br.com.riseedit.color.ColorLive.tick.intValue++
     val exo = player as? ExoPlayer ?: return
+    if (br.com.riseedit.color.ColorLive.overlayActive) {
+        android.util.Log.v("RiseColor", "redraw via overlay (no seek)")
+        return
+    }
+    android.util.Log.d("RiseColor", "redraw via seek (overlay inactive) pos=${exo.currentPosition}")
     // VideoFrameProcessor.REDRAW needs a replayable frame cache that ExoPlayer never enables:
     // redraw() throws UnsupportedOperationException on the playback thread -> player error.
     // An exact seek to the same position re-decodes the frame through the live effect instead.

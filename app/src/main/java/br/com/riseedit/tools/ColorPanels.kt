@@ -87,6 +87,10 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
     val clip = state.project.clips.getOrNull(state.selected) ?: return
     val a = clip.adjustments
     var tab by remember { mutableStateOf(AdjustTab.BASIC) }
+    // Curves and wheels need room: expand the sheet automatically (handle still toggles).
+    androidx.compose.runtime.LaunchedEffect(tab) {
+        br.com.riseedit.ToolSheetDetent.expanded = tab == AdjustTab.CURVES || tab == AdjustTab.WHEELS
+    }
     AdjustContent(
         a, tab, { tab = it },
         change = { vm.clipSettings(clip.copy(adjustments = it)) },
@@ -180,7 +184,7 @@ private fun CurvesTab(a: ColorAdjust, change: (ColorAdjust) -> Unit, initial: In
             }
         }
         BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-            val w = if (maxWidth > 480.dp) 440.dp else maxWidth
+            val w = maxWidth // full width, square (CurveEditor keeps 1:1)
             br.com.riseedit.designsystem.CurveEditor(
                 a.curves.channel(ch), curveColors[ch], Modifier.width(w)
             ) { change(a.copy(curves = a.curves.withChannel(ch, it))) }

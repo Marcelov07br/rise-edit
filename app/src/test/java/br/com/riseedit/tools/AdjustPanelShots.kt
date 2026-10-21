@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -107,4 +109,37 @@ class AdjustPanelTabletShots {
             }
         }
     }
+}
+
+/** Editor with a tool panel open: timeline collapsed to the mini scrub, sheet detents. */
+@Composable
+private fun EditorWithPanel(tab: AdjustTab, expanded: Boolean) = RiseTheme {
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(RiseBlack)) {
+        val h = maxHeight
+        Column(Modifier.fillMaxSize()) {
+            Text("  ←  Projeto                                Exportar", color = RiseWhite, modifier = Modifier.padding(12.dp))
+            Box(
+                Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.linearGradient(
+                            listOf(androidx.compose.ui.graphics.Color(0xFF2B4A6B), androidx.compose.ui.graphics.Color(0xFFD9A45B))
+                        )
+                    ),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) { Text("prévia", color = RiseWhite) }
+            br.com.riseedit.MiniScrubBar(false, 12_400, 48_000, 30, true, {}, {})
+            br.com.riseedit.ToolSheet("Ajustar", br.com.riseedit.ToolSheetDetent.maxContent(h, expanded), onClose = {}) {
+                AdjustContent(sample, tab, {}, {}, actions, grade = {})
+            }
+            Box(Modifier.fillMaxWidth().height(56.dp))
+        }
+    }
+}
+
+class EditorPanelShots {
+    @get:Rule val p = Paparazzi(deviceConfig = DeviceConfig.PIXEL_5, theme = "android:Theme.Material.NoActionBar")
+
+    @Test fun editorPanelNormal() = p.snapshot { EditorWithPanel(AdjustTab.BASIC, expanded = false) }
+    @Test fun editorPanelExpandedCurves() = p.snapshot { EditorWithPanel(AdjustTab.CURVES, expanded = true) }
+    @Test fun editorPanelExpandedWheels() = p.snapshot { EditorWithPanel(AdjustTab.WHEELS, expanded = true) }
 }

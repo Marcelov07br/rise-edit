@@ -23,6 +23,10 @@ internal object ColorLive {
     @Volatile var grade: ColorGrade = ColorGrade()
     /** True while the user holds "Comparar": every ColorAdjustEffect outputs the original. */
     @Volatile var holdOriginal = false
+    /** Bumped on every live change (incl. compare) so the paused overlay re-renders. */
+    val tick = androidx.compose.runtime.mutableIntStateOf(0)
+    /** True while the paused GL overlay covers the player (no seek-redraw needed). */
+    @Volatile var overlayActive = false
 }
 
 /**
@@ -49,7 +53,6 @@ internal class ColorAdjustEffect private constructor(
 
     companion object {
         val live = ColorAdjustEffect({ ColorLive.adjust to ColorLive.grade }, false, true)
-        private const val SIZE = 33
     }
 
     private class Program(
@@ -58,118 +61,135 @@ internal class ColorAdjustEffect private constructor(
         useHdr: Boolean
     ) :
         BaseGlShaderProgram(useHdr, 1) {
-        private val program = try {
-            GlProgram(Shaders.VERTEX, Shaders.FRAGMENT).apply {
-                setBufferAttribute(
-                    "aFramePosition",
-                    GlUtil.getNormalizedCoordinateBounds(),
-                    GlUtil.HOMOGENEOUS_COORDINATE_VECTOR_SIZE
-                )
-            }
+        private val pass = try {
+            ColorPass()
         } catch (error: GlUtil.GlException) {
             throw VideoFrameProcessingException(error)
         }
-        private var lutTex = 0
-        private var lutGrade: ColorGrade? = null
-        private var curveTex = 0
-        private var curveData: br.com.riseedit.core.ColorCurves? = null
 
         override fun configure(inputWidth: Int, inputHeight: Int) = Size(inputWidth, inputHeight)
 
         override fun drawFrame(inputTexId: Int, presentationTimeUs: Long) {
             try {
                 val (adjust, grade) = source()
-                val bypass = preview && ColorLive.holdOriginal
-                val useLut = !bypass && !grade.isIdentity
-                if (useLut && grade != lutGrade) uploadLut(grade)
-                program.use()
-                program.setSamplerTexIdUniform("uTexSampler", inputTexId, 0)
-                program.setSamplerTexIdUniform("uLut", if (useLut) lutTex else inputTexId, 1)
-                program.setFloatUniform("uUseLut", if (useLut) 1f else 0f)
-                program.setFloatUniform("uLutSize", SIZE.toFloat())
-                program.setFloatUniform("uLutFirst", if (grade.lutBeforeAdjust) 1f else 0f)
-                val a = if (bypass) ColorAdjust.NEUTRAL else adjust
-                a.uniforms().forEach { (name, v) -> program.setFloatUniform(name, v) }
-                a.vectorUniforms().forEach { (name, v) -> program.setFloatsUniform(name, v) }
-                program.setFloatUniform("uUseHsl", if (a.hsl.isNeutral) 0f else 1f)
-                program.setFloatUniform("uUseWheels", if (a.wheels.isNeutral) 0f else 1f)
-                val useCurves = !a.curves.isIdentity
-                if (useCurves && a.curves != curveData) uploadCurves(a.curves)
-                program.setSamplerTexIdUniform("uCurves", if (useCurves) curveTex else inputTexId, 2)
-                program.setFloatUniform("uUseCurves", if (useCurves) 1f else 0f)
-                program.setFloatUniform("uNeutral", if (bypass || adjust.isNeutral) 1f else 0f)
-                program.bindAttributesAndUniforms()
-                GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+                pass.draw(inputTexId, adjust, grade, preview && ColorLive.holdOriginal)
             } catch (error: GlUtil.GlException) {
                 throw VideoFrameProcessingException(error, presentationTimeUs)
             }
         }
 
-        /** 33³ cube as a 2D atlas: x = b * 33 + r, y = g (GLES2 has no 3D textures). */
-        private fun uploadLut(grade: ColorGrade) {
-            val data = GradeLuts.cube(grade)
-            val buf = ByteBuffer.allocateDirect(SIZE * SIZE * SIZE * 4).order(ByteOrder.nativeOrder())
-            for (g in 0 until SIZE) for (b in 0 until SIZE) for (r in 0 until SIZE) {
-                val i = ((b * SIZE + g) * SIZE + r) * 3
-                buf.put(byte(data[i])).put(byte(data[i + 1])).put(byte(data[i + 2])).put(-1)
-            }
-            buf.flip()
-            if (lutTex == 0) {
-                val ids = IntArray(1)
-                GLES20.glGenTextures(1, ids, 0)
-                lutTex = ids[0]
-            }
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, lutTex)
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
-            GLES20.glTexImage2D(
-                GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, SIZE * SIZE, SIZE, 0,
-                GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf
-            )
-            GlUtil.checkGlError()
-            lutGrade = grade
-        }
-
-        /** Curves (master∘channel) baked into a 256×1 RGBA texture; re-uploaded only on change. */
-        private fun uploadCurves(curves: br.com.riseedit.core.ColorCurves) {
-            val t = curves.table(256)
-            val buf = ByteBuffer.allocateDirect(256 * 4).order(ByteOrder.nativeOrder())
-            for (i in 0 until 256) buf.put(byte(t[i * 3])).put(byte(t[i * 3 + 1])).put(byte(t[i * 3 + 2])).put(-1)
-            buf.flip()
-            if (curveTex == 0) {
-                val ids = IntArray(1)
-                GLES20.glGenTextures(1, ids, 0)
-                curveTex = ids[0]
-            }
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, curveTex)
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
-            GLES20.glTexImage2D(
-                GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, 256, 1, 0,
-                GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf
-            )
-            GlUtil.checkGlError()
-            curveData = curves
-        }
-
-        private fun byte(v: Float) = (v * 255f + 0.5f).toInt().coerceIn(0, 255).toByte()
-
         override fun release() {
             super.release()
             try {
-                if (lutTex != 0) GlUtil.deleteTexture(lutTex)
-                if (curveTex != 0) GlUtil.deleteTexture(curveTex)
-                program.delete()
+                pass.release()
             } catch (error: GlUtil.GlException) {
                 throw VideoFrameProcessingException(error)
             }
         }
     }
+}
 
+/**
+ * The single color pass (program + LUT/curve textures + uniforms) shared by the Media3 effect
+ * (export/playback) and the paused-preview renderer [PausedColorRenderer]: same shader, same
+ * uniforms, same LUT/curve baking → identical math. Must be used on a thread with a current GL context.
+ */
+internal class ColorPass {
+    private val program = GlProgram(Shaders.VERTEX, Shaders.FRAGMENT).apply {
+        setBufferAttribute(
+            "aFramePosition",
+            GlUtil.getNormalizedCoordinateBounds(),
+            GlUtil.HOMOGENEOUS_COORDINATE_VECTOR_SIZE
+        )
+    }
+    private var lutTex = 0
+    private var lutGrade: ColorGrade? = null
+    private var curveTex = 0
+    private var curveData: br.com.riseedit.core.ColorCurves? = null
+
+    fun draw(inputTexId: Int, adjust: ColorAdjust, grade: ColorGrade, bypass: Boolean) {
+        val useLut = !bypass && !grade.isIdentity
+        if (useLut && grade != lutGrade) uploadLut(grade)
+        program.use()
+        program.setSamplerTexIdUniform("uTexSampler", inputTexId, 0)
+        program.setSamplerTexIdUniform("uLut", if (useLut) lutTex else inputTexId, 1)
+        program.setFloatUniform("uUseLut", if (useLut) 1f else 0f)
+        program.setFloatUniform("uLutSize", SIZE.toFloat())
+        program.setFloatUniform("uLutFirst", if (grade.lutBeforeAdjust) 1f else 0f)
+        val a = if (bypass) ColorAdjust.NEUTRAL else adjust
+        a.uniforms().forEach { (name, v) -> program.setFloatUniform(name, v) }
+        a.vectorUniforms().forEach { (name, v) -> program.setFloatsUniform(name, v) }
+        program.setFloatUniform("uUseHsl", if (a.hsl.isNeutral) 0f else 1f)
+        program.setFloatUniform("uUseWheels", if (a.wheels.isNeutral) 0f else 1f)
+        val useCurves = !a.curves.isIdentity
+        if (useCurves && a.curves != curveData) uploadCurves(a.curves)
+        program.setSamplerTexIdUniform("uCurves", if (useCurves) curveTex else inputTexId, 2)
+        program.setFloatUniform("uUseCurves", if (useCurves) 1f else 0f)
+        program.setFloatUniform("uNeutral", if (bypass || adjust.isNeutral) 1f else 0f)
+        program.bindAttributesAndUniforms()
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+    }
+
+    /** 33³ cube as a 2D atlas: x = b * 33 + r, y = g (GLES2 has no 3D textures). */
+    private fun uploadLut(grade: ColorGrade) {
+        val data = GradeLuts.cube(grade)
+        val buf = ByteBuffer.allocateDirect(SIZE * SIZE * SIZE * 4).order(ByteOrder.nativeOrder())
+        for (g in 0 until SIZE) for (b in 0 until SIZE) for (r in 0 until SIZE) {
+            val i = ((b * SIZE + g) * SIZE + r) * 3
+            buf.put(byte(data[i])).put(byte(data[i + 1])).put(byte(data[i + 2])).put(-1)
+        }
+        buf.flip()
+        if (lutTex == 0) {
+            val ids = IntArray(1)
+            GLES20.glGenTextures(1, ids, 0)
+            lutTex = ids[0]
+        }
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, lutTex)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexImage2D(
+            GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, SIZE * SIZE, SIZE, 0,
+            GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf
+        )
+        GlUtil.checkGlError()
+        lutGrade = grade
+    }
+
+    /** Curves (master∘channel) baked into a 256×1 RGBA texture; re-uploaded only on change. */
+    private fun uploadCurves(curves: br.com.riseedit.core.ColorCurves) {
+        val t = curves.table(256)
+        val buf = ByteBuffer.allocateDirect(256 * 4).order(ByteOrder.nativeOrder())
+        for (i in 0 until 256) buf.put(byte(t[i * 3])).put(byte(t[i * 3 + 1])).put(byte(t[i * 3 + 2])).put(-1)
+        buf.flip()
+        if (curveTex == 0) {
+            val ids = IntArray(1)
+            GLES20.glGenTextures(1, ids, 0)
+            curveTex = ids[0]
+        }
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, curveTex)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexImage2D(
+            GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, 256, 1, 0,
+            GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf
+        )
+        GlUtil.checkGlError()
+        curveData = curves
+    }
+
+    private fun byte(v: Float) = (v * 255f + 0.5f).toInt().coerceIn(0, 255).toByte()
+
+    fun release() {
+        if (lutTex != 0) GlUtil.deleteTexture(lutTex)
+        if (curveTex != 0) GlUtil.deleteTexture(curveTex)
+        program.delete()
+    }
+
+    private companion object { const val SIZE = 33 }
 }
 
 private object Shaders {
