@@ -48,7 +48,9 @@ data class Clip(
      * Masks (0.17), key times in SOURCE time. Main clip: the take color applies only inside.
      * Overlay clip ([VideoOverlay.clip]): the masks drive the overlay alpha.
      */
-    val masks: br.com.riseedit.core.mask.MaskSet = br.com.riseedit.core.mask.MaskSet()
+    val masks: br.com.riseedit.core.mask.MaskSet = br.com.riseedit.core.mask.MaskSet(),
+    /** 0.18: when false, changing speed also shifts the audio pitch (chipmunk/slow-mo voice). */
+    val keepPitch: Boolean = true
 ) {
     /**
      * Adjust + grade at [sourceMs] (keyframes applied, masks evaluated into [ColorAdjust.masks]);
@@ -109,10 +111,13 @@ data class Clip(
     }
 }
 
+const val MIN_SPEED = 0.1
+const val MAX_SPEED = 10.0
+
 data class SpeedPoint(val sourceMs: Long, val speed: Double) {
     init {
         require(
-            sourceMs >= 0 && speed in 0.25..4.0
+            sourceMs >= 0 && speed in MIN_SPEED..MAX_SPEED
         )
     }
 }

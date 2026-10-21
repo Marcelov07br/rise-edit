@@ -1,16 +1,15 @@
 package br.com.riseedit.tools
 
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.asImageBitmap
 import br.com.riseedit.ChoiceRow
 import br.com.riseedit.EditorState
 import br.com.riseedit.EditorViewModel
@@ -77,15 +76,30 @@ internal fun OverlayMaskPanel(vm: EditorViewModel, state: EditorState) = withOve
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun OverlayTrimPanel(vm: EditorViewModel, state: EditorState) = withOverlay(state) { o ->
+    // 0.18: same film strip as the main clip; applied on release (no "Aplicar" button).
     var trim by remember(o.id, o.clip.startMs, o.clip.endMs) {
-        mutableStateOf(o.clip.startMs.toFloat()..o.clip.endMs.toFloat())
+        mutableStateOf(o.clip.startMs..o.clip.endMs)
     }
-    RangeSlider(
-        trim,
-        { if (it.endInclusive - it.start >= 40) trim = it },
-        valueRange = 0f..o.clip.sourceDurationMs.toFloat()
-    )
-    Button(onClick = {
-        vm.overlay(o.copy(clip = o.clip.trim(trim.start.toLong(), trim.endInclusive.toLong())))
-    }) { Text("Aplicar corte") }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    br.com.riseedit.designsystem.GraphicSurface {
+        TrimStrip(
+            clip = o.clip,
+            range = trim,
+            cursorSourceMs = null,
+            enabled = state.busy == null,
+            onDrag = { trim = it },
+            onCommit = { vm.overlay(o.copy(clip = o.clip.trim(it.first, it.last))) },
+            thumbnail = { ms ->
+                runCatching {
+                    br.com.riseedit.MediaAssets.thumbnail(context, o.clip.effectiveUri(true), ms)
+                }
+                    .getOrNull()?.asImageBitmap()
+            }
+        )
+        Text(
+            "${br.com.riseedit.time(trim.first)} → ${br.com.riseedit.time(trim.last)}",
+            color = br.com.riseedit.RiseMuted,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+        )
+    }
 }

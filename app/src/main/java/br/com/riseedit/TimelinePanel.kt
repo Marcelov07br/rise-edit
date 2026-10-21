@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,6 +47,11 @@ fun TimelinePanel(
                 maxLines = 1,
                 modifier = Modifier.weight(1f).padding(start = 4.dp)
             )
+            br.com.riseedit.designsystem.PanelIconButton(
+                androidx.compose.material.icons.Icons.Rounded.DeleteSweep,
+                if (vm.rippleMode) "Ripple ligado" else "Ripple desligado",
+                tint = if (vm.rippleMode) RiseWhite else RiseMuted
+            ) { vm.rippleMode = !vm.rippleMode }
             FilterChip(ui.snapping, { ui.snapping = !ui.snapping }, label = { Text("Ímã") })
             TextButton(onClick = {
                 zoomTimeline(ui, 1 / 1.4, state.project.durationMs)

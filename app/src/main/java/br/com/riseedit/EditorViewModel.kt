@@ -40,6 +40,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             preview::rebuild
         )
     private val commands = ProjectCommands(document)
+    private val cuts = br.com.riseedit.editor.CutCommands(document, commands)
     private val layers = LayerCommands(document)
     private val media = EditorMedia(application, document)
     private val loader = ProjectLoader(application, document, operations, media)
@@ -92,15 +93,33 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun separateAudio(track: Int = 0) = commands.separateAudio(track)
     fun split() = commands.split()
     fun remove() = commands.remove()
+    fun duplicate() = cuts.duplicate()
+    fun cutToCursor(left: Boolean) = cuts.cutToCursor(left)
+    fun nudge(edge: br.com.riseedit.core.editing.TrimEdge, frames: Int) = cuts.nudge(edge, frames)
+    fun speed(value: Double, keepPitch: Boolean) = cuts.speed(value, keepPitch)
+
+    /** 0.18: "Excluir" closes the gap on every track (ripple) when on; kept for the session. */
+    private val ripple = androidx.compose.runtime.mutableStateOf(false)
+    var rippleMode: Boolean
+        get() = ripple.value
+        set(v) {
+            ripple.value = v
+        }
+    fun deleteSelected() = if (rippleMode) rippleDelete() else remove()
     fun move(delta: Int) = commands.move(delta)
     fun settings(settings: Stabilization) = commands.settings(settings)
     fun copyAttributes() = commands.copyAttributes()
     fun pasteAttributes() = commands.pasteAttributes()
-    fun confirmCopy(groups: Set<br.com.riseedit.core.editing.AttributeGroup>) = commands.confirmCopy(groups)
-    fun confirmPaste(groups: Set<br.com.riseedit.core.editing.AttributeGroup>, all: Boolean) = commands.confirmPaste(groups, all)
+    fun confirmCopy(groups: Set<br.com.riseedit.core.editing.AttributeGroup>) =
+        commands.confirmCopy(groups)
+    fun confirmPaste(groups: Set<br.com.riseedit.core.editing.AttributeGroup>, all: Boolean) =
+        commands.confirmPaste(groups, all)
     fun closeAttributeDialog() = commands.closeAttributeDialog()
     fun resetColor() = commands.resetColor()
-    fun applyColorMatch(result: Map<String, Pair<Long, br.com.riseedit.core.ColorAdjust>>, reference: String) = commands.applyColorMatch(result, reference)
+    fun applyColorMatch(
+        result: Map<String, Pair<Long, br.com.riseedit.core.ColorAdjust>>,
+        reference: String
+    ) = commands.applyColorMatch(result, reference)
     fun applyColorToAll() {
         val s = state.value
         val clip = s.project.clips.getOrNull(s.selected) ?: return
@@ -129,8 +148,10 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun removeLayer() = layers.remove()
     fun adjustmentLayer(layer: br.com.riseedit.core.AdjustmentLayer) = layers.adjustment(layer)
     fun addAdjustmentLayer() = layers.addAdjustment()
-    fun trimAdjustment(original: br.com.riseedit.core.AdjustmentLayer, trimmed: br.com.riseedit.core.AdjustmentLayer) =
-        layers.trimAdjustment(original, trimmed)
+    fun trimAdjustment(
+        original: br.com.riseedit.core.AdjustmentLayer,
+        trimmed: br.com.riseedit.core.AdjustmentLayer
+    ) = layers.trimAdjustment(original, trimmed)
     fun moveLayer(id: String, offset: Long, snapping: Boolean) = layers.move(id, offset, snapping)
     fun trimOverlay(original: VideoOverlay, trimmed: VideoOverlay) =
         layers.trimOverlay(original, trimmed)

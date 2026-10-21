@@ -17,8 +17,23 @@ internal class FastPreview(context: Context, colorEffect: Boolean = true) {
     val player = ExoPlayer.Builder(context).build().apply {
         setSeekParameters(androidx.media3.exoplayer.SeekParameters.EXACT)
         // Same shader as export; reads ColorLive each frame. Must be set before the first prepare().
-        if (colorEffect) runCatching { setVideoEffects(listOf(br.com.riseedit.color.ColorAdjustEffect.live, br.com.riseedit.color.AdjustmentLayersEffect.live)) }
-            .onFailure { br.com.riseedit.diagnostics.Diagnostics.log("cor", "Efeito de cor indisponível na prévia", it) }
+        if (colorEffect) {
+            runCatching {
+                setVideoEffects(
+                    listOf(
+                        br.com.riseedit.color.ColorAdjustEffect.live,
+                        br.com.riseedit.color.AdjustmentLayersEffect.live
+                    )
+                )
+            }
+                .onFailure {
+                    br.com.riseedit.diagnostics.Diagnostics.log(
+                        "cor",
+                        "Efeito de cor indisponível na prévia",
+                        it
+                    )
+                }
+        }
     }
     private val sources = DefaultMediaSourceFactory(context)
     private var timeline = PreviewTimeline(emptyList())
@@ -39,7 +54,8 @@ internal class FastPreview(context: Context, colorEffect: Boolean = true) {
 
     fun update(project: Project, newFaults: Map<String, MediaFault>, positionMs: Long) {
         val speedChanged =
-            timeline.clips.map { it.speedPoints } != project.clips.map { it.speedPoints }
+            timeline.clips.map { it.speedPoints to it.keepPitch } !=
+                project.clips.map { it.speedPoints to it.keepPitch }
         timeline = PreviewTimeline(project.clips)
         faults = newFaults
         val newSlots = project.clips.map { clip ->
@@ -123,7 +139,13 @@ internal class FastPreview(context: Context, colorEffect: Boolean = true) {
         }
         val speed = if (unavailable) 1f else clip.speedAt(source).toFloat()
         // Curves are sampled every 50 ms; faithful preview/export apply their precise timestamps.
-        if (player.playbackParameters.speed != speed) player.setPlaybackSpeed(speed)
+        // ExoPlayer's Sonic caps at 8×; export applies the real value (up to 10×).
+        val live = speed.coerceAtMost(PREVIEW_MAX_SPEED)
+        val pitch = if (clip.keepPitch) 1f else live
+        val params = player.playbackParameters
+        if (params.speed != live || params.pitch != pitch) {
+            player.playbackParameters = androidx.media3.common.PlaybackParameters(live, pitch)
+        }
         val local = timeline.localOutput(index, positionMs)
         val fade = min(clip.fadeMs, clip.durationMs / 2)
         val envelope = if (fade <=
@@ -152,3 +174,5 @@ internal class FastPreview(context: Context, colorEffect: Boolean = true) {
     }
     fun release() = player.release()
 }
+
+private const val PREVIEW_MAX_SPEED = 8f

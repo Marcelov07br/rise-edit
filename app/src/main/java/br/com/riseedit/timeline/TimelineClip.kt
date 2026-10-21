@@ -104,7 +104,7 @@ private fun ClipBackground(entry: TimelineEntry) {
 private fun BoxScope.TrimHandle(x: Float, label: String) {
     val density = LocalDensity.current.density
     Box(
-        Modifier.offset(x = (x / density - 7).dp).width(14.dp).fillMaxHeight()
+        Modifier.offset(x = (x / density - 8).dp).width(16.dp).fillMaxHeight()
             .background(RiseWhite, RoundedCornerShape(4.dp)).semantics {
                 contentDescription = label
             },

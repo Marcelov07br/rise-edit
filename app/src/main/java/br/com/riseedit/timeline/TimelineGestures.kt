@@ -89,7 +89,7 @@ private fun beginGesture(
     val lane = floor((down.position.y - RULER_DP * density + scrollY) / (LANE_DP * density)).toInt()
     val row = ui.lanes.getOrElse(lane) { -1 }
     val selected = entries.firstOrNull { it.row == row && it.selected && trimmable(it) }
-    val edge = selected?.let { trimEdge(it, ui, down.position.x, 22 * density) }
+    val edge = selected?.let { trimEdge(it, ui, down.position.x, 24 * density) }
     val time = ui.viewport.timeAtPx(down.position.x.toDouble())
     val entry = entries.lastOrNull { it.row == row && time >= it.startUs && time < it.endUs }
     val playheadPx = ui.viewport.pxAtTime(playheadUs)
@@ -154,8 +154,10 @@ private fun initialMode(
     }
 }
 
-private fun trimmable(entry: TimelineEntry) =
-    entry.mainIndex != null || entry.overlay != null || entry.audio != null || entry.adjustment != null
+private fun trimmable(entry: TimelineEntry) = entry.mainIndex != null ||
+    entry.overlay != null ||
+    entry.audio != null ||
+    entry.adjustment != null
 
 private fun startTrim(entry: TimelineEntry, edge: TrimEdge): TrimDraft = when {
     entry.mainIndex != null && entry.clip != null ->

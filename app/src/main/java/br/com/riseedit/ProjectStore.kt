@@ -125,6 +125,7 @@ class ProjectStore(private val context: Context) {
                 c.startMs
             ).put("end", c.endMs).put("volume", c.volume).put("fade", c.fadeMs)
             .put("speed", JSONArray(c.speedPoints.map { JSONArray(listOf(it.sourceMs, it.speed)) }))
+            .put("keepPitch", c.keepPitch)
             .put(
                 "adjust",
                 JSONArray(
@@ -210,6 +211,7 @@ class ProjectStore(private val context: Context) {
             speedPoints = rows(c.optJSONArray("speed")).map {
                 SpeedPoint(it.getLong(0), it.getDouble(1))
             },
+            keepPitch = c.optBoolean("keepPitch", true),
             adjustments = c.optJSONObject("color")?.let { o ->
                 ColorAdjust.fromMap(GradeJson.plain(o))
             } ?: ColorAdjust.fromLegacy(

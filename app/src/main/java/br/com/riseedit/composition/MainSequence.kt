@@ -45,8 +45,13 @@ internal fun buildMainSequence(
         if (clip.speedPoints.isNotEmpty()) builder.setSpeed(ClipSpeed(clip))
         builder.setEffects(
             Effects(
-                listOf(
-                    AudioEnvelope(if (clip.muted) 0f else clip.volume, clip.durationMs, clip.fadeMs)
+                listOfNotNull(
+                    AudioEnvelope(
+                        if (clip.muted) 0f else clip.volume,
+                        clip.durationMs,
+                        clip.fadeMs
+                    ),
+                    pitchShift(clip)
                 ),
                 effects
             )
@@ -71,4 +76,11 @@ private fun buildClipEffects(
     ColorAdjustEffect(clip, offsetMs, preview)
         .takeUnless { it.neutral && !preview }?.let(::add)
     add(ClipColor(clip, offsetMs))
+}
+
+/** 0.18: "manter tom" off → shift pitch by the (constant) speed, like tape. Speed keeps pitch. */
+private fun pitchShift(clip: Clip): androidx.media3.common.audio.AudioProcessor? {
+    val speed = clip.speedAt(clip.startMs).toFloat()
+    if (clip.keepPitch || speed == 1f) return null
+    return androidx.media3.common.audio.SonicAudioProcessor().apply { setPitch(speed) }
 }
