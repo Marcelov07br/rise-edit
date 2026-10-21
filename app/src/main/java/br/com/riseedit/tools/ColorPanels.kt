@@ -43,25 +43,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 
-private val filters = listOf(
-    "Natural" to ColorAdjust(),
-    "Cinema" to ColorAdjust(-0.03f, 0.15f, -0.15f, 0.25f),
-    "Vivo" to ColorAdjust(0.03f, 0.1f, 0.25f, 0.1f),
-    "Quente" to ColorAdjust(0.02f, 0.05f, 0.1f, 0.5f),
-    "Frio" to ColorAdjust(0f, 0.05f, -0.05f, -0.45f),
-    "P&B" to ColorAdjust(saturation = -1f)
-)
-
-@Composable
-internal fun FiltersPanel(vm: EditorViewModel, state: EditorState) {
-    val clip = state.project.clips.getOrNull(state.selected) ?: return
-    val current = filters.firstOrNull { clip.adjustments.matchesFilter(it.second) }?.first ?: ""
-    // A filter only owns its 4 fields; exposure, curves, HSL, wheels etc. are kept.
-    ChoiceRow(filters.map { it.first }, current, { name ->
-        vm.clipSettings(clip.copy(adjustments = clip.adjustments.withFilter(filters.first { it.first == name }.second)))
-    }) { it }
-}
-
 private data class AdjustRow(
     val label: String,
     val range: ClosedFloatingPointRange<Float>,

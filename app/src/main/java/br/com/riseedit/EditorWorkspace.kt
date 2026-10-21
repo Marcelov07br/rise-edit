@@ -63,8 +63,8 @@ internal fun ColumnScope.EditorWorkspace(
     // giving its height to the preview; it springs back when the panel closes.
     AnimatedVisibility(
         visible = !toolOpen,
-        enter = expandVertically(riseSpring()) + fadeIn(tween(160)),
-        exit = shrinkVertically(riseSpring()) + fadeOut(tween(100))
+        enter = layoutEnter(),
+        exit = layoutExit()
     ) {
         androidx.compose.foundation.layout.Column {
             TransportBar(vm, state, enabled, onFullscreen = { ui.full = true })
@@ -86,8 +86,8 @@ internal fun ColumnScope.EditorWorkspace(
     }
     AnimatedVisibility(
         visible = toolOpen,
-        enter = expandVertically(riseSpring()) + fadeIn(tween(160)),
-        exit = shrinkVertically(riseSpring()) + fadeOut(tween(100))
+        enter = layoutEnter(),
+        exit = layoutExit()
     ) {
         MiniScrubBar(
             playing = state.playing,
@@ -124,8 +124,11 @@ private fun DockedToolPanel(
 ) {
     AnimatedVisibility(
         visible = ui.tool != null,
-        enter = slideInVertically(risePanelSpring) { it / 2 } + fadeIn(tween(160)),
-        exit = slideOutVertically(risePanelSpring) { it / 2 } + fadeOut(tween(120))
+        // Same height spring as the timeline: the panel's height is released exactly while the
+        // timeline's is taken back, so the preview (weight 1f) resizes continuously instead of
+        // being squeezed and jumping when a slide-out finally removes the panel.
+        enter = layoutEnter(clip = true),
+        exit = layoutExit(clip = true)
     ) {
         val current = ui.tool ?: ui.lastTool
         AnimatedContent(
@@ -156,3 +159,15 @@ private fun addToLane(lane: Int, ui: EditorUiState, media: EditorMediaActions) {
         }
     }
 }
+
+/**
+ * One spring for every height in the workspace (timeline, mini scrub bar, tool panel) so opening
+ * and closing are symmetric. Height (expand/shrink) and alpha share the same low-bounce spring.
+ */
+private fun layoutEnter(clip: Boolean = false) =
+    expandVertically(riseSpring(), expandFrom = androidx.compose.ui.Alignment.Top, clip = clip) +
+        fadeIn(riseSpring())
+
+private fun layoutExit(clip: Boolean = false) =
+    shrinkVertically(riseSpring(), shrinkTowards = androidx.compose.ui.Alignment.Top, clip = clip) +
+        fadeOut(riseSpring())

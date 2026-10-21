@@ -89,6 +89,52 @@ internal object PausedColorRenderer {
         }
     }
 
+    private var thumbSrc = 0
+    private var thumbOut = 0
+    private var thumbFbo = 0
+    private var thumbW = 0
+    private var thumbH = 0
+
+    /**
+     * Filter thumbnails: renders [frame] (small, ~160px) once per entry of [looks] with the same
+     * [ColorPass] as export/overlay, on separate textures so the paused overlay frame is untouched.
+     */
+    suspend fun thumbnails(frame: Bitmap, looks: List<ColorAdjust>, grade: ColorGrade): List<Bitmap>? = withContext(dispatcher) {
+        try {
+            ensureGl()
+            val p = pass ?: return@withContext null
+            if (thumbSrc == 0) thumbSrc = genTexture()
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, thumbSrc)
+            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, frame, 0)
+            if (frame.width != thumbW || frame.height != thumbH) {
+                thumbW = frame.width
+                thumbH = frame.height
+                if (thumbOut == 0) thumbOut = genTexture()
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, thumbOut)
+                GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, thumbW, thumbH, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null)
+                if (thumbFbo == 0) thumbFbo = IntArray(1).also { GLES20.glGenFramebuffers(1, it, 0) }[0]
+                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, thumbFbo)
+                GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, thumbOut, 0)
+            }
+            val buf = ByteBuffer.allocateDirect(thumbW * thumbH * 4).order(ByteOrder.nativeOrder())
+            val t0 = System.nanoTime()
+            val out = looks.map { look ->
+                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, thumbFbo)
+                GLES20.glViewport(0, 0, thumbW, thumbH)
+                p.draw(thumbSrc, look, grade, false)
+                buf.rewind()
+                GLES20.glReadPixels(0, 0, thumbW, thumbH, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf)
+                buf.rewind()
+                Bitmap.createBitmap(thumbW, thumbH, Bitmap.Config.ARGB_8888).also { it.copyPixelsFromBuffer(buf) }
+            }
+            Log.d(TAG, "filter thumbnails ${out.size}x ${thumbW}x$thumbH in ${(System.nanoTime() - t0) / 1_000_000}ms")
+            out
+        } catch (error: Throwable) {
+            Log.w(TAG, "thumbnails failed", error)
+            null
+        }
+    }
+
     private fun genTexture(): Int {
         val id = IntArray(1).also { GLES20.glGenTextures(1, it, 0) }[0]
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, id)

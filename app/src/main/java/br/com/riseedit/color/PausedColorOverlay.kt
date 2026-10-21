@@ -24,6 +24,7 @@ import br.com.riseedit.core.color.ColorGrade
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
 
 private const val TAG = PausedColorRenderer.TAG
@@ -36,7 +37,7 @@ private const val FRAME_INTERVAL_MS = 33L
 @Composable
 internal fun PausedColorOverlay(
     clip: Clip,
-    sourceMs: Long,
+    sourceMs: () -> Long,
     playing: Boolean,
     adjust: ColorAdjust,
     grade: ColorGrade,
@@ -49,7 +50,10 @@ internal fun PausedColorOverlay(
     val currentGrade by rememberUpdatedState(grade)
     val uri = clip.effectiveUri(true)
     DisposableEffect(Unit) { onDispose { ColorLive.overlayActive = false } }
-    LaunchedEffect(uri, sourceMs, playing) {
+    val currentSourceMs by rememberUpdatedState(sourceMs)
+    // Keyed on state changes only: while playing the source position is NOT a key (it changes every
+    // frame and used to relaunch this effect + log "overlay hidden" ~30x/s).
+    LaunchedEffect(uri, playing) {
         ready = false
         shown = null
         ColorLive.overlayActive = false
@@ -57,16 +61,21 @@ internal fun PausedColorOverlay(
             Log.d(TAG, "overlay hidden (playing)")
             return@LaunchedEffect
         }
-        delay(120) // debounce scrubbing
-        val t0 = System.nanoTime()
-        val frame = withContext(Dispatchers.IO) { grab(context, uri, sourceMs) }
-        if (frame == null) {
-            Log.w(TAG, "frame grab failed uri=$uri at ${sourceMs}ms -> seek fallback")
-            return@LaunchedEffect
+        snapshotFlow { currentSourceMs() }.distinctUntilChanged().collectLatest { sourceMs ->
+            ready = false
+            ColorLive.overlayActive = false
+            delay(120) // debounce scrubbing; keep the previous image until the new one is ready
+            val t0 = System.nanoTime()
+            val frame = withContext(Dispatchers.IO) { grab(context, uri, sourceMs) }
+            if (frame == null) {
+                shown = null
+                Log.w(TAG, "frame grab failed uri=$uri at ${sourceMs}ms -> seek fallback")
+                return@collectLatest
+            }
+            Log.d(TAG, "frame grabbed ${frame.width}x${frame.height} at ${sourceMs}ms in ${(System.nanoTime() - t0) / 1_000_000}ms")
+            if (!PausedColorRenderer.setFrame(frame)) return@collectLatest
+            ready = true
         }
-        Log.d(TAG, "frame grabbed ${frame.width}x${frame.height} at ${sourceMs}ms in ${(System.nanoTime() - t0) / 1_000_000}ms")
-        if (!PausedColorRenderer.setFrame(frame)) return@LaunchedEffect
-        ready = true
     }
     LaunchedEffect(ready) {
         if (!ready) return@LaunchedEffect
@@ -89,11 +98,11 @@ internal fun PausedColorOverlay(
     }
 }
 
-private fun grab(context: android.content.Context, uri: String, sourceMs: Long): Bitmap? {
+internal fun grab(context: android.content.Context, uri: String, sourceMs: Long, max: Int = 1280): Bitmap? {
     val r = MediaMetadataRetriever()
     return try {
         r.setDataSource(context, Uri.parse(uri))
-        r.getScaledFrameAtTime(sourceMs * 1000, MediaMetadataRetriever.OPTION_CLOSEST, 1280, 1280)
+        r.getScaledFrameAtTime(sourceMs * 1000, MediaMetadataRetriever.OPTION_CLOSEST, max, max)
             ?.let { if (it.config == Bitmap.Config.ARGB_8888) it else it.copy(Bitmap.Config.ARGB_8888, false) }
     } catch (error: RuntimeException) {
         Log.w(TAG, "grab error", error)

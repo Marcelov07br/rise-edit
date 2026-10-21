@@ -272,7 +272,7 @@ fun PreviewPanel(
                     if (fast && clip != null) {
                         br.com.riseedit.color.PausedColorOverlay(
                             clip = clip,
-                            sourceMs = vm.previewSourceMs,
+                            sourceMs = { vm.previewSourceMs },
                             playing = state.playing,
                             adjust = adjust,
                             grade = grade,
