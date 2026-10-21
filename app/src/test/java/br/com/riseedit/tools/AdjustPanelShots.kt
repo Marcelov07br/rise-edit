@@ -60,7 +60,7 @@ class AdjustPanelShots {
         Screen("Ajustar · LUT/log") {
             AdjustContent(sample, AdjustTab.GRADE, {}, {}, actions, grade = {
                 GradeControls(grade, listOf("file:///a.cube" to "Kodak 2383"), {}, {})
-            })
+            }, gradeActive = true)
         }
     }
     @Test fun phoneDark() = p.snapshot {

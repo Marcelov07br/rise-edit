@@ -96,7 +96,8 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
             canReset = !a.isNeutral
         ),
         compare = { CompareHoldButton(vm, enabled = !a.isNeutral || !clip.grade.isIdentity) },
-        grade = { GradePanel(vm, state) }
+        grade = { GradePanel(vm, state) },
+        gradeActive = !clip.grade.isIdentity
     )
 }
 
@@ -123,7 +124,8 @@ internal fun AdjustContent(
     curveChannel: Int = 0,
     band: Int = 0,
     compare: (@Composable () -> Unit)? = null,
-    grade: (@Composable () -> Unit)? = null
+    grade: (@Composable () -> Unit)? = null,
+    gradeActive: Boolean = false
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         // Level 2: icon-only actions in the top corner; reset set apart (gap + divider).
@@ -140,7 +142,15 @@ internal fun AdjustContent(
         }
         // Level 1: tools as a segmented pill.
         val tabs = AdjustTab.entries.filter { it != AdjustTab.GRADE || grade != null }
-        br.com.riseedit.designsystem.SegmentedTabs(tabs, tab, label = { it.label }, onSelect = onTab)
+        br.com.riseedit.designsystem.SegmentedTabs(tabs, tab, label = { it.label }, marked = {
+            when (it) {
+                AdjustTab.BASIC -> !a.basic.isNeutral
+                AdjustTab.CURVES -> !a.curves.isIdentity
+                AdjustTab.HSL -> !a.hsl.isNeutral
+                AdjustTab.WHEELS -> !a.wheels.isNeutral
+                AdjustTab.GRADE -> gradeActive
+            }
+        }, onSelect = onTab)
         when (tab) {
             AdjustTab.BASIC -> AdjustGrid(a, change)
             AdjustTab.CURVES -> CurvesTab(a, change, curveChannel)

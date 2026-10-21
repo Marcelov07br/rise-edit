@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -40,6 +41,7 @@ import br.com.riseedit.core.color.LogProfile
 import br.com.riseedit.core.color.Meters
 import br.com.riseedit.core.color.ToneCurve
 import br.com.riseedit.subtitles.SubtitleJobs
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -99,10 +101,10 @@ internal fun GradeControls(
             }
         }
         if (g.lutUri != null) {
-            Text("Intensidade do LUT", color = br.com.riseedit.RiseMuted, style = MaterialTheme.typography.labelMedium)
-            ChoiceRow(listOf(0.25f, 0.5f, 0.75f, 1f), g.lutIntensity, { change(g.copy(lutIntensity = it)) }) {
-                "${(it * 100).toInt()}%"
-            }
+            br.com.riseedit.designsystem.TileSlider(
+                "Intensidade do LUT", g.lutIntensity, 0f..1f, Modifier.fillMaxWidth(), default = 1f,
+                format = { "${(it * 100).roundToInt()}%" }
+            ) { change(g.copy(lutIntensity = it.coerceIn(0f, 1f))) }
         }
         br.com.riseedit.designsystem.RiseDropdown(
             "Ordem do LUT", listOf(false, true), g.lutBeforeAdjust,
@@ -111,7 +113,8 @@ internal fun GradeControls(
         Text(
             "Grade: log → LUT → curva. Para Samsung Log use o LUT oficial com perfil Nenhum. " +
                 "HDR (HLG/PQ) é convertido para SDR antes.",
-            style = MaterialTheme.typography.bodySmall
+            style = MaterialTheme.typography.bodySmall,
+            color = br.com.riseedit.RiseMuted
         )
     }
 }

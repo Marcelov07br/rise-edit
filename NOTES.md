@@ -30,3 +30,8 @@
   - Ajustar ganhou a aba "LUT/log" (reusa `GradePanel` como slot `grade` de `AdjustContent`); "Segure para comparar" virou ícone Compare na barra de ações. Resetar curva do canal = ícone dentro da superfície gráfica.
   - Prints Paparazzi: screenshots/0.13.1/ (adjustPhone, curves, hsl, wheels, lutLog, lutDropdown, copyDialog, pasteDialog, phoneDark, adjustTablet). APK: rise-edit-0.13.1-debug.apk.
   - Próximo: migrar os demais painéis (texto, áudio, velocidade…) para SegmentedTabs/ActionBar/RiseDropdown; intensidade do LUT ainda é ChoiceRow.
+- 2026-10-21: v0.13.1 (publicada, tag v0.13.1) — ajustes finais antes da release:
+  - Intensidade do LUT: ChoiceRow 25/50/75/100% → `TileSlider` 0..100% (toque duplo volta a 100%).
+  - `SegmentedTabs(marked = …)`: ponto indicador genérico na aba com ajuste não neutro (Básico/Curvas/HSL/Rodas/LUT-log; `AdjustContent(gradeActive)`).
+  - Nota "Grade: log → LUT → curva…" não aparecia: não era corte, o `Text` não tinha cor (preto sobre fundo preto). Agora `RiseMuted`.
+  - Prints regenerados em screenshots/0.13.1/. Release v0.12.1/v0.13.0 nunca publicadas separadamente; notas da v0.13.1 cobrem tudo desde v0.12.0. Não testado em aparelho.

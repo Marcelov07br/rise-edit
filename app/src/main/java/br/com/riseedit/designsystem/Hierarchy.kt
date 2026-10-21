@@ -82,7 +82,7 @@ fun <T> tabSpring() = spring<T>(dampingRatio = 0.9f, stiffness = 500f)
 
 /** Segmented pill tab bar with a sliding indicator. */
 @Composable
-fun <T> SegmentedTabs(items: List<T>, selected: T, modifier: Modifier = Modifier, label: (T) -> String, onSelect: (T) -> Unit) {
+fun <T> SegmentedTabs(items: List<T>, selected: T, modifier: Modifier = Modifier, label: (T) -> String, marked: (T) -> Boolean = { false }, onSelect: (T) -> Unit) {
     val t = HierarchyTokens
     BoxWithConstraints(
         modifier.fillMaxWidth().height(t.TabBarHeight).clip(CircleShape).background(t.TabBarBg)
@@ -102,11 +102,18 @@ fun <T> SegmentedTabs(items: List<T>, selected: T, modifier: Modifier = Modifier
                         .clickable(role = Role.Tab) { onSelect(item) },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        label(item), fontSize = 13.sp, maxLines = 1,
-                        color = if (on) RiseWhite else RiseMuted,
-                        fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            label(item), fontSize = 13.sp, maxLines = 1,
+                            color = if (on) RiseWhite else RiseMuted,
+                            fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                        // Indicator dot: this tool has a non-neutral setting.
+                        if (marked(item)) Box(
+                            Modifier.padding(start = 4.dp).size(5.dp).clip(CircleShape)
+                                .background(if (on) RiseWhite else RiseMuted)
+                        )
+                    }
                 }
             }
         }
