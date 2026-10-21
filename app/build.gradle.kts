@@ -4,6 +4,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("app.cash.paparazzi")
 }
 val signing = Properties().apply {
     val file = rootProject.file(".signing/signing.properties")
@@ -18,8 +19,8 @@ android {
         applicationId = "br.com.riseedit"
         minSdk = 27
         targetSdk = 35
-        versionCode = 18
-        versionName = "0.12.0"
+        versionCode = 19
+        versionName = "0.12.1"
         externalNativeBuild { cmake { arguments += listOf("-DANDROID_STL=c++_static") } }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -97,6 +98,7 @@ dependencies {
     implementation("androidx.media3:media3-transformer:1.9.0")
     implementation("androidx.media3:media3-effect:1.9.0")
     implementation("org.opencv:opencv:4.10.0")
+    testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
 }

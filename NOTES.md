@@ -11,3 +11,4 @@
 - Próximos passos:
   - LOTE B: curvas (RGB/luma), HSL por faixa de cor, rodas de cor (lift/gamma/gain), keyframes de cor, histograma/waveform usando `ColorAdjustMath`.
   - LOTE C: presets do usuário (salvar/compartilhar), copiar/colar cor entre clips, ajuste em camadas/overlays, máscaras locais, HDR/log-aware, testes instrumentados de paridade prévia×export.
+- 2026-10-21: v0.12.1 (versionCode 19, local, sem release) — painel Ajustar em grade (2 col. celular, até 4 em telas largas, ~170dp/col) com `designsystem/TileSlider.kt`: box arredondada com régua de ticks horizontal sob marcador central branco (versão compacta do `Wheel` de ISO do Rise Cam), valor monospace dentro, nome embaixo; arrastar horizontal muda, toque duplo zera com riseSpring + háptico. `ValueSlider` segue usado nos outros painéis. Paparazzi 1.3.5 (último estável; 2.0 ainda alpha): `./gradlew :app:recordPaparazziDebug` → app/src/test/snapshots (fora do git); prints em screenshots/0.12.1/.

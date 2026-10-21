@@ -22,6 +22,14 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import br.com.riseedit.color.ColorLive
 import br.com.riseedit.redrawColor
 import br.com.riseedit.riseSpring
+import br.com.riseedit.designsystem.TileSlider
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.unit.dp
 
 private val filters = listOf(
     "Natural" to ColorAdjust(),
@@ -66,9 +74,23 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
     val clip = state.project.clips.getOrNull(state.selected) ?: return
     val a = clip.adjustments
     CompareHoldButton(vm, enabled = !a.isNeutral || !clip.grade.isIdentity)
-    adjustRows.forEach { row ->
-        ValueSlider(row.label, row.get(a), row.range) {
-            vm.clipSettings(clip.copy(adjustments = row.set(a, it)))
+    AdjustGrid(a) { vm.clipSettings(clip.copy(adjustments = it)) }
+}
+
+/** Responsive grid of [TileSlider]s: 2 columns on phones, up to 4 on wide layouts. */
+@Composable
+internal fun AdjustGrid(a: ColorAdjust, change: (ColorAdjust) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val cols = (maxWidth / 170.dp).toInt().coerceIn(2, 4)
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            adjustRows.chunked(cols).forEach { line ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    line.forEach { row ->
+                        TileSlider(row.label, row.get(a), row.range, Modifier.weight(1f)) { change(row.set(a, it)) }
+                    }
+                    repeat(cols - line.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
         }
     }
 }
