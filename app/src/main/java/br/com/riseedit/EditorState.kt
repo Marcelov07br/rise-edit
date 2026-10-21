@@ -13,6 +13,9 @@ data class EditorState(
     val busy: String? = null,
     val progress: Float = 0f,
     val message: String? = null,
+    /** The message offers "Desfazer" (history undo). */
+    val messageUndo: Boolean = false,
+    val attributeDialog: AttributeDialog? = null,
     val analyzed: Set<String> = emptySet(),
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
@@ -40,3 +43,10 @@ data class EditorState(
         }
     }
 }
+
+/** Copy/paste attribute checklist: [paste] false = copying from the selected clip. */
+data class AttributeDialog(
+    val paste: Boolean,
+    val shown: List<br.com.riseedit.core.editing.AttributeGroup>,
+    val initial: Set<br.com.riseedit.core.editing.AttributeGroup>
+)

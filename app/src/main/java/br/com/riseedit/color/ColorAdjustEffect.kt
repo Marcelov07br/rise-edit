@@ -26,8 +26,9 @@ internal object ColorLive {
 }
 
 /**
- * One pass, fixed order: exposure → temperature/tint → contrast(pivot) → shadows/highlights →
- * saturation/vibrance → grade LUT. Formulas come from [ColorAdjustMath.GLSL] (shared source).
+ * One pass, fixed order: [grade LUT if lutBeforeAdjust] → exposure → temperature/tint →
+ * contrast(pivot) → shadows/highlights → saturation/vibrance → HSL → lift/gamma/gain → curves →
+ * [grade LUT]. Formulas come from [ColorAdjustMath.GLSL] (shared source).
  * Static instances (export/faithful preview) are no-ops when neutral; the live instance reads
  * [ColorLive] every frame so the fast preview needs no pipeline rebuild on slider changes.
  */
@@ -70,6 +71,8 @@ internal class ColorAdjustEffect private constructor(
         }
         private var lutTex = 0
         private var lutGrade: ColorGrade? = null
+        private var curveTex = 0
+        private var curveData: br.com.riseedit.core.ColorCurves? = null
 
         override fun configure(inputWidth: Int, inputHeight: Int) = Size(inputWidth, inputHeight)
 
@@ -84,8 +87,16 @@ internal class ColorAdjustEffect private constructor(
                 program.setSamplerTexIdUniform("uLut", if (useLut) lutTex else inputTexId, 1)
                 program.setFloatUniform("uUseLut", if (useLut) 1f else 0f)
                 program.setFloatUniform("uLutSize", SIZE.toFloat())
-                val values = (if (bypass) ColorAdjust.NEUTRAL else adjust).uniforms()
-                values.forEach { (name, v) -> program.setFloatUniform(name, v) }
+                program.setFloatUniform("uLutFirst", if (grade.lutBeforeAdjust) 1f else 0f)
+                val a = if (bypass) ColorAdjust.NEUTRAL else adjust
+                a.uniforms().forEach { (name, v) -> program.setFloatUniform(name, v) }
+                a.vectorUniforms().forEach { (name, v) -> program.setFloatsUniform(name, v) }
+                program.setFloatUniform("uUseHsl", if (a.hsl.isNeutral) 0f else 1f)
+                program.setFloatUniform("uUseWheels", if (a.wheels.isNeutral) 0f else 1f)
+                val useCurves = !a.curves.isIdentity
+                if (useCurves && a.curves != curveData) uploadCurves(a.curves)
+                program.setSamplerTexIdUniform("uCurves", if (useCurves) curveTex else inputTexId, 2)
+                program.setFloatUniform("uUseCurves", if (useCurves) 1f else 0f)
                 program.setFloatUniform("uNeutral", if (bypass || adjust.isNeutral) 1f else 0f)
                 program.bindAttributesAndUniforms()
                 GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
@@ -121,12 +132,37 @@ internal class ColorAdjustEffect private constructor(
             lutGrade = grade
         }
 
+        /** Curves (master∘channel) baked into a 256×1 RGBA texture; re-uploaded only on change. */
+        private fun uploadCurves(curves: br.com.riseedit.core.ColorCurves) {
+            val t = curves.table(256)
+            val buf = ByteBuffer.allocateDirect(256 * 4).order(ByteOrder.nativeOrder())
+            for (i in 0 until 256) buf.put(byte(t[i * 3])).put(byte(t[i * 3 + 1])).put(byte(t[i * 3 + 2])).put(-1)
+            buf.flip()
+            if (curveTex == 0) {
+                val ids = IntArray(1)
+                GLES20.glGenTextures(1, ids, 0)
+                curveTex = ids[0]
+            }
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, curveTex)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+            GLES20.glTexImage2D(
+                GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, 256, 1, 0,
+                GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf
+            )
+            GlUtil.checkGlError()
+            curveData = curves
+        }
+
         private fun byte(v: Float) = (v * 255f + 0.5f).toInt().coerceIn(0, 255).toByte()
 
         override fun release() {
             super.release()
             try {
                 if (lutTex != 0) GlUtil.deleteTexture(lutTex)
+                if (curveTex != 0) GlUtil.deleteTexture(curveTex)
                 program.delete()
             } catch (error: GlUtil.GlException) {
                 throw VideoFrameProcessingException(error)
@@ -151,6 +187,9 @@ uniform sampler2D uLut;
 uniform float uUseLut;
 uniform float uLutSize;
 uniform float uNeutral;
+uniform float uLutFirst;
+uniform sampler2D uCurves;
+uniform float uUseCurves;
 varying vec2 vTex;
 vec3 lut(vec3 c) {
   float n = uLutSize;
@@ -166,8 +205,15 @@ vec3 lut(vec3 c) {
 void main() {
   vec4 color = texture2D(uTexSampler, vTex);
   vec3 c = color.rgb;
+  if (uUseLut > 0.5 && uLutFirst > 0.5) c = lut(clamp(c, 0.0, 1.0));
   if (uNeutral < 0.5) c = colorAdjust(c);
-  if (uUseLut > 0.5) c = lut(clamp(c, 0.0, 1.0));
+  if (uUseCurves > 0.5) {
+    float o = 0.5 / 256.0; float k = 255.0 / 256.0;
+    c = vec3(texture2D(uCurves, vec2(c.r * k + o, 0.5)).r,
+             texture2D(uCurves, vec2(c.g * k + o, 0.5)).g,
+             texture2D(uCurves, vec2(c.b * k + o, 0.5)).b);
+  }
+  if (uUseLut > 0.5 && uLutFirst < 0.5) c = lut(clamp(c, 0.0, 1.0));
   gl_FragColor = vec4(c, color.a);
 }
 """

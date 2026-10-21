@@ -95,6 +95,15 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun settings(settings: Stabilization) = commands.settings(settings)
     fun copyAttributes() = commands.copyAttributes()
     fun pasteAttributes() = commands.pasteAttributes()
+    fun confirmCopy(groups: Set<br.com.riseedit.core.editing.AttributeGroup>) = commands.confirmCopy(groups)
+    fun confirmPaste(groups: Set<br.com.riseedit.core.editing.AttributeGroup>, all: Boolean) = commands.confirmPaste(groups, all)
+    fun closeAttributeDialog() = commands.closeAttributeDialog()
+    fun resetColor() = commands.resetColor()
+    fun applyColorToAll() {
+        val s = state.value
+        val clip = s.project.clips.getOrNull(s.selected) ?: return
+        commands.applyColorToAll(clip)
+    }
     val hasClipboard get() = commands.hasClipboard
     fun rippleDelete() = commands.rippleDelete()
     fun toggleMarker() = commands.toggleMarker()

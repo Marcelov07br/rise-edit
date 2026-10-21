@@ -191,7 +191,7 @@ class ProjectStore(private val context: Context) {
                 SpeedPoint(it.getLong(0), it.getDouble(1))
             },
             adjustments = c.optJSONObject("color")?.let { o ->
-                ColorAdjust.fromMap(o.keys().asSequence().associateWith { o.opt(it) })
+                ColorAdjust.fromMap(GradeJson.plain(o))
             } ?: ColorAdjust.fromLegacy(
                 a?.let { arr -> List(arr.length()) { arr.optDouble(it, 0.0) } }
             ),

@@ -12,6 +12,16 @@ internal object GradeJson {
         .put("lut", g.lutUri ?: JSONObject.NULL)
         .put("lutName", g.lutName ?: JSONObject.NULL)
         .put("lutAmount", g.lutIntensity.toDouble())
+        .put("lutFirst", g.lutBeforeAdjust)
+
+    /** JSONObject/JSONArray → Map/List, for core decoders. */
+    fun plain(o: JSONObject): Map<String, Any?> = o.keys().asSequence().associateWith { plainValue(o.opt(it)) }
+    private fun plainValue(v: Any?): Any? = when (v) {
+        is JSONObject -> plain(v)
+        is org.json.JSONArray -> List(v.length()) { plainValue(v.opt(it)) }
+        JSONObject.NULL -> null
+        else -> v
+    }
 
     fun decode(o: JSONObject?): ColorGrade {
         if (o == null) return ColorGrade()
@@ -24,7 +34,8 @@ internal object GradeJson {
             }.getOrDefault(ToneCurve.LINEAR),
             lutUri = if (o.isNull("lut")) null else o.optString("lut").ifBlank { null },
             lutName = if (o.isNull("lutName")) null else o.optString("lutName").ifBlank { null },
-            lutIntensity = o.optDouble("lutAmount", 1.0).toFloat().coerceIn(0f, 1f)
+            lutIntensity = o.optDouble("lutAmount", 1.0).toFloat().coerceIn(0f, 1f),
+            lutBeforeAdjust = o.optBoolean("lutFirst", false)
         )
     }
 }

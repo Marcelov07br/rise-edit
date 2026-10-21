@@ -110,30 +110,80 @@ internal class ProjectCommands(private val document: EditorDocument) {
     private var clipboard: br.com.riseedit.core.editing.ClipAttributes? = null
     val hasClipboard get() = clipboard != null
 
+    /** Opens the copy checklist with every group the selected clip actually has. */
     fun copyAttributes() {
         val clip = document.current.project.clips.getOrNull(document.current.selected) ?: return
-        clipboard = br.com.riseedit.core.editing.ClipAttributes.of(clip)
-        document.message("Atributos copiados (cor, orientação, estabilização, volume, fade).")
+        val shown = br.com.riseedit.core.editing.ClipAttributes.of(clip).available
+        if (shown.isEmpty()) return document.message("Este clipe não tem atributos alterados para copiar.")
+        document.update { it.copy(attributeDialog = br.com.riseedit.AttributeDialog(false, shown, shown.toSet())) }
     }
 
+    fun confirmCopy(groups: Set<br.com.riseedit.core.editing.AttributeGroup>) {
+        closeAttributeDialog()
+        val clip = document.current.project.clips.getOrNull(document.current.selected) ?: return
+        if (groups.isEmpty()) return
+        clipboard = br.com.riseedit.core.editing.ClipAttributes.of(clip, groups)
+        document.message("Copiado: " + clipboard!!.available.joinToString { it.label } + ".")
+    }
+
+    /** Opens the paste checklist, listing only what is in the clipboard. */
     fun pasteAttributes() {
+        val attributes = clipboard ?: return document.message("Copie atributos de um clipe primeiro.")
+        val shown = attributes.available
+        document.update { it.copy(attributeDialog = br.com.riseedit.AttributeDialog(true, shown, shown.toSet())) }
+    }
+
+    fun closeAttributeDialog() = document.update { it.copy(attributeDialog = null) }
+
+    fun confirmPaste(groups: Set<br.com.riseedit.core.editing.AttributeGroup>, allClips: Boolean) {
+        closeAttributeDialog()
+        val state = document.current
+        val attributes = clipboard ?: return
+        var use = groups
+        // dependency on an external file: the user's .cube must still exist
+        val missing = attributes.resources(use).filterNot { uri ->
+            runCatching { java.io.File(java.net.URI(uri)).exists() }.getOrDefault(false)
+        }
+        if (missing.isNotEmpty()) use = br.com.riseedit.core.editing.AttributeCopy.close(use - br.com.riseedit.core.editing.AttributeGroup.LUT)
+        if (use.isEmpty()) return
+        var noAnalysis = false
+        val targets = if (allClips) state.project.clips.indices.toList() else listOf(state.selected)
+        val clips = state.project.clips.mapIndexed { i, clip ->
+            if (i !in targets) return@mapIndexed clip
+            var out = attributes.applyTo(clip, use)
+            if (out.stabilization.enabled && !document.analyses.containsKey(clip.uri)) {
+                out = out.copy(stabilization = out.stabilization.copy(enabled = false)); noAnalysis = true
+            }
+            out
+        }
+        if (!document.edit(state.project.copy(clips = clips))) return
+        document.message(
+            when {
+                missing.isNotEmpty() -> "Colado sem o LUT: arquivo .cube não encontrado."
+                noAnalysis -> "Colado. Analise o movimento para ativar a estabilização."
+                else -> "Colado em ${targets.size} clipe(s)."
+            },
+            undo = true
+        )
+    }
+
+    /** Applies this clip's whole color (adjust + grade) to every clip; undoable. */
+    fun applyColorToAll(source: Clip) {
+        val state = document.current
+        val clips = state.project.clips.map { it.copy(adjustments = source.adjustments, grade = source.grade) }
+        if (document.edit(state.project.copy(clips = clips))) {
+            document.message("Cor aplicada a ${clips.size} clipes.", undo = true)
+        }
+    }
+
+    /** "Resetar todos" in Ajustar: neutral ColorAdjust (sliders, curves, HSL, wheels); undoable. */
+    fun resetColor() {
         val state = document.current
         val clip = state.project.clips.getOrNull(state.selected) ?: return
-        val attributes =
-            clipboard ?: return document.message("Copie atributos de um clipe primeiro.")
-        if (attributes.stabilization.enabled && !document.analyses.containsKey(clip.uri)) {
-            document.edit(
-                state.project.replace(
-                    state.selected,
-                    attributes.applyTo(
-                        clip
-                    ).copy(stabilization = attributes.stabilization.copy(enabled = false))
-                )
-            )
-            document.message("Colado. Analise o movimento deste clipe para ativar a estabilização.")
-            return
+        if (clip.adjustments.isNeutral) return
+        if (document.edit(state.project.replace(state.selected, clip.copy(adjustments = br.com.riseedit.core.ColorAdjust.NEUTRAL)))) {
+            document.message("Ajustes de cor resetados.", undo = true)
         }
-        document.edit(state.project.replace(state.selected, attributes.applyTo(clip)))
     }
 
     fun rippleDelete() {

@@ -63,7 +63,9 @@ data class ColorGrade(
     /** content:// .cube imported by the user; parsed at render time. */
     val lutUri: String? = null,
     val lutName: String? = null,
-    val lutIntensity: Float = 1f
+    val lutIntensity: Float = 1f,
+    /** true: grade (log/LUT/curve) runs BEFORE the adjust sliders; default after (0.12 order). */
+    val lutBeforeAdjust: Boolean = false
 ) {
     init {
         require(lutIntensity in 0f..1f)

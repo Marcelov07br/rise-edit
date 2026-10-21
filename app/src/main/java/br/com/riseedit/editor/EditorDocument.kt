@@ -21,7 +21,7 @@ internal class EditorDocument(val store: ProjectStore) {
     var onProjectChanged: () -> Unit = {}
 
     fun update(transform: (EditorState) -> EditorState) = mutable.update(transform)
-    fun message(text: String?) = update { it.copy(message = text) }
+    fun message(text: String?, undo: Boolean = false) = update { it.copy(message = text, messageUndo = undo && text != null) }
     fun progress(value: Float, phase: String) = update { it.copy(progress = value, busy = phase) }
 
     fun reset(project: Project) {

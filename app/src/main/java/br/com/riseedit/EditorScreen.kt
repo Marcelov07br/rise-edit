@@ -73,7 +73,14 @@ fun EditorScreen(
                 EditorEmptyPanel(enabled, media.videos)
             }
         }
-        EditorMessage(state.message, vm::message)
+        EditorMessage(state.message, vm::message, if (state.messageUndo && state.canUndo) vm::undo else null)
+        state.attributeDialog?.let { d ->
+            br.com.riseedit.tools.AttributeSelectDialog(
+                d,
+                onDismiss = vm::closeAttributeDialog,
+                onConfirm = { sel, all -> if (d.paste) vm.confirmPaste(sel, all) else vm.confirmCopy(sel) }
+            )
+        }
     }
     EditorDialogs(vm, state, ui, media)
 }

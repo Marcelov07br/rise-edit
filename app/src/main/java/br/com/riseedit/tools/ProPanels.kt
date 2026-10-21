@@ -9,6 +9,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -63,42 +64,56 @@ internal fun GradePanel(vm: EditorViewModel, state: EditorState) {
                 }.onFailure { vm.message("LUT inválido: ${it.message}") }
             }
         }
-    Text("Perfil log da câmera", style = MaterialTheme.typography.labelMedium)
-    ChoiceRow(LogProfile.entries.toList(), g.log, {
-        vm.clipSettings(clip.copy(grade = g.copy(log = it)))
-    }) {
-        it.label
-    }
-    Text("Curva", style = MaterialTheme.typography.labelMedium)
-    ChoiceRow(ToneCurve.entries.toList(), g.curve, {
-        vm.clipSettings(clip.copy(grade = g.copy(curve = it)))
-    }) {
-        it.label
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = { picker.launch(arrayOf("*/*")) }) {
-            Text(if (g.lutUri == null) "Importar LUT .cube" else "Trocar LUT")
+    val known = state.project.clips.mapNotNull { c -> c.grade.lutUri?.let { it to (c.grade.lutName ?: "LUT") } }.distinctBy { it.first }
+    GradeControls(g, known, { vm.clipSettings(clip.copy(grade = it)) }, { picker.launch(arrayOf("*/*")) })
+}
+
+private const val IMPORT = "\u0000import"
+
+/** Log/curve/LUT as rounded dropdowns + LUT order. Stateless (Paparazzi). */
+@Composable
+internal fun GradeControls(
+    g: br.com.riseedit.core.color.ColorGrade,
+    knownLuts: List<Pair<String, String>>,
+    change: (br.com.riseedit.core.color.ColorGrade) -> Unit,
+    importLut: () -> Unit,
+    lutMenuOpen: Boolean = false
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        br.com.riseedit.designsystem.RiseDropdown("Perfil log da câmera", LogProfile.entries.toList(), g.log, text = { it.label }) {
+            change(g.copy(log = it))
+        }
+        br.com.riseedit.designsystem.RiseDropdown("Curva", ToneCurve.entries.toList(), g.curve, text = { it.label }) {
+            change(g.copy(curve = it))
+        }
+        val names = (knownLuts + listOfNotNull(g.lutUri?.let { it to (g.lutName ?: "LUT") })).distinctBy { it.first }.toMap()
+        val options = listOf<String?>(null) + names.keys + IMPORT
+        br.com.riseedit.designsystem.RiseDropdown(
+            "LUT", options, g.lutUri, expandedInitially = lutMenuOpen,
+            text = { when (it) { null -> "Nenhum"; IMPORT -> "Importar .cube…"; else -> names[it] ?: "LUT" } }
+        ) {
+            when (it) {
+                IMPORT -> importLut()
+                null -> change(g.copy(lutUri = null, lutName = null))
+                else -> change(g.copy(lutUri = it, lutName = names[it]))
+            }
         }
         if (g.lutUri != null) {
-            OutlinedButton(onClick = {
-                vm.clipSettings(clip.copy(grade = g.copy(lutUri = null, lutName = null)))
-            }) { Text("Remover") }
+            Text("Intensidade do LUT", color = br.com.riseedit.RiseMuted, style = MaterialTheme.typography.labelMedium)
+            ChoiceRow(listOf(0.25f, 0.5f, 0.75f, 1f), g.lutIntensity, { change(g.copy(lutIntensity = it)) }) {
+                "${(it * 100).toInt()}%"
+            }
         }
-    }
-    if (g.lutUri != null) {
+        Text("Ordem", color = br.com.riseedit.RiseMuted, style = MaterialTheme.typography.labelMedium)
+        ChoiceRow(listOf(false, true), g.lutBeforeAdjust, { change(g.copy(lutBeforeAdjust = it)) }) {
+            if (it) "LUT antes dos ajustes" else "LUT depois dos ajustes"
+        }
         Text(
-            "LUT: ${g.lutName ?: "sem nome"} · intensidade",
+            "Grade: log → LUT → curva. Para Samsung Log use o LUT oficial com perfil Nenhum. " +
+                "HDR (HLG/PQ) é convertido para SDR antes.",
             style = MaterialTheme.typography.bodySmall
         )
-        ChoiceRow(listOf(0.25f, 0.5f, 0.75f, 1f), g.lutIntensity, {
-            vm.clipSettings(clip.copy(grade = g.copy(lutIntensity = it)))
-        }) { "${(it * 100).toInt()}%" }
     }
-    Text(
-        "Ordem: log → LUT → curva. Para Samsung Log use o LUT oficial com perfil Nenhum. " +
-            "HDR (HLG/PQ) é convertido para SDR antes.",
-        style = MaterialTheme.typography.bodySmall
-    )
 }
 
 private class MeterData(
@@ -119,7 +134,7 @@ internal fun MetersPanel(vm: EditorViewModel, state: EditorState) {
     }
     val sourceMs = vm.previewSourceMs
     var data by remember { mutableStateOf<MeterData?>(null) }
-    LaunchedEffect(clip.id, clip.grade, sourceMs / 250, state.project.modifiedAt) {
+    LaunchedEffect(clip.id, clip.grade, clip.adjustments, sourceMs / 250, state.project.modifiedAt) {
         data = withContext(Dispatchers.Default) { measure(context, clip, sourceMs) }
     }
     val d = data ?: return Text("Lendo quadro…", style = MaterialTheme.typography.bodySmall)
@@ -179,7 +194,7 @@ private fun measure(
         val px = IntArray(w * h)
         bmp.getPixels(px, 0, w, 0, 0, w, h)
         bmp.recycle()
-        for (i in px.indices) px[i] = GradeLuts.apply(clip.grade, px[i])
+        for (i in px.indices) px[i] = GradeLuts.applyFull(clip.adjustments, clip.grade, px[i])
         val zebra = Meters.zebra(px)
         val shown = px.copyOf()
         for (i in shown.indices) {

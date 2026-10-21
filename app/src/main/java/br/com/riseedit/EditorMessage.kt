@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-internal fun BoxScope.EditorMessage(message: String?, dismiss: (String?) -> Unit) {
+internal fun BoxScope.EditorMessage(message: String?, dismiss: (String?) -> Unit, undo: (() -> Unit)? = null) {
     message?.let { text ->
         Surface(
             Modifier.align(Alignment.TopCenter).padding(top = 60.dp, start = 12.dp, end = 12.dp),
@@ -31,6 +31,7 @@ internal fun BoxScope.EditorMessage(message: String?, dismiss: (String?) -> Unit
                     Modifier.weight(1f, fill = false),
                     style = MaterialTheme.typography.bodySmall
                 )
+                if (undo != null) TextButton(onClick = { undo(); dismiss(null) }) { Text("Desfazer") }
                 TextButton(onClick = { dismiss(null) }) { Text("OK") }
             }
         }
