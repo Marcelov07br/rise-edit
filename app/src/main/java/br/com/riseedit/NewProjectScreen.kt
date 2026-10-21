@@ -36,6 +36,7 @@ import br.com.riseedit.core.TvStandard
 import br.com.riseedit.designsystem.GraphicSurface
 import br.com.riseedit.designsystem.HierarchyTokens
 import br.com.riseedit.designsystem.PanelIconButton
+import br.com.riseedit.designsystem.riseSafeArea
 import br.com.riseedit.settings.FormatFields
 
 /** 0.19 "Criar projeto" form state (pre-filled from Configurações › Projeto). */
@@ -59,7 +60,7 @@ fun NewProjectScreen(
     Column(
         Modifier.fillMaxSize().background(
             RiseBlack
-        ).padding(16.dp).verticalScroll(rememberScrollState()),
+        ).riseSafeArea().padding(16.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

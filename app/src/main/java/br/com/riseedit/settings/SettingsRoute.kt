@@ -86,16 +86,6 @@ fun SettingsRoute(onBack: () -> Unit) {
         SettingsInfo(name, code, cache, settings.exportFolder?.let { folderLabel(it) }),
         SettingsActions(
             back = onBack,
-            openReleases = {
-                runCatching {
-                    context.startActivity(
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse(RELEASES_URL)
-                        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    )
-                }
-            },
             pickFolder = { folder.launch(null) },
             clearCache = {
                 clearing = true

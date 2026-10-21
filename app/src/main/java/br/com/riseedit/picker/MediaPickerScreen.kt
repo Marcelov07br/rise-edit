@@ -57,6 +57,7 @@ import br.com.riseedit.RiseSurface
 import br.com.riseedit.RiseWhite
 import br.com.riseedit.designsystem.PanelIconButton
 import br.com.riseedit.designsystem.SegmentedTabs
+import br.com.riseedit.designsystem.riseSafeArea
 import br.com.riseedit.riseSpring
 import br.com.riseedit.settings.SettingsStore
 import kotlinx.coroutines.Dispatchers
@@ -78,7 +79,7 @@ fun MediaPickerScreen(
     onRequest: () -> Unit,
     thumb: @Composable (GalleryItem) -> Unit
 ) {
-    Column(Modifier.fillMaxSize().background(RiseBlack).padding(top = 12.dp)) {
+    Column(Modifier.fillMaxSize().background(RiseBlack).riseSafeArea().padding(top = 12.dp)) {
         Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             PanelIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Voltar", onClick = onBack)
             Text(

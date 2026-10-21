@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import br.com.riseedit.core.Project
+import br.com.riseedit.designsystem.riseSafeArea
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -36,7 +37,7 @@ fun HomeScreen(
     val filtered = projects.filter { (!favorites || it.favorite) && it.name.contains(query, true) }
     LazyVerticalGrid(
         GridCells.Adaptive(260.dp),
-        modifier = Modifier.fillMaxSize().safeDrawingPadding(),
+        modifier = Modifier.fillMaxSize().riseSafeArea(),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)

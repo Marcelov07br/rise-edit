@@ -15,7 +15,7 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity() {
 
     @Suppress("LongMethod", "CyclomaticComplexMethod") // route host
     override fun onCreate(savedInstanceState: Bundle?) {
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
         setContent {
             RiseTheme {
@@ -72,7 +73,8 @@ class MainActivity : ComponentActivity() {
                 BackHandler(enabled = route == Route.HOME && editing && state.busy == null) {
                     home()
                 }
-                Surface(Modifier.fillMaxSize()) {
+                SystemBarIcons()
+                br.com.riseedit.designsystem.RiseScreenFrame {
                     when {
                         route == Route.SETTINGS -> br.com.riseedit.settings.SettingsRoute {
                             route =
@@ -132,4 +134,18 @@ class MainActivity : ComponentActivity() {
 private fun newForm(count: Int): NewProjectForm {
     val d = br.com.riseedit.settings.SettingsStore.current
     return NewProjectForm("Projeto ${count + 1}", d.aspect, d.resolution, d.standard, d.rate)
+}
+
+/** Status/gesture bar icons follow the in-app theme (Escuro/Claro), not only the system. */
+@Composable
+private fun SystemBarIcons() {
+    val view = androidx.compose.ui.platform.LocalView.current
+    val dark = RisePalette.dark
+    androidx.compose.runtime.SideEffect {
+        val window = (view.context as? android.app.Activity)?.window ?: return@SideEffect
+        androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = !dark
+            isAppearanceLightNavigationBars = !dark
+        }
+    }
 }

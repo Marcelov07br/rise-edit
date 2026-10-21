@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -58,6 +57,7 @@ import br.com.riseedit.RiseSurfaceHigh
 import br.com.riseedit.RiseWhite
 import br.com.riseedit.TextTab
 import br.com.riseedit.core.TextLayer
+import br.com.riseedit.designsystem.riseSafeArea
 
 /**
  * CapCut-style text editor docked under the preview. Every change updates [EditorUiState.textDraft],
@@ -80,7 +80,7 @@ internal fun TextEditorSheet(vm: EditorViewModel, ui: EditorUiState, draft: Text
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
             .background(RiseSurface)
-            .navigationBarsPadding()
+            .riseSafeArea()
             .semantics { contentDescription = "Editor de texto" }
     ) {
         TextInputRow(draft, ::update, ::confirm)

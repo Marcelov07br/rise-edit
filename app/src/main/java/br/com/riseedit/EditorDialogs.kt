@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
@@ -21,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import br.com.riseedit.designsystem.riseSafeArea
 
 @Composable
 internal fun EditorDialogs(
@@ -76,7 +76,7 @@ private fun FullscreenPreview(vm: EditorViewModel, state: EditorState, onClose: 
         )
     ) {
         Surface(Modifier.fillMaxSize(), color = Color.Black) {
-            Column(Modifier.safeDrawingPadding()) {
+            Column(Modifier.riseSafeArea()) {
                 TextButton(onClick = onClose) { Text("Fechar tela cheia") }
                 PreviewPanel(vm, state, Modifier.weight(1f).fillMaxWidth())
                 Button(

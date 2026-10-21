@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -16,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import br.com.riseedit.designsystem.riseSafeArea
 import br.com.riseedit.editor.ExportBus
 import br.com.riseedit.editor.ExportService
 
@@ -33,7 +33,7 @@ fun EditorScreen(
     val enabled = state.busy == null
     val hasClips = state.project.clips.isNotEmpty()
     EditorScreenEffects(vm, state, ui)
-    BoxWithConstraints(Modifier.fillMaxSize().background(RiseBlack).safeDrawingPadding()) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(RiseBlack).riseSafeArea()) {
         val workspaceHeight = maxHeight
         Column(Modifier.fillMaxSize()) {
             EditorTopBar(
@@ -73,12 +73,24 @@ fun EditorScreen(
                 EditorEmptyPanel(enabled, media.videos)
             }
         }
-        EditorMessage(state.message, vm::message, if (state.messageUndo && state.canUndo) vm::undo else null)
+        EditorMessage(
+            state.message,
+            vm::message,
+            if (state.messageUndo &&
+                state.canUndo
+            ) {
+                vm::undo
+            } else {
+                null
+            }
+        )
         state.attributeDialog?.let { d ->
             br.com.riseedit.tools.AttributeSelectDialog(
                 d,
                 onDismiss = vm::closeAttributeDialog,
-                onConfirm = { sel, all -> if (d.paste) vm.confirmPaste(sel, all) else vm.confirmCopy(sel) }
+                onConfirm = { sel, all ->
+                    if (d.paste) vm.confirmPaste(sel, all) else vm.confirmCopy(sel)
+                }
             )
         }
     }

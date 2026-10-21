@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.FolderOpen
@@ -53,9 +52,8 @@ import br.com.riseedit.designsystem.PanelIconButton
 import br.com.riseedit.designsystem.RiseDropdown
 import br.com.riseedit.designsystem.RiseToggle
 import br.com.riseedit.designsystem.SegmentedTabs
+import br.com.riseedit.designsystem.riseSafeArea
 import br.com.riseedit.preview.PreviewQuality
-
-const val RELEASES_URL = "https://github.com/Marcelov07br/rise-edit/releases"
 
 enum class SettingsSection(val label: String) {
     UPDATES("Atualizações"),
@@ -70,7 +68,6 @@ enum class SettingsSection(val label: String) {
 /** Side effects of the settings screen (wired in MainActivity, no-ops in shots). */
 class SettingsActions(
     val back: () -> Unit = {},
-    val openReleases: () -> Unit = {},
     val pickFolder: () -> Unit = {},
     val clearCache: () -> Unit = {},
     val shareLogs: () -> Unit = {}
@@ -103,7 +100,9 @@ fun SettingsScreen(
     info: SettingsInfo,
     actions: SettingsActions = SettingsActions()
 ) {
-    Column(Modifier.fillMaxSize().background(RiseBlack).padding(horizontal = 16.dp)) {
+    Column(
+        Modifier.fillMaxSize().background(RiseBlack).riseSafeArea().padding(horizontal = 16.dp)
+    ) {
         Row(
             Modifier.fillMaxWidth().padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -207,14 +206,8 @@ private fun label(v: Any?): String = when (v) {
 
 @Composable
 private fun Updates(info: SettingsInfo, actions: SettingsActions) {
-    Group("Atualizações manuais") {
+    Group("Atualizações") {
         Row2("Versão instalada", "Rise Edit ${info.versionName} (${info.versionCode})") {}
-        Action(
-            Icons.AutoMirrored.Rounded.OpenInNew,
-            "Ver versões no GitHub",
-            "Abre a página de releases no navegador. Baixe e instale o APK manualmente.",
-            actions.openReleases
-        )
     }
 }
 
