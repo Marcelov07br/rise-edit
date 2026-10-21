@@ -176,11 +176,20 @@ fun PreviewPanel(
         } else if (state.previewFault !=
             null
         ) {
-            Text(
-                state.previewFault.displayMessage(),
-                Modifier.padding(16.dp),
-                style = MaterialTheme.typography.bodySmall
-            )
+            val tech = (state.previewFault as? br.com.riseedit.core.MediaFault.PreviewFailed)?.technical
+            var open by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+            androidx.compose.foundation.layout.Column(Modifier.padding(16.dp)) {
+                Text(state.previewFault.displayMessage(), style = MaterialTheme.typography.bodySmall)
+                if (tech != null) {
+                    Text(
+                        if (open) "Ocultar detalhes ▲" else "Detalhes técnicos ▼",
+                        Modifier.clickable { open = !open }.padding(top = 8.dp),
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    if (open) Text(tech, color = Color.Gray, style = MaterialTheme.typography.labelSmall)
+                }
+            }
         } else {
             Box(
                 Modifier.size(outWidth.dp, outHeight.dp).clip(RectangleShape),
@@ -340,7 +349,10 @@ fun PreviewPanel(
 /** Repaints the paused frame after a live color change (fast preview only). */
 internal fun redrawColor(player: androidx.media3.common.Player?) {
     val exo = player as? ExoPlayer ?: return
-    if (!exo.isPlaying) {
-        runCatching { exo.setVideoEffects(androidx.media3.common.VideoFrameProcessor.REDRAW) }
+    // VideoFrameProcessor.REDRAW needs a replayable frame cache that ExoPlayer never enables:
+    // redraw() throws UnsupportedOperationException on the playback thread -> player error.
+    // An exact seek to the same position re-decodes the frame through the live effect instead.
+    if (!exo.isPlaying && exo.mediaItemCount > 0 && exo.playbackState != androidx.media3.common.Player.STATE_IDLE) {
+        runCatching { exo.seekTo(exo.currentMediaItemIndex, exo.currentPosition) }
     }
 }

@@ -82,8 +82,13 @@ class ExportService : Service() {
                 ExportBus.finish(cancelled = true)
                 throw cancelled
             } catch (error: Exception) {
+                val code = (error as? androidx.media3.transformer.ExportException)?.errorCode
                 ExportBus.finish(
-                    message = "Não foi possível exportar: ${error.localizedMessage}. Tente em 720p."
+                    message = if (code != null && code in 5000..5999) {
+                        "Não foi possível aplicar a cor na exportação (${(error as androidx.media3.transformer.ExportException).errorCodeName}, $code). Nada foi salvo com cor diferente."
+                    } else {
+                        "Não foi possível exportar: ${error.localizedMessage}. Tente em 720p."
+                    }
                 )
             } finally {
                 running.set(false)

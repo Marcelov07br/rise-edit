@@ -27,6 +27,9 @@ class PreviewEngine(
     private var analyses = emptyMap<String, MotionAnalysis>()
     private var suppliedFaults = emptyMap<String, MediaFault>()
     private val runtimeFaults = mutableMapOf<String, MediaFault>()
+    /** False after the color effect failed on this device: fast preview runs without it. */
+    var colorPreviewAvailable = true
+        private set
     private var fast: FastPreview? = FastPreview(this.context)
     private var faithful: FaithfulPreview? = null
     private var lastPlayer: Player = fast!!.player
@@ -179,7 +182,7 @@ class PreviewEngine(
     private fun allFaults() = suppliedFaults + runtimeFaults
     private fun activateFast(positionMs: Long) {
         val changed = fast == null
-        if (changed) { releasePlayers(); fast = FastPreview(context); lastPlayer = fast!!.player; listen(lastPlayer) }
+        if (changed) { releasePlayers(); fast = FastPreview(context, colorPreviewAvailable); lastPlayer = fast!!.player; listen(lastPlayer) }
         quality = PreviewQuality.Fast
         fast!!.update(project, allFaults(), positionMs)
         fast!!.tick(muted)
@@ -217,8 +220,38 @@ class PreviewEngine(
         val clip = fast?.currentIndex?.let { project.clips.getOrNull(it) } ?: activeClip
         if (clip == null || fault != null) { playing = false; runCatching { player.pause() }; onMessage("A prévia está indisponível para este trecho."); return }
         val position = positionMs
-        runtimeFaults[clip.id] = MediaFault.ImportFailed("Não foi possível reproduzir este clipe na prévia.", error)
+        if (colorPreviewAvailable && isEffectFailure(error)) {
+            br.com.riseedit.diagnostics.Diagnostics.log("cor", "efeito de cor falhou na prévia: ${technical(error)}", error)
+            colorPreviewAvailable = false
+            releasePlayers()
+            runCatching { activateFast(position) }.onFailure { playing = false }
+            onMessage("Prévia de cor indisponível neste aparelho (${technical(error)})"); onChanged()
+            return
+        }
+        runtimeFaults[clip.id] = MediaFault.PreviewFailed(technical(error), error)
         runCatching { activateFast(position) }.onFailure { playing = false; runCatching { player.pause() } }
         onMessage("Um clipe não pôde ser reproduzido. Sua posição foi preservada na timeline."); onChanged()
     }
+}
+
+/** Video effect / GL failures (not the media file): VFP error codes or a VFP/GL cause. */
+internal fun isEffectFailure(error: Throwable): Boolean {
+    val code = (error as? PlaybackException)?.errorCode
+    if (code != null && code in 7000..7999) return true
+    var c: Throwable? = error
+    while (c != null) {
+        if (c is androidx.media3.common.VideoFrameProcessingException ||
+            c is androidx.media3.common.util.GlUtil.GlException ||
+            c is UnsupportedOperationException
+        ) return true
+        c = c.cause
+    }
+    return false
+}
+
+internal fun technical(error: Throwable): String {
+    val code = (error as? PlaybackException)?.let { "${it.errorCodeName} (${it.errorCode})" }
+    var root: Throwable = error
+    while (root.cause != null && root.cause !== root) root = root.cause!!
+    return listOfNotNull(code, "${root.javaClass.simpleName}: ${root.message}").joinToString(" · ")
 }

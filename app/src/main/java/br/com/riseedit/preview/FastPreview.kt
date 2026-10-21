@@ -13,11 +13,11 @@ import br.com.riseedit.core.Project
 import kotlin.math.min
 
 /** Decodes the existing original/proxy track. A renderer size limit cannot turn it into a 480p decode. */
-internal class FastPreview(context: Context) {
+internal class FastPreview(context: Context, colorEffect: Boolean = true) {
     val player = ExoPlayer.Builder(context).build().apply {
         setSeekParameters(androidx.media3.exoplayer.SeekParameters.EXACT)
         // Same shader as export; reads ColorLive each frame. Must be set before the first prepare().
-        runCatching { setVideoEffects(listOf(br.com.riseedit.color.ColorAdjustEffect.live)) }
+        if (colorEffect) runCatching { setVideoEffects(listOf(br.com.riseedit.color.ColorAdjustEffect.live)) }
             .onFailure { br.com.riseedit.diagnostics.Diagnostics.log("cor", "Efeito de cor indisponível na prévia", it) }
     }
     private val sources = DefaultMediaSourceFactory(context)

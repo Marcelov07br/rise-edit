@@ -38,6 +38,13 @@ sealed class MediaFault(
         cause
     )
 
+    /** Player failed during preview (not an import problem); [technical] shown in an expandable detail. */
+    class PreviewFailed(val technical: String? = null, cause: Throwable? = null) : MediaFault(
+        "Não foi possível reproduzir este clipe na prévia.",
+        "Tente a prévia Fiel ou reabra o projeto. O arquivo original não foi alterado.",
+        cause
+    )
+
     class AssetUnavailable(val uri: String? = null, cause: Throwable? = null) : MediaFault(
         "Um arquivo deste projeto não está mais disponível.",
         "Restaure o arquivo ou importe uma cópia para continuar a edição.",
