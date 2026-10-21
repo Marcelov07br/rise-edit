@@ -19,7 +19,8 @@ import kotlin.math.floor
 internal fun TimelineRuler(
     viewport: TimelineViewport,
     durationUs: Long,
-    markersMs: List<Long> = emptyList()
+    markersMs: List<Long> = emptyList(),
+    fps: Int = 30
 ) {
     val density = LocalDensity.current.density
     Canvas(Modifier.fillMaxWidth().height(28.dp)) {
@@ -41,7 +42,7 @@ internal fun TimelineRuler(
             val top = if (major) 16 * density else 21 * density
             drawLine(Color.Gray, Offset(x, top), Offset(x, 25 * density), density)
             if (major) {
-                val text = TimelineZoom.label(time, stepUs)
+                val text = TimelineZoom.label(time, stepUs, fps)
                 drawContext.canvas.nativeCanvas.drawText(text, x + 3 * density, 12 * density, paint)
             }
         }

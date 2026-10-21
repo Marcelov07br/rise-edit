@@ -65,6 +65,7 @@ internal fun TimelineStage(
     ui.lanes = lanes
     val duration = state.value.project.durationMs * 1000
     LaunchedEffect(duration) { ui.viewport = ui.viewport.fitted(duration).bounded(duration) }
+    PlayheadTracker(ui, state, density, duration)
     val haptic = LocalHapticFeedback.current
     ui.onSnap = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
     Row(Modifier.fillMaxWidth().height(height)) {
@@ -86,30 +87,79 @@ internal fun TimelineStage(
                 .timelineGestures(ui, state, entries, actions, density) { scroll.value }
         ) {
             Column {
-                TimelineRuler(ui.viewport, duration, state.value.project.markers.map { it.timeMs })
-                Column(Modifier.verticalScroll(scroll)) {
-                    lanes.forEach { row ->
-                        Box(
-                            Modifier.fillMaxWidth().height(LANE_DP.dp).padding(vertical = 3.dp)
-                                .background(RiseSurface, RoundedCornerShape(8.dp))
-                        ) {
-                            entries.value.filter { it.row == row }.sortedBy { it.selected }
-                                .forEach { TimelineClip(it, ui, actions) }
-                        }
-                    }
-                    Box(Modifier.height(32.dp))
-                }
+                TimelineRuler(
+                    ui.viewport,
+                    duration,
+                    state.value.project.markers.map { it.timeMs },
+                    state.value.project.export.fps
+                )
+                TimelineTrackList(lanes, entries.value, ui, actions, scroll)
             }
-            Canvas(Modifier.matchParentSize()) {
-                val x = ui.viewport.pxAtTime(state.value.positionMs * 1000.0).toFloat()
-                drawLine(RiseWhite, Offset(x, 0f), Offset(x, size.height), 2 * density)
-                drawCircle(RiseWhite, 5 * density, Offset(x, 5 * density))
-                ui.snapUs?.let {
-                    val snapX = ui.viewport.pxAtTime(it).toFloat()
-                    drawLine(SnapGuide, Offset(snapX, 0f), Offset(snapX, size.height), density)
-                }
+            PlayheadNeedle(ui, state, density, Modifier.matchParentSize())
+        }
+    }
+}
+
+@Composable
+private fun PlayheadTracker(
+    ui: TimelineUiState,
+    state: State<EditorState>,
+    density: Float,
+    duration: Long
+) {
+    val isPlaying = state.value.playing
+    val currentPositionMs = state.value.positionMs
+    LaunchedEffect(isPlaying, currentPositionMs) {
+        if (isPlaying && ui.movingId == null && ui.trimDraft == null) {
+            val playheadPx = ui.viewport.pxAtTime(currentPositionMs * 1000.0)
+            val marginPx = 40.0 * density
+            if (playheadPx > ui.viewport.widthPx - marginPx || playheadPx < ui.viewport.edgeInsetPx) {
+                val targetOrigin = (currentPositionMs * 1000.0) -
+                    (ui.viewport.widthPx / 3) * 1_000_000 / ui.viewport.pixelsPerSecond
+                ui.viewport = ui.viewport.copy(originUs = targetOrigin).bounded(duration)
             }
         }
+    }
+}
+
+@Composable
+private fun PlayheadNeedle(
+    ui: TimelineUiState,
+    state: State<EditorState>,
+    density: Float,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier) {
+        val x = ui.viewport.pxAtTime(state.value.positionMs * 1000.0).toFloat()
+        drawLine(RiseWhite, Offset(x, 0f), Offset(x, size.height), 2 * density)
+        drawCircle(RiseWhite, 6 * density, Offset(x, 6 * density))
+        drawCircle(androidx.compose.ui.graphics.Color.Black, 2.5f * density, Offset(x, 6 * density))
+        ui.snapUs?.let {
+            val snapX = ui.viewport.pxAtTime(it).toFloat()
+            drawLine(SnapGuide, Offset(snapX, 0f), Offset(snapX, size.height), density)
+        }
+    }
+}
+
+@Composable
+private fun TimelineTrackList(
+    lanes: List<Int>,
+    entries: List<TimelineEntry>,
+    ui: TimelineUiState,
+    actions: TimelineActions,
+    scroll: androidx.compose.foundation.ScrollState
+) {
+    Column(Modifier.verticalScroll(scroll)) {
+        lanes.forEach { row ->
+            Box(
+                Modifier.fillMaxWidth().height(LANE_DP.dp).padding(vertical = 3.dp)
+                    .background(RiseSurface, RoundedCornerShape(8.dp))
+            ) {
+                entries.filter { it.row == row }.sortedBy { it.selected }
+                    .forEach { TimelineClip(it, ui, actions) }
+            }
+        }
+        Box(Modifier.height(32.dp))
     }
 }
 

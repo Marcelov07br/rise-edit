@@ -112,8 +112,10 @@ class TransformPathTest {
     @Test fun rulerStepsAndLabelsAdapt() {
         assertEquals(1_000_000L, TimelineZoom.tickStepUs(100.0, 60.0))
         assertTrue(TimelineZoom.tickStepUs(0.2, 60.0) >= 300_000_000L)
+        assertEquals(33_333L, TimelineZoom.tickStepUs(2000.0, 60.0))
         assertEquals("1:30", TimelineZoom.label(90_000_000.0, 30_000_000))
         assertEquals("2.5s", TimelineZoom.label(2_500_000.0, 500_000))
+        assertEquals("2s15f", TimelineZoom.label(2_500_000.0, 33_333, 30))
         assertTrue(abs(0) == 0)
     }
 }

@@ -79,18 +79,23 @@ object TimelineZoom {
 
     private val steps =
         longArrayOf(
-            100_000, 200_000, 500_000, 1_000_000, 2_000_000, 5_000_000, 10_000_000, 15_000_000,
-            30_000_000, 60_000_000, 120_000_000, 300_000_000, 600_000_000
+            16_667, 33_333, 50_000, 100_000, 200_000, 500_000, 1_000_000, 2_000_000, 5_000_000,
+            10_000_000, 15_000_000, 30_000_000, 60_000_000, 120_000_000, 300_000_000, 600_000_000
         )
 
     /** Smallest "nice" tick step whose spacing is at least [minSpacingPx]. */
     fun tickStepUs(pixelsPerSecond: Double, minSpacingPx: Double): Long =
         steps.firstOrNull { it * pixelsPerSecond / 1_000_000 >= minSpacingPx } ?: steps.last()
 
-    fun label(timeUs: Double, stepUs: Long): String {
-        val totalMs = timeUs.toLong() / 1000
+    fun label(timeUs: Double, stepUs: Long, fps: Int = 30): String {
+        val totalMs = (timeUs / 1000).toLong()
         val seconds = totalMs / 1000
+        val safeFps = fps.coerceIn(1, 120)
         return when {
+            stepUs <= 50_000 -> {
+                val frame = ((totalMs % 1000) * safeFps / 1000).toInt()
+                "${seconds}s${frame}f"
+            }
             stepUs < 1_000_000 -> "%d.%ds".format(seconds, (totalMs % 1000) / 100)
             seconds < 60 -> "${seconds}s"
             else -> "%d:%02d".format(seconds / 60, seconds % 60)

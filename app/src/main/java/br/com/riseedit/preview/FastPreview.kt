@@ -14,7 +14,9 @@ import kotlin.math.min
 
 /** Decodes the existing original/proxy track. A renderer size limit cannot turn it into a 480p decode. */
 internal class FastPreview(context: Context) {
-    val player = ExoPlayer.Builder(context).build()
+    val player = ExoPlayer.Builder(context).build().apply {
+        setSeekParameters(androidx.media3.exoplayer.SeekParameters.EXACT)
+    }
     private val sources = DefaultMediaSourceFactory(context)
     private var timeline = PreviewTimeline(emptyList())
     private var slots = emptyList<PreviewSlot>()

@@ -66,6 +66,14 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun focus(index: Int) = preview.focus(index)
     fun seek(ms: Long) = preview.seek(ms)
     fun togglePlay() = preview.togglePlay()
+    fun stepFrame(deltaFrames: Int) {
+        val fps = state.value.project.export.fps.coerceIn(24, 60)
+        val frameMs = (1000.0 / fps).toLong().coerceAtLeast(1)
+        val target = (state.value.positionMs + deltaFrames * frameMs)
+            .coerceIn(0, state.value.project.durationMs)
+        pausePreview()
+        seek(target)
+    }
 
     fun projectSettings(ratio: Float, export: ExportSettings) =
         commands.projectSettings(ratio, export)

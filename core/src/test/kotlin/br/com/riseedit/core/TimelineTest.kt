@@ -36,4 +36,12 @@ class TimelineTest {
         val p=Project(listOf(c),audio=listOf(AudioClip(uri="a",name="a",sourceDurationMs=60000)),texts=listOf(TextLayer(text="caption",endMs=60000)))
         assertEquals(6000L,p.durationMs)
     }
+    @Test fun timecodeFormatsFramesAndHours() {
+        assertEquals("00:00:00", Timeline.timecode(0, 30))
+        assertEquals("00:01:00", Timeline.timecode(1000, 30))
+        assertEquals("00:01:15", Timeline.timecode(1500, 30))
+        assertEquals("00:01:30", Timeline.timecode(1500, 60))
+        assertEquals("01:00:00:00", Timeline.timecode(3600_000, 30))
+        assertEquals("01:02:03:10", Timeline.timecode(3723_334, 30))
+    }
 }

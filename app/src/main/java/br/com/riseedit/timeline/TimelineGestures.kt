@@ -56,7 +56,8 @@ internal fun Modifier.timelineGestures(
                     actions,
                     density,
                     scrollY(),
-                    state.value.positionMs * 1000.0
+                    state.value.positionMs * 1000.0,
+                    state.value.project.markers.map { it.timeMs }
                 )
                 var event: PointerEvent
                 do {
@@ -74,6 +75,7 @@ internal fun Modifier.timelineGestures(
     }
 }
 
+@Suppress("LongParameterList")
 private fun beginGesture(
     down: PointerInputChange,
     entries: List<TimelineEntry>,
@@ -81,7 +83,8 @@ private fun beginGesture(
     actions: TimelineActions,
     density: Float,
     scrollY: Int,
-    playheadUs: Double
+    playheadUs: Double,
+    markersMs: List<Long> = emptyList()
 ): GestureDraft {
     val lane = floor((down.position.y - RULER_DP * density + scrollY) / (LANE_DP * density)).toInt()
     val row = ui.lanes.getOrElse(lane) { -1 }
@@ -89,7 +92,9 @@ private fun beginGesture(
     val edge = selected?.let { trimEdge(it, ui, down.position.x, 22 * density) }
     val time = ui.viewport.timeAtPx(down.position.x.toDouble())
     val entry = entries.lastOrNull { it.row == row && time >= it.startUs && time < it.endUs }
-    val mode = initialMode(down, selected, edge, entry, ui, actions, density, time)
+    val playheadPx = ui.viewport.pxAtTime(playheadUs)
+    val nearPlayhead = abs(down.position.x - playheadPx) <= 18 * density
+    val mode = initialMode(down, selected, edge, entry, ui, actions, density, time, nearPlayhead)
     val trimmed = selected?.takeIf { mode == GestureMode.TRIM }
     val edgeUs = when {
         trimmed == null -> 0.0
@@ -97,7 +102,9 @@ private fun beginGesture(
         else -> trimmed.endUs
     }
     val exclude = trimmed?.id ?: entry?.id
+    val markerTargets = markersMs.map { it * 1000.0 }
     val targets = entries.filter { it.id != exclude }.flatMap { listOf(it.startUs, it.endUs) } +
+        markerTargets +
         listOf(0.0, playheadUs)
     val pps = ui.viewport.pixelsPerSecond
     return GestureDraft(
@@ -121,7 +128,8 @@ private fun initialMode(
     ui: TimelineUiState,
     actions: TimelineActions,
     density: Float,
-    time: Double
+    time: Double,
+    nearPlayhead: Boolean
 ): GestureMode {
     val diamond = entry?.let { keyDiamond(it, ui, down.position.x, 14 * density) }
     return when {
@@ -131,12 +139,12 @@ private fun initialMode(
             down.consume()
             GestureMode.TRIM
         }
-        diamond != null && entry != null -> {
+        diamond != null -> {
             actions.openKeyframe(entry, diamond, ui)
             down.consume()
             GestureMode.TAP
         }
-        down.position.y < RULER_DP * density -> {
+        down.position.y < RULER_DP * density || nearPlayhead -> {
             actions.beginScrub()
             actions.seek(time)
             down.consume()
