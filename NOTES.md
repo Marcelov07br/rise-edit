@@ -20,3 +20,13 @@
   - Lote B: `ColorCurves` (master+R/G/B, monotone Fritsch–Carlson, até 12 pontos; textura 256×1 só re-enviada quando a curva muda), `HslBands` (8 faixas, peso suave ±45°, vec3 uHsl0..7), `ColorWheels` lift/gamma/gain (trackball `designsystem/ColorWheelPad.kt` + TileSlider de luminância). Tudo no mesmo shader (ColorAdjustEffect) e espelho CPU `ColorAdjustMath.apply`; medidores (histograma/waveform/zebra) agora usam ajuste+grade via `GradeLuts.applyFull`.
   - JSON: `"color".v = 3` (curves/hsl/wheels); v2 sem esses campos migra para neutro; array legado v1 continua.
   - Ficou de fora: keyframes de cor, presets do usuário, histograma/waveform sobrepostos na prévia (o painel Medidores existente já é assíncrono/reduzido). Prints: screenshots/0.13.0/.
+- 2026-10-21: v0.13.1 (versionCode 21, local, sem release/tag/push) — hierarquia visual do painel de cor + design system genérico.
+  - Filosofia (4 níveis, aplicar em TODOS os painéis daqui pra frente; componentes e tokens em `designsystem/Hierarchy.kt`, objeto `HierarchyTokens`):
+    1. FERRAMENTAS — `SegmentedTabs`: pílula segmentada no topo, indicador deslizante (`tabSpring`, damping 0.9, quase sem bounce).
+    2. AÇÕES — `ActionBar` + `PanelAction` + `PanelIconButton`: só ícone (Material Icons Extended *Rounded*: ContentCopy, ContentPaste, LibraryAdd, RestartAlt, Compare), 36dp, canto superior direito, `contentDescription` + tooltip no long-press (M3 `TooltipBox`/`PlainTooltip`). Ações `danger` (resetar) vão por último, depois de espaço + `ActionDivider`, com tint avermelhado. Não existia `PlasticIconButton` no projeto.
+    3. CONTROLES DIRETOS gráficos — `GraphicSurface` (fundo #070708 mais escuro + borda sutil, raio 20) em volta do CurveEditor e de cada ColorWheelPad; canais/faixas como `ChannelChips` pequenos (com ponto de cor: R/G/B, matiz de cada faixa HSL).
+    4. ESCOLHAS — `RiseDropdown` agora é campo com borda: label pequeno no topo, valor, chevron. Usado em perfil log, curva, LUT e (novo) ordem do LUT.
+    Sliders seguem `TileSlider`; botões com texto só em diálogos (Selecionar todos/Desmarcar/Copiar/Colar/Cancelar).
+  - Ajustar ganhou a aba "LUT/log" (reusa `GradePanel` como slot `grade` de `AdjustContent`); "Segure para comparar" virou ícone Compare na barra de ações. Resetar curva do canal = ícone dentro da superfície gráfica.
+  - Prints Paparazzi: screenshots/0.13.1/ (adjustPhone, curves, hsl, wheels, lutLog, lutDropdown, copyDialog, pasteDialog, phoneDark, adjustTablet). APK: rise-edit-0.13.1-debug.apk.
+  - Próximo: migrar os demais painéis (texto, áudio, velocidade…) para SegmentedTabs/ActionBar/RiseDropdown; intensidade do LUT ainda é ChoiceRow.

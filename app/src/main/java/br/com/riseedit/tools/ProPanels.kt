@@ -104,10 +104,10 @@ internal fun GradeControls(
                 "${(it * 100).toInt()}%"
             }
         }
-        Text("Ordem", color = br.com.riseedit.RiseMuted, style = MaterialTheme.typography.labelMedium)
-        ChoiceRow(listOf(false, true), g.lutBeforeAdjust, { change(g.copy(lutBeforeAdjust = it)) }) {
-            if (it) "LUT antes dos ajustes" else "LUT depois dos ajustes"
-        }
+        br.com.riseedit.designsystem.RiseDropdown(
+            "Ordem do LUT", listOf(false, true), g.lutBeforeAdjust,
+            text = { if (it) "LUT antes dos ajustes" else "LUT depois dos ajustes" }
+        ) { change(g.copy(lutBeforeAdjust = it)) }
         Text(
             "Grade: log → LUT → curva. Para Samsung Log use o LUT oficial com perfil Nenhum. " +
                 "HDR (HLG/PQ) é convertido para SDR antes.",

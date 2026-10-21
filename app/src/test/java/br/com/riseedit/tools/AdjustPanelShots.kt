@@ -50,10 +50,24 @@ private val actions = AdjustActions(canPaste = true)
 class AdjustPanelShots {
     @get:Rule val p = Paparazzi(deviceConfig = DeviceConfig.PIXEL_5, theme = "android:Theme.Material.NoActionBar")
 
-    @Test fun adjustPhone() = p.snapshot { Screen("Ajustar") { AdjustContent(sample, AdjustTab.BASIC, {}, {}, actions) } }
-    @Test fun curves() = p.snapshot { Screen("Ajustar · Curvas") { AdjustContent(sample, AdjustTab.CURVES, {}, {}, actions) } }
-    @Test fun hsl() = p.snapshot { Screen("Ajustar · HSL") { AdjustContent(sample, AdjustTab.HSL, {}, {}, actions, band = 1) } }
-    @Test fun wheels() = p.snapshot { Screen("Ajustar · Rodas") { AdjustContent(sample, AdjustTab.WHEELS, {}, {}, actions) } }
+    @Test fun adjustPhone() = p.snapshot { Screen("Ajustar") { AdjustContent(sample, AdjustTab.BASIC, {}, {}, actions, grade = {}) } }
+    @Test fun curves() = p.snapshot { Screen("Ajustar · Curvas") { AdjustContent(sample, AdjustTab.CURVES, {}, {}, actions, grade = {}) } }
+    @Test fun hsl() = p.snapshot { Screen("Ajustar · HSL") { AdjustContent(sample, AdjustTab.HSL, {}, {}, actions, band = 1, grade = {}) } }
+    @Test fun wheels() = p.snapshot { Screen("Ajustar · Rodas") { AdjustContent(sample, AdjustTab.WHEELS, {}, {}, actions, grade = {}) } }
+
+    private val grade = ColorGrade(log = LogProfile.SLOG3, lutUri = "file:///a.cube", lutName = "Kodak 2383")
+    @Test fun lutLog() = p.snapshot {
+        Screen("Ajustar · LUT/log") {
+            AdjustContent(sample, AdjustTab.GRADE, {}, {}, actions, grade = {
+                GradeControls(grade, listOf("file:///a.cube" to "Kodak 2383"), {}, {})
+            })
+        }
+    }
+    @Test fun phoneDark() = p.snapshot {
+        Screen("Ajustar · celular escuro") {
+            AdjustContent(sample.copy(curves = ColorCurves()), AdjustTab.CURVES, {}, {}, actions, curveChannel = 1, grade = {})
+        }
+    }
 
     @Test fun copyDialog() = p.snapshot {
         Screen("") {
@@ -89,7 +103,7 @@ class AdjustPanelTabletShots {
     @Test fun adjustTablet() = p.snapshot {
         RiseTheme {
             Column(Modifier.fillMaxSize().background(RiseBlack).padding(24.dp)) {
-                AdjustContent(sample, AdjustTab.WHEELS, {}, {}, actions)
+                AdjustContent(sample, AdjustTab.WHEELS, {}, {}, actions, grade = {})
             }
         }
     }

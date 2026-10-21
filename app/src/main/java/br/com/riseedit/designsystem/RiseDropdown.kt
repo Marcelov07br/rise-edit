@@ -1,6 +1,7 @@
 package br.com.riseedit.designsystem
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,7 +30,7 @@ import br.com.riseedit.RiseMuted
 import br.com.riseedit.RiseSurfaceHigh
 import br.com.riseedit.RiseWhite
 
-/** Rounded field + rounded menu (design system), for picking one option among many. */
+/** Level 4 (choices): outlined field with small label above the value + chevron. Rounded field + rounded menu (design system), for picking one option among many. */
 @Composable
 fun <T> RiseDropdown(
     label: String,
@@ -43,20 +44,24 @@ fun <T> RiseDropdown(
 ) {
     var open by remember { mutableStateOf(expandedInitially) }
     Column(modifier) {
-        Text(label, color = RiseMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
+        val t = HierarchyTokens
         Box {
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(RiseSurfaceHigh)
-                    .clickable { open = true }.padding(horizontal = 14.dp, vertical = 12.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(t.FieldRadius)).background(t.FieldBg)
+                    .border(1.dp, t.FieldBorder, RoundedCornerShape(t.FieldRadius))
+                    .clickable { open = true }.padding(start = 14.dp, end = 10.dp, top = 7.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text(selected), color = RiseWhite, modifier = Modifier.weight(1f))
+                Column(Modifier.weight(1f)) {
+                    Text(label, color = RiseMuted, fontSize = t.FieldLabel)
+                    Text(text(selected), color = RiseWhite, fontSize = 15.sp)
+                }
                 Icon(Icons.Outlined.KeyboardArrowDown, null, tint = RiseMuted)
             }
             if (open && (expandedInitially || androidx.compose.ui.platform.LocalInspectionMode.current)) {
                 // Popups don't render in previews/screenshots: draw the same rounded menu inline.
                 Column(
-                    Modifier.padding(top = 52.dp).fillMaxWidth(0.8f).clip(RoundedCornerShape(16.dp))
+                    Modifier.padding(top = 58.dp).fillMaxWidth(0.8f).clip(RoundedCornerShape(16.dp))
                         .background(RiseSurfaceHigh).padding(vertical = 8.dp)
                 ) {
                     options.forEach { o ->
