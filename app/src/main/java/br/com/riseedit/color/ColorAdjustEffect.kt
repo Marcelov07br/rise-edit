@@ -23,6 +23,8 @@ internal object ColorLive {
     @Volatile var grade: ColorGrade = ColorGrade()
     /** True while the user holds "Comparar": every ColorAdjustEffect outputs the original. */
     @Volatile var holdOriginal = false
+    /** Qualifier "ver máscara": preview draws the key in black & white (never in export). */
+    @Volatile var showMask = false
     /** Bumped on every live change (incl. compare) so the paused overlay re-renders. */
     val tick = androidx.compose.runtime.mutableIntStateOf(0)
     /** True while the paused GL overlay covers the player (no seek-redraw needed). */
@@ -88,12 +90,20 @@ internal class ColorAdjustEffect private constructor(
             throw VideoFrameProcessingException(error)
         }
 
-        override fun configure(inputWidth: Int, inputHeight: Int) = Size(inputWidth, inputHeight)
+        private var aspect = 16f / 9f
+
+        override fun configure(inputWidth: Int, inputHeight: Int): Size {
+            if (inputHeight > 0) aspect = inputWidth.toFloat() / inputHeight
+            return Size(inputWidth, inputHeight)
+        }
 
         override fun drawFrame(inputTexId: Int, presentationTimeUs: Long) {
             try {
                 val (adjust, grade) = source(presentationTimeUs)
-                pass.draw(inputTexId, adjust, grade, preview && ColorLive.holdOriginal)
+                pass.draw(
+                    inputTexId, adjust, grade, preview && ColorLive.holdOriginal,
+                    aspect = aspect, showMask = preview && ColorLive.showMask
+                )
             } catch (error: GlUtil.GlException) {
                 throw VideoFrameProcessingException(error, presentationTimeUs)
             }
@@ -128,7 +138,15 @@ internal class ColorPass {
     private var curveTex = 0
     private var curveData: br.com.riseedit.core.ColorCurves? = null
 
-    fun draw(inputTexId: Int, adjust: ColorAdjust, grade: ColorGrade, bypass: Boolean) {
+    /**
+     * [aspect] = frame width/height (vignette), [flipY] = texture row 0 is the image top (bitmaps
+     * uploaded by the paused renderer) vs Media3 frames (row 0 = bottom). [showMask] draws the
+     * qualifier key in black & white (preview only). [amount] mixes original→result (layer opacity).
+     */
+    fun draw(
+        inputTexId: Int, adjust: ColorAdjust, grade: ColorGrade, bypass: Boolean,
+        aspect: Float = 16f / 9f, flipY: Boolean = false, showMask: Boolean = false, amount: Float = 1f
+    ) {
         val useLut = !bypass && !grade.isIdentity
         if (useLut && grade != lutGrade) uploadLut(grade)
         program.use()
@@ -146,7 +164,15 @@ internal class ColorPass {
         if (useCurves && a.curves != curveData) uploadCurves(a.curves)
         program.setSamplerTexIdUniform("uCurves", if (useCurves) curveTex else inputTexId, 2)
         program.setFloatUniform("uUseCurves", if (useCurves) 1f else 0f)
-        program.setFloatUniform("uNeutral", if (bypass || adjust.isNeutral) 1f else 0f)
+        program.setFloatUniform("uNeutral", if (bypass || adjust.isGlobalNeutral) 1f else 0f)
+        br.com.riseedit.core.color.LocalColorMath.uniforms(a.qualifier, a.vignette).forEach { (name, v) -> program.setFloatsUniform(name, v) }
+        val mask = showMask && !bypass && a.qualifier.active
+        program.setFloatUniform("uQOn", if (!a.qualifier.isNeutral) 1f else 0f)
+        program.setFloatUniform("uQMask", if (mask) 1f else 0f)
+        program.setFloatUniform("uVOn", if (!a.vignette.isNeutral) 1f else 0f)
+        program.setFloatUniform("uAspect", aspect)
+        program.setFloatUniform("uFlipY", if (flipY) 1f else 0f)
+        program.setFloatUniform("uAmount", if (bypass) 0f else amount.coerceIn(0f, 1f))
         program.bindAttributesAndUniforms()
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
     }
@@ -222,7 +248,8 @@ void main() {
   vTex = vec2(aFramePosition.x * 0.5 + 0.5, aFramePosition.y * 0.5 + 0.5);
 }
 """
-        const val FRAGMENT = "precision highp float;\n" + ColorAdjustMath.GLSL + """
+        const val FRAGMENT = "precision highp float;\n" + ColorAdjustMath.GLSL +
+            br.com.riseedit.core.color.LocalColorMath.GLSL + """
 uniform sampler2D uTexSampler;
 uniform sampler2D uLut;
 uniform float uUseLut;
@@ -231,6 +258,7 @@ uniform float uNeutral;
 uniform float uLutFirst;
 uniform sampler2D uCurves;
 uniform float uUseCurves;
+uniform float uAmount;
 varying vec2 vTex;
 vec3 lut(vec3 c) {
   float n = uLutSize;
@@ -246,7 +274,9 @@ vec3 lut(vec3 c) {
 void main() {
   vec4 color = texture2D(uTexSampler, vTex);
   vec3 c = color.rgb;
+  vec3 orig = c;
   if (uUseLut > 0.5 && uLutFirst > 0.5) c = lut(clamp(c, 0.0, 1.0));
+  vec3 key = clamp(c, 0.0, 1.0);
   if (uNeutral < 0.5) c = colorAdjust(c);
   if (uUseCurves > 0.5) {
     float o = 0.5 / 256.0; float k = 255.0 / 256.0;
@@ -254,8 +284,11 @@ void main() {
              texture2D(uCurves, vec2(c.g * k + o, 0.5)).g,
              texture2D(uCurves, vec2(c.b * k + o, 0.5)).b);
   }
+  if (uQOn > 0.5) c = qualify(key, c);
   if (uUseLut > 0.5 && uLutFirst < 0.5) c = lut(clamp(c, 0.0, 1.0));
-  gl_FragColor = vec4(c, color.a);
+  if (uVOn > 0.5) c = vignette(c, vTex);
+  if (uQMask > 0.5) c = vec3(qualMask(key));
+  gl_FragColor = vec4(mix(orig, c, uAmount), color.a);
 }
 """
 }

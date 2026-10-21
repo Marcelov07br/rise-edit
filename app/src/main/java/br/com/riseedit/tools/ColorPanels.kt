@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Compare
+import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.FileDownload
@@ -76,7 +77,27 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
     var tab by remember { mutableStateOf(AdjustTab.BASIC) }
     // Curves and wheels need room: expand the sheet automatically (handle still toggles).
     androidx.compose.runtime.LaunchedEffect(tab) {
-        br.com.riseedit.ToolSheetDetent.expanded = tab == AdjustTab.CURVES || tab == AdjustTab.WHEELS
+        br.com.riseedit.ToolSheetDetent.expanded = tab == AdjustTab.CURVES || tab == AdjustTab.WHEELS || tab == AdjustTab.QUALIFIER
+    }
+    // On-preview tools: eyedropper (Seleção) and vignette center (Vinheta); cleared on tab/panel exit.
+    val latestClip by androidx.compose.runtime.rememberUpdatedState(clip)
+    val latestSrc by androidx.compose.runtime.rememberUpdatedState(src)
+    fun editLatest(f: (ColorAdjust) -> ColorAdjust) {
+        val c = vm.state.value.project.clips.firstOrNull { it.id == latestClip.id } ?: return
+        val shown = c.colorAt(latestSrc).first
+        vm.clipSettings(br.com.riseedit.core.color.ColorKeyEdits.editAdjust(c, latestSrc, f(shown)))
+    }
+    DisposableEffect(tab) {
+        if (tab == AdjustTab.VIGNETTE) {
+            ColorTools.vignetteCenter = androidx.compose.ui.geometry.Offset(a.vignette.cx, a.vignette.cy)
+            ColorTools.onVignetteCenter = { u, v -> editLatest { it.copy(vignette = it.vignette.copy(cx = u, cy = v)) } }
+        }
+        onDispose {
+            ColorTools.vignetteCenter = null
+            ColorTools.onVignetteCenter = null
+            ColorTools.eyedropper = null
+            if (ColorTools.showMask) ColorTools.setMask(false, vm.player)
+        }
     }
     val offset = state.project.clips.take(state.selected).sumOf { it.durationMs }
     val times = clip.colorKeys.keys(tab.group()).map { it.timeMs }.filter { it in clip.startMs..clip.endMs }
@@ -84,12 +105,26 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
     AdjustContent(
         a, tab, { tab = it },
         change = { vm.clipSettings(br.com.riseedit.core.color.ColorKeyEdits.editAdjust(clip, src, it)) },
+        local = LocalColorUi(
+            picking = ColorTools.eyedropper != null,
+            onEyedropper = {
+                ColorTools.eyedropper = if (ColorTools.eyedropper != null) null else { argb: Int ->
+                    val rgb = floatArrayOf((argb shr 16 and 0xFF) / 255f, (argb shr 8 and 0xFF) / 255f, (argb and 0xFF) / 255f)
+                    android.util.Log.i("RiseColor", "qualifier pick rgb=${rgb.joinToString { "%.3f".format(it) }}")
+                    editLatest { it.copy(qualifier = br.com.riseedit.core.color.Qualifier.pick(it.qualifier, rgb)) }
+                    ColorTools.eyedropper = null
+                }
+            },
+            showMask = ColorTools.showMask,
+            onMask = { ColorTools.setMask(!ColorTools.showMask, vm.player) }
+        ),
         actions = AdjustActions(
             reset = vm::resetColor, copy = vm::copyAttributes, paste = vm::pasteAttributes,
             canPaste = vm.hasClipboard, applyAll = vm::applyColorToAll,
             canReset = !a.isNeutral || !clip.colorKeys.isEmpty,
             savePreset = { savePresetOpen = true }, exportCube = { cubeOpen = true },
-            scopes = { br.com.riseedit.color.Scopes.visible = !br.com.riseedit.color.Scopes.visible }
+            scopes = { br.com.riseedit.color.Scopes.visible = !br.com.riseedit.color.Scopes.visible },
+            match = if (state.project.clips.size > 1) { { matchOpen = true } } else null
         ),
         compare = { CompareHoldButton(vm, enabled = !a.isNeutral || !clip.grade.isIdentity) },
         grade = { GradePanel(vm, state) },
@@ -111,13 +146,17 @@ internal fun AdjustPanel(vm: EditorViewModel, state: EditorState) {
         UserPresetStore.add(vm.appContext, name, a, groups)
         vm.message("Preset \"$name\" salvo em Filtros › Meus.")
     }
+    if (matchOpen) ColorMatchDialog(vm, state, onDismiss = { matchOpen = false })
     if (cubeOpen) ExportCubeDialog(vm, clip, a, shownGrade, onDismiss = { cubeOpen = false })
 }
 
 private var savePresetOpen by mutableStateOf(false)
 private var cubeOpen by mutableStateOf(false)
+private var matchOpen by mutableStateOf(false)
 
-internal enum class AdjustTab(val label: String) { BASIC("Básico"), CURVES("Curvas"), HSL("HSL"), WHEELS("Rodas"), GRADE("LUT/log") }
+internal enum class AdjustTab(val label: String) {
+    BASIC("Básico"), CURVES("Curvas"), HSL("HSL"), WHEELS("Rodas"), QUALIFIER("Seleção"), VIGNETTE("Vinheta"), GRADE("LUT/log")
+}
 
 internal class AdjustActions(
     val reset: () -> Unit = {},
@@ -128,7 +167,8 @@ internal class AdjustActions(
     val canReset: Boolean = true,
     val savePreset: (() -> Unit)? = null,
     val exportCube: (() -> Unit)? = null,
-    val scopes: (() -> Unit)? = null
+    val scopes: (() -> Unit)? = null,
+    val match: (() -> Unit)? = null
 )
 
 /** Header (reset/copy/paste/apply to all) + tab content. Stateless, used by Paparazzi too. */
@@ -145,7 +185,8 @@ internal fun AdjustContent(
     compare: (@Composable () -> Unit)? = null,
     grade: (@Composable () -> Unit)? = null,
     gradeActive: Boolean = false,
-    keys: ColorKeyUi? = null
+    keys: ColorKeyUi? = null,
+    local: LocalColorUi = LocalColorUi()
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         // Level 2: icon-only actions in the top corner; reset set apart (gap + divider).
@@ -153,17 +194,20 @@ internal fun AdjustContent(
             // Keyframe diamond of the open tab lives at the start (it belongs to the tab, not the clip).
             keys?.let { Row(horizontalArrangement = Arrangement.spacedBy(br.com.riseedit.designsystem.HierarchyTokens.ActionGap)) { KeyActions(it, tab) } }
             Spacer(Modifier.weight(1f).width(8.dp))
+            // Visible: keyframe (left), compare, scopes; the rest collapses into "mais" when it doesn't fit.
             br.com.riseedit.designsystem.ActionBar(
                 listOfNotNull(
-                    actions.scopes?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.Insights, if (br.com.riseedit.color.Scopes.visible) "Ocultar scopes" else "Mostrar scopes", onClick = it) },
-                    actions.savePreset?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.BookmarkAdd, "Salvar como preset", onClick = it) },
-                    actions.exportCube?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.FileDownload, "Exportar LUT .cube", onClick = it) },
+                    actions.scopes?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.Insights, if (br.com.riseedit.color.Scopes.visible) "Ocultar scopes" else "Mostrar scopes", primary = true, onClick = it) },
                     br.com.riseedit.designsystem.PanelAction(Icons.Rounded.ContentCopy, "Copiar ajustes", onClick = actions.copy),
                     br.com.riseedit.designsystem.PanelAction(Icons.Rounded.ContentPaste, "Colar ajustes", actions.canPaste, onClick = actions.paste),
                     br.com.riseedit.designsystem.PanelAction(Icons.Rounded.LibraryAdd, "Aplicar a todos os clipes", onClick = actions.applyAll),
+                    actions.match?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.AutoFixHigh, "Combinar cor com outro clipe", onClick = it) },
+                    actions.savePreset?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.BookmarkAdd, "Salvar como preset", onClick = it) },
+                    actions.exportCube?.let { br.com.riseedit.designsystem.PanelAction(Icons.Rounded.FileDownload, "Exportar LUT .cube", onClick = it) },
                     br.com.riseedit.designsystem.PanelAction(Icons.Rounded.RestartAlt, "Resetar todos", actions.canReset, danger = true, onClick = actions.reset)
                 ),
-                modifier = Modifier.weight(1f, fill = false).horizontalScroll(rememberScrollState()),
+                modifier = Modifier.weight(1f, fill = false),
+                extraSlots = if (compare != null) 1 else 0,
                 extra = compare
             )
         }
@@ -175,6 +219,8 @@ internal fun AdjustContent(
                 AdjustTab.CURVES -> !a.curves.isIdentity
                 AdjustTab.HSL -> !a.hsl.isNeutral
                 AdjustTab.WHEELS -> !a.wheels.isNeutral
+                AdjustTab.QUALIFIER -> !a.qualifier.isNeutral
+                AdjustTab.VIGNETTE -> !a.vignette.isNeutral
                 AdjustTab.GRADE -> gradeActive
             }
         }, onSelect = onTab)
@@ -183,6 +229,8 @@ internal fun AdjustContent(
             AdjustTab.CURVES -> CurvesTab(a, change, curveChannel)
             AdjustTab.HSL -> HslTab(a, change, band)
             AdjustTab.WHEELS -> WheelsTab(a, change)
+            AdjustTab.QUALIFIER -> QualifierTab(a, change, local)
+            AdjustTab.VIGNETTE -> VignetteTab(a, change)
             AdjustTab.GRADE -> grade?.invoke()
         }
     }

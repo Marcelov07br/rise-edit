@@ -31,6 +31,8 @@ import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -80,39 +82,56 @@ object HierarchyTokens {
 /** Low-bounce spring for the sliding tab indicator. */
 fun <T> tabSpring() = spring<T>(dampingRatio = 0.9f, stiffness = 500f)
 
-/** Segmented pill tab bar with a sliding indicator. */
+/** Segmented pill tab bar with a sliding indicator. Scrolls horizontally when tabs would be < [minTab]. */
 @Composable
-fun <T> SegmentedTabs(items: List<T>, selected: T, modifier: Modifier = Modifier, label: (T) -> String, marked: (T) -> Boolean = { false }, onSelect: (T) -> Unit) {
+fun <T> SegmentedTabs(
+    items: List<T>, selected: T, modifier: Modifier = Modifier, label: (T) -> String,
+    marked: (T) -> Boolean = { false }, minTab: Dp = 76.dp, onSelect: (T) -> Unit
+) {
     val t = HierarchyTokens
     BoxWithConstraints(
         modifier.fillMaxWidth().height(t.TabBarHeight).clip(CircleShape).background(t.TabBarBg)
             .border(1.dp, t.TabIndicatorBorder.copy(alpha = 0.5f), CircleShape).padding(3.dp)
     ) {
-        val w = maxWidth / items.size
-        val x by animateDpAsState(w * items.indexOf(selected).coerceAtLeast(0), tabSpring(), label = "tab")
-        Box(
-            Modifier.offset(x = x).width(w).fillMaxHeight().clip(CircleShape).background(t.TabIndicator)
-                .border(1.dp, t.TabIndicatorBorder, CircleShape)
-        )
-        Row(Modifier.fillMaxWidth().fillMaxHeight()) {
-            items.forEach { item ->
-                val on = item == selected
+        val fit = maxWidth / items.size
+        val scrolls = fit < minTab
+        val w = if (scrolls) minTab else fit
+        val index = items.indexOf(selected).coerceAtLeast(0)
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val view = maxWidth
+        fun centered(i: Int) = with(density) { (w * i - (view - w) / 2).toPx().toInt().coerceAtLeast(0) }
+        val scroll = rememberScrollState(if (scrolls) centered(index) else 0)
+        if (scrolls) {
+            androidx.compose.runtime.LaunchedEffect(index) { scroll.animateScrollTo(centered(index)) }
+        }
+        Box(if (scrolls) Modifier.horizontalScroll(scroll) else Modifier) {
+            Box(Modifier.width(w * items.size).fillMaxHeight()) {
+                val x by animateDpAsState(w * index, tabSpring(), label = "tab")
                 Box(
-                    Modifier.weight(1f).fillMaxHeight().clip(CircleShape)
-                        .clickable(role = Role.Tab) { onSelect(item) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            label(item), fontSize = 13.sp, maxLines = 1,
-                            color = if (on) RiseWhite else RiseMuted,
-                            fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal
-                        )
-                        // Indicator dot: this tool has a non-neutral setting.
-                        if (marked(item)) Box(
-                            Modifier.padding(start = 4.dp).size(5.dp).clip(CircleShape)
-                                .background(if (on) RiseWhite else RiseMuted)
-                        )
+                    Modifier.offset(x = x).width(w).fillMaxHeight().clip(CircleShape).background(t.TabIndicator)
+                        .border(1.dp, t.TabIndicatorBorder, CircleShape)
+                )
+                Row(Modifier.fillMaxWidth().fillMaxHeight()) {
+                    items.forEach { item ->
+                        val on = item == selected
+                        Box(
+                            Modifier.width(w).fillMaxHeight().clip(CircleShape)
+                                .clickable(role = Role.Tab) { onSelect(item) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    label(item), fontSize = 13.sp, maxLines = 1,
+                                    color = if (on) RiseWhite else RiseMuted,
+                                    fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal
+                                )
+                                // Indicator dot: this tool has a non-neutral setting.
+                                if (marked(item)) Box(
+                                    Modifier.padding(start = 4.dp).size(5.dp).clip(CircleShape)
+                                        .background(if (on) RiseWhite else RiseMuted)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -188,22 +207,90 @@ fun ActionDivider(gap: Dp = HierarchyTokens.DangerGap) {
     Box(Modifier.padding(horizontal = (gap - 1.dp) / 2).width(1.dp).height(20.dp).background(RiseOutline))
 }
 
-/** One icon-only action of an [ActionBar]. [danger] actions are pushed apart behind a divider. */
+/**
+ * One icon-only action of an [ActionBar]. [danger] actions are pushed apart behind a divider.
+ * [primary] actions stay visible; the others collapse into the "mais" menu when they don't fit.
+ */
 class PanelAction(
     val icon: ImageVector, val name: String, val enabled: Boolean = true,
-    val danger: Boolean = false, val onClick: () -> Unit
+    val danger: Boolean = false, val primary: Boolean = false, val onClick: () -> Unit
 )
 
-/** Level 2: compact row of icon-only actions; destructive ones last, separated by gap + divider. */
-@Composable
-fun ActionBar(actions: List<PanelAction>, modifier: Modifier = Modifier, extra: (@Composable () -> Unit)? = null) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HierarchyTokens.ActionGap)) {
-        extra?.invoke()
-        actions.filterNot { it.danger }.forEach { PanelIconButton(it.icon, it.name, enabled = it.enabled, onClick = it.onClick) }
+val DangerTint = Color(0xFFFF8A80)
+
+/** Pure layout decision of [ActionBar] (unit-testable): which actions are inline vs in the menu. */
+object ActionOverflow {
+    /** [slots] = how many 36dp buttons fit (extra content already subtracted). */
+    fun split(actions: List<PanelAction>, slots: Int): Pair<List<PanelAction>, List<PanelAction>> {
         val danger = actions.filter { it.danger }
-        if (danger.isNotEmpty()) {
-            ActionDivider()
-            danger.forEach { PanelIconButton(it.icon, it.name, enabled = it.enabled, tint = Color(0xFFFF8A80), onClick = it.onClick) }
+        val normal = actions.filterNot { it.danger }
+        // Everything fits (divider counts as ~half a slot).
+        val needed = normal.size + danger.size + (if (danger.isNotEmpty()) 1 else 0)
+        if (needed <= slots) return actions to emptyList()
+        // Primaries first (keep order), one slot for "mais"; secondaries + danger go to the menu.
+        val room = (slots - 1).coerceAtLeast(0)
+        val prim = normal.filter { it.primary }
+        val inline = prim.take(room)
+        val rest = prim.drop(room) + normal.filterNot { it.primary }
+        return inline to (rest + danger)
+    }
+}
+
+/**
+ * Level 2: compact row of icon-only actions; destructive ones last, separated by gap + divider.
+ * When the row does not fit, non-[PanelAction.primary] actions collapse into a "mais" menu
+ * (more_horiz) with names; destructive ones go last in the menu, in red. [extraSlots] = how many
+ * 36dp buttons [extra] takes.
+ */
+@Composable
+fun ActionBar(
+    actions: List<PanelAction>, modifier: Modifier = Modifier, extraSlots: Int = 0,
+    extra: (@Composable () -> Unit)? = null
+) {
+    BoxWithConstraints(modifier) {
+        val t = HierarchyTokens
+        val slots = ((maxWidth + t.ActionGap) / (t.ActionSize + t.ActionGap)).toInt() - extraSlots
+        val (inline, menu) = ActionOverflow.split(actions, slots)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(t.ActionGap)) {
+            extra?.invoke()
+            inline.filterNot { it.danger }.forEach { PanelIconButton(it.icon, it.name, enabled = it.enabled, onClick = it.onClick) }
+            val danger = inline.filter { it.danger }
+            if (danger.isNotEmpty()) {
+                ActionDivider()
+                danger.forEach { PanelIconButton(it.icon, it.name, enabled = it.enabled, tint = DangerTint, onClick = it.onClick) }
+            }
+            if (menu.isNotEmpty()) OverflowMenu(menu)
         }
+    }
+}
+
+@Composable
+private fun OverflowMenu(items: List<PanelAction>) {
+    var open by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    Box {
+        PanelIconButton(androidx.compose.material.icons.Icons.Rounded.MoreHoriz, "Mais ações") { open = true }
+        androidx.compose.material3.DropdownMenu(
+            expanded = open, onDismissRequest = { open = false },
+            shape = RoundedCornerShape(16.dp), containerColor = RiseSurfaceHigh
+        ) {
+            ActionMenuItems(items) { open = false }
+        }
+    }
+}
+
+/** Items of the "mais" menu: icon + name; destructive last, after a divider, in red. */
+@Composable
+fun ActionMenuItems(items: List<PanelAction>, onPicked: () -> Unit = {}) {
+    items.forEachIndexed { i, a ->
+        if (a.danger && i > 0 && !items[i - 1].danger) {
+            androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 4.dp), color = RiseOutline)
+        }
+        val tint = if (a.danger) DangerTint else RiseWhite
+        androidx.compose.material3.DropdownMenuItem(
+            text = { Text(a.name, color = tint, fontSize = 14.sp) },
+            leadingIcon = { Icon(a.icon, null, Modifier.size(20.dp), tint = tint) },
+            enabled = a.enabled,
+            onClick = { onPicked(); a.onClick() }
+        )
     }
 }

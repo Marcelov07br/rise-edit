@@ -325,6 +325,10 @@ fun PreviewPanel(
                         }
                     }
                     PreviewEditLayer(vm, state, edit, items, selectedId, fast, onSelect, textDraft?.id, onDraftTransform, pick)
+                    // Vinheta tab open: draggable center on top of the edit layer, in video-frame coordinates.
+                    if (br.com.riseedit.tools.ColorTools.vignetteCenter != null) {
+                        Box(Modifier.requiredSize(videoWidth.dp, videoHeight.dp)) { br.com.riseedit.tools.VignetteHandle() }
+                    }
                 }
             }
         }

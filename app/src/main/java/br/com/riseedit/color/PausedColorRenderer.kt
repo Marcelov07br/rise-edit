@@ -37,7 +37,9 @@ internal object PausedColorRenderer {
     private var width = 0
     private var height = 0
     private var buffer: ByteBuffer? = null
-    private var source: Bitmap? = null
+    /** Last uploaded ORIGINAL paused frame (qualifier eyedropper samples it). */
+    @Volatile var source: Bitmap? = null
+        private set
 
     /** Uploads the decoded paused frame (returns false if GL is unavailable). */
     suspend fun setFrame(frame: Bitmap): Boolean = withContext(dispatcher) {
@@ -75,7 +77,7 @@ internal object PausedColorRenderer {
             val t0 = System.nanoTime()
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo)
             GLES20.glViewport(0, 0, width, height)
-            p.draw(srcTex, adjust, grade, bypass)
+            p.draw(srcTex, adjust, grade, bypass, aspect = width.toFloat() / height, flipY = true, showMask = ColorLive.showMask)
             buf.rewind()
             GLES20.glReadPixels(0, 0, width, height, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf)
             buf.rewind()
@@ -121,7 +123,7 @@ internal object PausedColorRenderer {
             val out = looks.map { look ->
                 GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, thumbFbo)
                 GLES20.glViewport(0, 0, thumbW, thumbH)
-                p.draw(thumbSrc, look, grade, false)
+                p.draw(thumbSrc, look, grade, false, aspect = thumbW.toFloat() / thumbH, flipY = true)
                 buf.rewind()
                 GLES20.glReadPixels(0, 0, thumbW, thumbH, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf)
                 buf.rewind()

@@ -91,13 +91,16 @@ internal object UserPresetStore {
 }
 
 internal val PRESET_ATTRIBUTES = listOf(
-    AttributeGroup.COLOR_BASIC, AttributeGroup.COLOR_CURVES, AttributeGroup.COLOR_HSL, AttributeGroup.COLOR_WHEELS
+    AttributeGroup.COLOR_BASIC, AttributeGroup.COLOR_CURVES, AttributeGroup.COLOR_HSL, AttributeGroup.COLOR_WHEELS,
+    AttributeGroup.COLOR_QUALIFIER, AttributeGroup.COLOR_VIGNETTE
 )
 
 internal fun AttributeGroup.keyGroup() = when (this) {
     AttributeGroup.COLOR_CURVES -> ColorKeyGroup.CURVES
     AttributeGroup.COLOR_HSL -> ColorKeyGroup.HSL
     AttributeGroup.COLOR_WHEELS -> ColorKeyGroup.WHEELS
+    AttributeGroup.COLOR_QUALIFIER -> ColorKeyGroup.QUALIFIER
+    AttributeGroup.COLOR_VIGNETTE -> ColorKeyGroup.VIGNETTE
     else -> ColorKeyGroup.BASIC
 }
 
@@ -115,6 +118,8 @@ internal fun SavePresetDialog(
                 AttributeGroup.COLOR_BASIC -> !a.basic.isNeutral
                 AttributeGroup.COLOR_CURVES -> !a.curves.isIdentity
                 AttributeGroup.COLOR_HSL -> !a.hsl.isNeutral
+                AttributeGroup.COLOR_QUALIFIER -> a.qualifier.active
+                AttributeGroup.COLOR_VIGNETTE -> !a.vignette.isNeutral
                 else -> !a.wheels.isNeutral
             }
         }.ifEmpty { listOf(AttributeGroup.COLOR_BASIC) }

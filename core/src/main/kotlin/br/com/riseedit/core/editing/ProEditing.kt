@@ -111,10 +111,12 @@ data class ClipAttributes(
     fun applyTo(clip: Clip, only: Set<AttributeGroup> = groups): Clip {
         val use = AttributeCopy.close(only intersect groups)
         var a = clip.adjustments
-        if (AttributeGroup.COLOR_BASIC in use) a = adjustments.basic.copy(curves = a.curves, hsl = a.hsl, wheels = a.wheels)
+        if (AttributeGroup.COLOR_BASIC in use) a = a.withBasic(adjustments)
         if (AttributeGroup.COLOR_CURVES in use) a = a.copy(curves = adjustments.curves)
         if (AttributeGroup.COLOR_HSL in use) a = a.copy(hsl = adjustments.hsl)
         if (AttributeGroup.COLOR_WHEELS in use) a = a.copy(wheels = adjustments.wheels)
+        if (AttributeGroup.COLOR_QUALIFIER in use) a = a.copy(qualifier = adjustments.qualifier)
+        if (AttributeGroup.COLOR_VIGNETTE in use) a = a.copy(vignette = adjustments.vignette)
         var g = clip.grade
         if (AttributeGroup.LOG_PROFILE in use) g = g.copy(log = grade.log)
         if (AttributeGroup.TONE_CURVE in use) g = g.copy(curve = grade.curve)
@@ -158,6 +160,8 @@ enum class AttributeGroup(val label: String, val section: String, val dependsOn:
     COLOR_CURVES("Curvas", "Cor"),
     COLOR_HSL("HSL por cor", "Cor"),
     COLOR_WHEELS("Rodas lift/gamma/gain", "Cor"),
+    COLOR_QUALIFIER("Seleção de cor (qualifier)", "Cor"),
+    COLOR_VIGNETTE("Vinheta", "Cor"),
     LOG_PROFILE("Perfil log", "Correção"),
     TONE_CURVE("Curva pronta", "Correção"),
     LUT("LUT do usuário (.cube)", "Correção"),
@@ -180,6 +184,8 @@ object AttributeCopy {
             AttributeGroup.COLOR_CURVES -> !a.adjustments.curves.isIdentity
             AttributeGroup.COLOR_HSL -> !a.adjustments.hsl.isNeutral
             AttributeGroup.COLOR_WHEELS -> !a.adjustments.wheels.isNeutral
+            AttributeGroup.COLOR_QUALIFIER -> a.adjustments.qualifier.active
+            AttributeGroup.COLOR_VIGNETTE -> !a.adjustments.vignette.isNeutral
             AttributeGroup.LOG_PROFILE -> a.grade.log != ColorGrade().log
             AttributeGroup.TONE_CURVE -> a.grade.curve != ColorGrade().curve
             AttributeGroup.LUT -> a.grade.lutUri != null

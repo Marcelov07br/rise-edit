@@ -52,7 +52,7 @@ internal fun ColumnScope.EditorWorkspace(
             onSelect = { main -> ui.contextual = main },
             textDraft = draft,
             onDraftTransform = { ui.textDraft = it },
-            pickColor = ui.eyedropper
+            pickColor = ui.eyedropper ?: br.com.riseedit.tools.ColorTools.eyedropper
         )
     }
     if (draft != null) {

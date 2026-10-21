@@ -176,6 +176,18 @@ internal class ProjectCommands(private val document: EditorDocument) {
         }
     }
 
+    /** Combinar cor: per clip (source ms, matched adjust); keyed clips get a key at that time. Undoable. */
+    fun applyColorMatch(result: Map<String, Pair<Long, br.com.riseedit.core.ColorAdjust>>, reference: String) {
+        val state = document.current
+        val clips = state.project.clips.map { c ->
+            val (ms, a) = result[c.id] ?: return@map c
+            br.com.riseedit.core.color.ColorKeyEdits.editAdjust(c, ms, a)
+        }
+        if (document.edit(state.project.copy(clips = clips))) {
+            document.message("Cor combinada com \"$reference\" em ${result.size} clipe(s).", undo = true)
+        }
+    }
+
     /** "Resetar todos" in Ajustar: neutral ColorAdjust (sliders, curves, HSL, wheels); undoable. */
     fun resetColor() {
         val state = document.current

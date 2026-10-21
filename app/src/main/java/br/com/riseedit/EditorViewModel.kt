@@ -100,6 +100,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun confirmPaste(groups: Set<br.com.riseedit.core.editing.AttributeGroup>, all: Boolean) = commands.confirmPaste(groups, all)
     fun closeAttributeDialog() = commands.closeAttributeDialog()
     fun resetColor() = commands.resetColor()
+    fun applyColorMatch(result: Map<String, Pair<Long, br.com.riseedit.core.ColorAdjust>>, reference: String) = commands.applyColorMatch(result, reference)
     fun applyColorToAll() {
         val s = state.value
         val clip = s.project.clips.getOrNull(s.selected) ?: return

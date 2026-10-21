@@ -17,6 +17,8 @@ data class UserPreset(val id: String, val name: String, val adjust: ColorAdjust,
         if (ColorKeyGroup.CURVES in groups) out = out.copy(curves = adjust.curves)
         if (ColorKeyGroup.HSL in groups) out = out.copy(hsl = adjust.hsl)
         if (ColorKeyGroup.WHEELS in groups) out = out.copy(wheels = adjust.wheels)
+        if (ColorKeyGroup.QUALIFIER in groups) out = out.copy(qualifier = adjust.qualifier)
+        if (ColorKeyGroup.VIGNETTE in groups) out = out.copy(vignette = adjust.vignette)
         return out
     }
 
@@ -27,7 +29,10 @@ data class UserPreset(val id: String, val name: String, val adjust: ColorAdjust,
 
     companion object {
         const val VERSION = 1
-        val GROUPS = listOf(ColorKeyGroup.BASIC, ColorKeyGroup.CURVES, ColorKeyGroup.HSL, ColorKeyGroup.WHEELS)
+        val GROUPS = listOf(ColorKeyGroup.BASIC, ColorKeyGroup.CURVES, ColorKeyGroup.HSL, ColorKeyGroup.WHEELS, ColorKeyGroup.QUALIFIER, ColorKeyGroup.VIGNETTE)
+
+        /** Presets saved before 0.15 without a group list owned only these. */
+        val LEGACY_GROUPS = GROUPS.take(4)
 
         fun toMap(p: UserPreset): Map<String, Any> = mapOf(
             "v" to VERSION, "id" to p.id, "name" to p.name,
@@ -39,7 +44,7 @@ data class UserPreset(val id: String, val name: String, val adjust: ColorAdjust,
             val id = m["id"] as? String ?: return null
             val name = (m["name"] as? String)?.ifBlank { null } ?: return null
             val groups = (m["groups"] as? Iterable<*>)?.mapNotNull { (it as? String)?.let(ColorKeyGroup::of) }
-                ?.filter { it in GROUPS }?.toSet()?.ifEmpty { null } ?: GROUPS.toSet()
+                ?.filter { it in GROUPS }?.toSet()?.ifEmpty { null } ?: LEGACY_GROUPS.toSet()
             val color = (m["color"] as? Map<String, Any?>)?.let(ColorAdjust::fromMap) ?: return null
             return UserPreset(id, name, color, groups)
         }

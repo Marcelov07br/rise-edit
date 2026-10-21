@@ -113,14 +113,27 @@ data class ColorAdjust(
     val vibrance: Float = 0f,
     val curves: ColorCurves = ColorCurves(),
     val hsl: HslBands = HslBands(),
-    val wheels: ColorWheels = ColorWheels()
+    val wheels: ColorWheels = ColorWheels(),
+    /** Secondary correction keyed on one color (0.15). */
+    val qualifier: br.com.riseedit.core.color.Qualifier = br.com.riseedit.core.color.Qualifier(),
+    /** Frame-space vignette, applied last (0.15). */
+    val vignette: br.com.riseedit.core.color.Vignette = br.com.riseedit.core.color.Vignette()
 ) {
-    val isNeutral get() = this == NEUTRAL
+    val isNeutral get() = this == NEUTRAL || (copy(qualifier = Qualifier0, vignette = Vignette0) == NEUTRAL && qualifier.isNeutral && vignette.isNeutral)
+
+    /** Global part (everything except qualifier/vignette) is neutral. */
+    val isGlobalNeutral get() = copy(qualifier = Qualifier0, vignette = Vignette0) == NEUTRAL
 
     /** Only the "basic" sliders (what filters and the v1/v2 format cover). */
     val basic get() = ColorAdjust(brightness, contrast, saturation, warmth, exposure, tint, shadows, highlights, vibrance)
 
     /** A filter only owns brightness/contrast/saturation/temperature; everything else is kept. */
+    /** Replaces only the basic sliders, keeping curves/HSL/wheels/qualifier/vignette. */
+    fun withBasic(b: ColorAdjust) = copy(
+        brightness = b.brightness, contrast = b.contrast, saturation = b.saturation, warmth = b.warmth,
+        exposure = b.exposure, tint = b.tint, shadows = b.shadows, highlights = b.highlights, vibrance = b.vibrance
+    )
+
     fun withFilter(f: ColorAdjust) =
         copy(brightness = f.brightness, contrast = f.contrast, saturation = f.saturation, warmth = f.warmth)
 
@@ -143,8 +156,10 @@ data class ColorAdjust(
     }
 
     companion object {
-        const val VERSION = 3
+        const val VERSION = 4
         val NEUTRAL = ColorAdjust()
+        private val Qualifier0 = br.com.riseedit.core.color.Qualifier()
+        private val Vignette0 = br.com.riseedit.core.color.Vignette()
 
         /** v1 (<= 0.11.x): JSON array [brightness, contrast, saturation, warmth]. */
         fun fromLegacy(values: List<Double>?): ColorAdjust {
@@ -168,7 +183,9 @@ data class ColorAdjust(
                 "green" to pts(a.curves.green), "blue" to pts(a.curves.blue)
             ),
             "hsl" to a.hsl.values.map { it.toDouble() },
-            "wheels" to mapOf("lift" to wheel(a.wheels.lift), "gamma" to wheel(a.wheels.gamma), "gain" to wheel(a.wheels.gain))
+            "wheels" to mapOf("lift" to wheel(a.wheels.lift), "gamma" to wheel(a.wheels.gamma), "gain" to wheel(a.wheels.gain)),
+            "qualifier" to br.com.riseedit.core.color.Qualifier.toMap(a.qualifier),
+            "vignette" to br.com.riseedit.core.color.Vignette.toMap(a.vignette)
         )
 
         private fun nums(v: Any?): List<Float>? = when (v) {
@@ -181,7 +198,7 @@ data class ColorAdjust(
         private fun obj(v: Any?): Map<String, Any?>? = v as? Map<String, Any?>
 
         /**
-         * Decodes v2 or v3. v2 (0.12.x) has no curves/HSL/wheels → neutral (migration).
+         * Decodes v2, v3 or v4. v3 has no qualifier/vignette → neutral (migration). v2 (0.12.x) has no curves/HSL/wheels → neutral (migration).
          * Unknown future keys are ignored, missing keys are neutral. Nested values may be
          * Lists/Maps (callers convert JSON first).
          */
@@ -199,7 +216,9 @@ data class ColorAdjust(
                 f("exposure"), f("tint"), f("shadows"), f("highlights"), f("vibrance"),
                 ColorCurves(curve("master"), curve("red"), curve("green"), curve("blue")),
                 hsl,
-                ColorWheels(wheel("lift"), wheel("gamma"), wheel("gain"))
+                ColorWheels(wheel("lift"), wheel("gamma"), wheel("gain")),
+                br.com.riseedit.core.color.Qualifier.fromMap(obj(m["qualifier"])),
+                br.com.riseedit.core.color.Vignette.fromMap(obj(m["vignette"]))
             )
         }
     }
@@ -209,7 +228,7 @@ data class ColorAdjust(
  * Single source of the color formulas. [GLSL] runs in preview and export (ColorAdjustEffect);
  * [apply] is its line-by-line CPU mirror for meters/tests. Change both together.
  * Order: exposure → temp/tint → contrast → shadows/highlights → sat/vibrance → HSL bands →
- * lift/gamma/gain → curves. The grade LUT runs before or after (ColorGrade.lutBeforeAdjust).
+ * lift/gamma/gain → curves → qualifier (keyed on the input color). Vignette: [br.com.riseedit.core.color.LocalColorMath]. The grade LUT runs before or after (ColorGrade.lutBeforeAdjust).
  */
 object ColorAdjustMath {
     private const val PIVOT = 0.5f
@@ -234,6 +253,7 @@ object ColorAdjustMath {
         if (!a.hsl.isNeutral) c = hsl(a.hsl, c)
         if (!a.wheels.isNeutral) c = wheels(a, c)
         if (!a.curves.isIdentity) c = FloatArray(3) { a.curves.eval(it, c[it]) }
+        if (!a.qualifier.isNeutral) c = br.com.riseedit.core.color.LocalColorMath.qualify(a.qualifier, rgb, c)
         return FloatArray(3) { clamp(c[it]) }
     }
 

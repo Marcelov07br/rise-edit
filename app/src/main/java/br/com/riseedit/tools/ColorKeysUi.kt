@@ -45,6 +45,8 @@ internal fun AdjustTab.group() = when (this) {
     AdjustTab.CURVES -> ColorKeyGroup.CURVES
     AdjustTab.HSL -> ColorKeyGroup.HSL
     AdjustTab.WHEELS -> ColorKeyGroup.WHEELS
+    AdjustTab.QUALIFIER -> ColorKeyGroup.QUALIFIER
+    AdjustTab.VIGNETTE -> ColorKeyGroup.VIGNETTE
     AdjustTab.GRADE -> ColorKeyGroup.LUT
 }
 

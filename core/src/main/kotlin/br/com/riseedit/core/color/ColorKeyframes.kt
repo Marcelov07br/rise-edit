@@ -12,7 +12,8 @@ import kotlin.math.roundToInt
 /** Groups that animate independently (one diamond per Ajustar tab). */
 enum class ColorKeyGroup(val id: String, val label: String) {
     BASIC("basic", "Básico"), CURVES("curves", "Curvas"), HSL("hsl", "HSL"),
-    WHEELS("wheels", "Rodas"), LUT("lut", "LUT");
+    WHEELS("wheels", "Rodas"), LUT("lut", "LUT"),
+    QUALIFIER("qualifier", "Seleção"), VIGNETTE("vignette", "Vinheta");
 
     companion object { fun of(id: String) = entries.firstOrNull { it.id == id } }
 }
@@ -76,6 +77,8 @@ data class ColorKeyframes(val tracks: Map<ColorKeyGroup, List<ColorKey>> = empty
                 ColorKeyGroup.CURVES -> a = a.copy(curves = v.adjust.curves)
                 ColorKeyGroup.HSL -> a = a.copy(hsl = v.adjust.hsl)
                 ColorKeyGroup.WHEELS -> a = a.copy(wheels = v.adjust.wheels)
+                ColorKeyGroup.QUALIFIER -> a = a.copy(qualifier = v.adjust.qualifier)
+                ColorKeyGroup.VIGNETTE -> a = a.copy(vignette = v.adjust.vignette)
                 ColorKeyGroup.LUT -> g = g.copy(lutIntensity = quantize(v.lutIntensity))
             }
         }
@@ -114,8 +117,29 @@ data class ColorKeyframes(val tracks: Map<ColorKeyGroup, List<ColorKey>> = empty
             lerp(a.vibrance, b.vibrance, u),
             lerp(a.curves, b.curves, u),
             HslBands(a.hsl.values.indices.map { lerp(a.hsl.values[it], b.hsl.values[it], u) }),
-            ColorWheels(lerp(a.wheels.lift, b.wheels.lift, u), lerp(a.wheels.gamma, b.wheels.gamma, u), lerp(a.wheels.gain, b.wheels.gain, u))
+            ColorWheels(lerp(a.wheels.lift, b.wheels.lift, u), lerp(a.wheels.gamma, b.wheels.gamma, u), lerp(a.wheels.gain, b.wheels.gain, u)),
+            lerp(a.qualifier, b.qualifier, u),
+            Vignette(
+                lerp(a.vignette.amount, b.vignette.amount, u), lerp(a.vignette.size, b.vignette.size, u),
+                lerp(a.vignette.softness, b.vignette.softness, u), lerp(a.vignette.roundness, b.vignette.roundness, u),
+                lerp(a.vignette.cx, b.vignette.cx, u), lerp(a.vignette.cy, b.vignette.cy, u)
+            )
         )
+
+        /** Hue center takes the short way around the circle; activity steps with the key. */
+        private fun lerp(a: Qualifier, b: Qualifier, u: Float): Qualifier {
+            var dh = (b.hue - a.hue) % 360f
+            if (dh > 180f) dh -= 360f
+            if (dh < -180f) dh += 360f
+            return Qualifier(
+                if (u < 1f) a.active else b.active, ((a.hue + dh * u) % 360f + 360f) % 360f,
+                lerp(a.hueWidth, b.hueWidth, u), lerp(a.hueSoft, b.hueSoft, u),
+                lerp(a.satLow, b.satLow, u), lerp(a.satHigh, b.satHigh, u), lerp(a.satSoft, b.satSoft, u),
+                lerp(a.lumLow, b.lumLow, u), lerp(a.lumHigh, b.lumHigh, u), lerp(a.lumSoft, b.lumSoft, u),
+                lerp(a.hueShift, b.hueShift, u), lerp(a.saturation, b.saturation, u), lerp(a.lightness, b.lightness, u),
+                lerp(a.exposure, b.exposure, u), lerp(a.temperature, b.temperature, u)
+            )
+        }
 
         private fun lerp(a: Wheel, b: Wheel, u: Float) = Wheel(lerp(a.x, b.x, u), lerp(a.y, b.y, u), lerp(a.luma, b.luma, u))
 
@@ -168,6 +192,8 @@ object ColorKeyEdits {
         ColorKeyGroup.CURVES -> a.curves == b.curves
         ColorKeyGroup.HSL -> a.hsl == b.hsl
         ColorKeyGroup.WHEELS -> a.wheels == b.wheels
+        ColorKeyGroup.QUALIFIER -> a.qualifier == b.qualifier
+        ColorKeyGroup.VIGNETTE -> a.vignette == b.vignette
         ColorKeyGroup.LUT -> true
     }
 
@@ -212,6 +238,8 @@ object ColorKeyEdits {
                 )
                 ColorKeyGroup.CURVES -> clip.adjustments.copy(curves = s.curves)
                 ColorKeyGroup.HSL -> clip.adjustments.copy(hsl = s.hsl)
+                ColorKeyGroup.QUALIFIER -> clip.adjustments.copy(qualifier = s.qualifier)
+                ColorKeyGroup.VIGNETTE -> clip.adjustments.copy(vignette = s.vignette)
                 else -> clip.adjustments.copy(wheels = s.wheels)
             }
         }, colorKeys = keys) else if (keys.keys(g).isEmpty()) clip.copy(grade = clip.grade.copy(lutIntensity = grade.lutIntensity), colorKeys = keys)
