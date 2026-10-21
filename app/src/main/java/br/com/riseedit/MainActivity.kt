@@ -136,16 +136,15 @@ private fun newForm(count: Int): NewProjectForm {
     return NewProjectForm("Projeto ${count + 1}", d.aspect, d.resolution, d.standard, d.rate)
 }
 
-/** Status/gesture bar icons follow the in-app theme (Escuro/Claro), not only the system. */
+/** The app is always dark: status/gesture bar icons are always light. */
 @Composable
 private fun SystemBarIcons() {
     val view = androidx.compose.ui.platform.LocalView.current
-    val dark = RisePalette.dark
     androidx.compose.runtime.SideEffect {
         val window = (view.context as? android.app.Activity)?.window ?: return@SideEffect
         androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
-            isAppearanceLightStatusBars = !dark
-            isAppearanceLightNavigationBars = !dark
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
         }
     }
 }

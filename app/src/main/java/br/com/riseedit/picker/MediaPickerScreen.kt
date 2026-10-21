@@ -48,8 +48,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import br.com.riseedit.RiseAccent
 import br.com.riseedit.RiseBlack
 import br.com.riseedit.RiseMuted
@@ -127,6 +125,10 @@ fun MediaPickerScreen(
                 else -> LazyVerticalGrid(
                     GridCells.Fixed(3),
                     Modifier.fillMaxSize().padding(horizontal = 2.dp),
+                    // Last row stays fully visible above the Adicionar bar.
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        bottom = 12.dp
+                    ),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
@@ -282,9 +284,12 @@ fun MediaPickerRoute(onPick: (List<Uri>) -> Unit, onClose: () -> Unit) {
                 withContext(Dispatchers.IO) { Gallery.query(context, tab) }
             }
     }
-    Dialog(
-        onClose,
-        DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+    // 0.19.1: in-window overlay (not a Dialog): the activity's safe area applies, so the
+    // Adicionar bar sits above the gesture bar on every device.
+    androidx.activity.compose.BackHandler(onBack = onClose)
+    Box(
+        Modifier.fillMaxSize().background(RiseBlack)
+            .clickable(interactionSource = null, indication = null) {}
     ) {
         MediaPickerScreen(
             tab,

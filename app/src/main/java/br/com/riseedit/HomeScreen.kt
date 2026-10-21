@@ -23,7 +23,7 @@ import java.util.Locale
 fun HomeScreen(
     projects: List<Project>,
     error: String?,
-    library: ProjectLibrary,
+    library: ProjectLibrary?,
     onOpen: (Project) -> Unit,
     onSettings: () -> Unit,
     onNew: () -> Unit
@@ -199,7 +199,7 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 TextButton(onClick = {
-                                    library.favorite(p)
+                                    library?.favorite(p)
                                 }) { Text(if (p.favorite) "★" else "☆", color = RiseWhite) }
                                 var menu by remember { mutableStateOf(false) }
                                 Box {
@@ -223,7 +223,7 @@ fun HomeScreen(
                                         })
                                         DropdownMenuItem(text = { Text("Duplicar") }, onClick = {
                                             menu = false
-                                            library.duplicate(p)
+                                            library?.duplicate(p)
                                         })
                                         DropdownMenuItem(text = { Text("Excluir") }, onClick = {
                                             menu = false
@@ -256,10 +256,10 @@ fun HomeScreen(
             confirmButton = {
                 TextButton(onClick = {
                     if (create) {
-                        library.create(name)?.let(onOpen)
+                        library?.create(name)?.let(onOpen)
                     } else {
                         rename?.let {
-                            library.rename(it, name)
+                            library?.rename(it, name)
                         }
                     }
                     create =
@@ -290,7 +290,7 @@ fun HomeScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    library.delete(p)
+                    library?.delete(p)
                     delete = null
                 }) { Text("Excluir") }
             },

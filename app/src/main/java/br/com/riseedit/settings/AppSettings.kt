@@ -1,7 +1,6 @@
 package br.com.riseedit.settings
 
 import br.com.riseedit.Accent
-import br.com.riseedit.ThemeMode
 import br.com.riseedit.core.Aspect
 import br.com.riseedit.core.ExportPlan
 import br.com.riseedit.core.ExportSettings
@@ -24,7 +23,6 @@ enum class Quality(val label: String) { LIGHT("Leve"), GOOD("Boa"), HIGH("Alta")
 
 /** 0.19: app preferences (DataStore). Only settings with a real effect live here. */
 data class AppSettings(
-    val theme: ThemeMode = ThemeMode.DARK,
     val accent: Accent = Accent.WHITE,
     val haptics: Boolean = true,
     val reduceMotion: Boolean = false,
@@ -53,7 +51,6 @@ data class AppSettings(
     )
 
     fun toMap(): Map<String, String> = buildMap {
-        put("theme", theme.name)
         put("accent", accent.name)
         put("haptics", haptics.toString())
         put("reduceMotion", reduceMotion.toString())
@@ -89,7 +86,6 @@ data class AppSettings(
             val rate =
                 FrameRateChoice(m["fps"]?.toIntOrNull() ?: d.rate.fps, m.bool("ntsc", d.rate.ntsc))
             return AppSettings(
-                theme = m.enum("theme", d.theme),
                 accent = m.enum("accent", d.accent),
                 haptics = m.bool("haptics", d.haptics),
                 reduceMotion = m.bool("reduceMotion", d.reduceMotion),

@@ -5,7 +5,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import br.com.riseedit.RisePalette
-import br.com.riseedit.ThemeMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -55,6 +54,5 @@ object SettingsStore {
         RisePalette.accent = s.accent
         RisePalette.haptics = s.haptics
         RisePalette.reduceMotion = s.reduceMotion
-        if (s.theme != ThemeMode.SYSTEM) RisePalette.dark = s.theme == ThemeMode.DARK
     }
 }

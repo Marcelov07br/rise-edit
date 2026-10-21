@@ -1,7 +1,6 @@
 package br.com.riseedit.settings
 
 import br.com.riseedit.Accent
-import br.com.riseedit.ThemeMode
 import br.com.riseedit.core.Aspect
 import br.com.riseedit.core.FrameRateChoice
 import br.com.riseedit.core.Resolution
@@ -15,7 +14,7 @@ import org.junit.Test
 class SettingsLogicTest {
     @Test fun roundTrip() {
         val s = AppSettings(
-            theme = ThemeMode.LIGHT, accent = Accent.MINT, haptics = false, reduceMotion = true,
+            accent = Accent.MINT, haptics = false, reduceMotion = true,
             aspect = Aspect.PORTRAIT, resolution = Resolution.UHD, standard = TvStandard.PAL,
             rate = FrameRateChoice(
                 50,

@@ -69,8 +69,8 @@ object HierarchyTokens {
     val DangerGap = 14.dp
 
     // 3. direct graphic controls
-    val GraphicBg get() = br.com.riseedit.RisePalette.graphicBg
-    val GraphicBorder get() = br.com.riseedit.RisePalette.graphicBorder
+    val GraphicBg get() = Color(0xFF070708)
+    val GraphicBorder get() = Color(0xFF242426)
     val GraphicRadius = 20.dp
     val GraphicPadding = 12.dp
     val ChipHeight = 26.dp

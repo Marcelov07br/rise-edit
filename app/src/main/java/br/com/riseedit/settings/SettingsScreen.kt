@@ -42,7 +42,6 @@ import br.com.riseedit.RiseMuted
 import br.com.riseedit.RiseOutline
 import br.com.riseedit.RiseSurface
 import br.com.riseedit.RiseWhite
-import br.com.riseedit.ThemeMode
 import br.com.riseedit.core.Aspect
 import br.com.riseedit.core.ProjectFormat
 import br.com.riseedit.core.Resolution
@@ -191,7 +190,6 @@ private fun <T> Pair2(
 }
 
 private fun label(v: Any?): String = when (v) {
-    is ThemeMode -> v.label
     is Aspect -> v.label
     is Resolution -> v.label
     is TvStandard -> v.label
@@ -213,14 +211,7 @@ private fun Updates(info: SettingsInfo, actions: SettingsActions) {
 
 @Composable
 private fun Look(s: AppSettings, onChange: ((AppSettings) -> AppSettings) -> Unit) {
-    Group("Tema") {
-        Pair2(
-            "Tema" to
-                Triple(ThemeMode.entries, s.theme) { v: ThemeMode ->
-                    onChange { it.copy(theme = v) }
-                },
-            text = ::label
-        )
+    Group("Destaque") {
         Text("Cor de destaque", color = RiseWhite, fontSize = 15.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Accent.entries.forEach { a ->
