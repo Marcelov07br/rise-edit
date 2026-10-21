@@ -83,7 +83,7 @@ class VideoPipelineTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val store = ProjectStore(context)
         val clip = Clip(uri = "content://test/clip", name = "Clip", sourceDurationMs = 10000, startMs = 2000, endMs = 8000,
-            speedPoints = listOf(SpeedPoint(2000,0.5),SpeedPoint(4000,2.0)), adjustments = Adjustments(0.1f,0.2f,0.3f,-0.2f),
+            speedPoints = listOf(SpeedPoint(2000,0.5),SpeedPoint(4000,2.0)), adjustments = ColorAdjust(0.1f,0.2f,0.3f,-0.2f),
             keyframes = listOf(TransformKeyframe(2000,x=0.2f,scale=1.2f,opacity=0.5f)))
         val p = Project(listOf(clip),name="Persistence test",favorite=true,aspectRatio=9f/16f,export=ExportSettings(1080,24,16_000_000),
             audio=listOf(AudioClip(uri="content://test/audio",name="Audio",sourceDurationMs=5000,track=2)),

@@ -133,6 +133,7 @@ class ProjectStore(private val context: Context) {
                     )
                 )
             )
+            .put("color", JSONObject(ColorAdjust.toMap(c.adjustments)))
             .put("keys", keys(c.keyframes))
             .put("sourceInfo", c.sourceInfo?.let(SourceMetadataJson::encode) ?: JSONObject.NULL)
             .put("proxyUri", c.proxyUri ?: JSONObject.NULL).put("proxyRequired", c.proxyRequired)
@@ -189,18 +190,11 @@ class ProjectStore(private val context: Context) {
             speedPoints = rows(c.optJSONArray("speed")).map {
                 SpeedPoint(it.getLong(0), it.getDouble(1))
             },
-            adjustments = if (a ==
-                null
-            ) {
-                Adjustments()
-            } else {
-                Adjustments(
-                    a.getDouble(0).toFloat(),
-                    a.getDouble(1).toFloat(),
-                    a.getDouble(2).toFloat(),
-                    a.getDouble(3).toFloat()
-                )
-            },
+            adjustments = c.optJSONObject("color")?.let { o ->
+                ColorAdjust.fromMap(o.keys().asSequence().associateWith { o.opt(it) })
+            } ?: ColorAdjust.fromLegacy(
+                a?.let { arr -> List(arr.length()) { arr.optDouble(it, 0.0) } }
+            ),
             keyframes = readKeys(c.optJSONArray("keys")),
             sourceInfo = c.optJSONObject("sourceInfo")?.let(SourceMetadataJson::decode),
             proxyUri = if (c.isNull("proxyUri")) null else c.optString("proxyUri").ifBlank { null },

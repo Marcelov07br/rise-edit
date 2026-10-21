@@ -43,7 +43,7 @@ class SourceModelTest {
         val clip = clip().copy(
             sourceInfo = info, proxyUri = "file://proxy", proxyRequired = true,
             speedPoints = listOf(SpeedPoint(0, 2.0)),
-            adjustments = Adjustments(brightness = 0.2f),
+            adjustments = ColorAdjust(brightness = 0.2f),
             keyframes = listOf(TransformKeyframe(0, x = 0.25f))
         )
         (clip.split(1000) + clip.trim(2000, 6000)).forEach { part ->

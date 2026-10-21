@@ -1,6 +1,6 @@
 package br.com.riseedit.core.editing
 
-import br.com.riseedit.core.Adjustments
+import br.com.riseedit.core.ColorAdjust
 import br.com.riseedit.core.AudioClip
 import br.com.riseedit.core.Clip
 import br.com.riseedit.core.Marker
@@ -97,7 +97,7 @@ object JLCut {
 
 /** Copy/paste of look and treatment between clips. Timing (trim, speed) is never pasted. */
 data class ClipAttributes(
-    val adjustments: Adjustments,
+    val adjustments: ColorAdjust,
     val grade: ColorGrade,
     val orientation: Orientation,
     val stabilization: Stabilization,

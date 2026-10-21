@@ -2,9 +2,7 @@
 
 package br.com.riseedit
 
-import android.graphics.Paint
 import android.view.LayoutInflater
-import android.view.View
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -120,14 +118,13 @@ fun PreviewPanel(
         16f / 9
     }
     val outputRatio = state.project.aspectRatio.takeIf { it > 0 } ?: sourceRatio
-    val filter = remember(clip?.adjustments, fast) {
-        if (fast) {
-            FastPreviewStyle.filter(
-                clip?.adjustments ?: Adjustments()
-            )
-        } else {
-            null
-        }
+    val adjust = clip?.adjustments ?: ColorAdjust.NEUTRAL
+    val grade = clip?.grade ?: br.com.riseedit.core.color.ColorGrade()
+    androidx.compose.runtime.LaunchedEffect(adjust, grade, fast) {
+        if (!fast) return@LaunchedEffect
+        br.com.riseedit.color.ColorLive.adjust = adjust
+        br.com.riseedit.color.ColorLive.grade = grade
+        redrawColor(previewPlayer)
     }
     val index = state.project.clips.indexOfFirst { it.id == clip?.id }
     val local = (
@@ -238,21 +235,6 @@ fun PreviewPanel(
                             },
                             update = { view ->
                                 if (view.player !== previewPlayer) view.player = previewPlayer
-                                view.setLayerType(
-                                    if (filter ==
-                                        null
-                                    ) {
-                                        View.LAYER_TYPE_NONE
-                                    } else {
-                                        View.LAYER_TYPE_HARDWARE
-                                    },
-                                    filter?.let {
-                                        Paint().apply {
-                                            colorFilter =
-                                                it
-                                        }
-                                    }
-                                )
                             },
                             modifier = Modifier.fillMaxSize().graphicsLayer {
                                 scaleX = if (fast) zoom else 1f
@@ -352,5 +334,13 @@ fun PreviewPanel(
                 style = MaterialTheme.typography.labelSmall
             )
         }
+    }
+}
+
+/** Repaints the paused frame after a live color change (fast preview only). */
+internal fun redrawColor(player: androidx.media3.common.Player?) {
+    val exo = player as? ExoPlayer ?: return
+    if (!exo.isPlaying) {
+        runCatching { exo.setVideoEffects(androidx.media3.common.VideoFrameProcessor.REDRAW) }
     }
 }

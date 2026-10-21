@@ -51,11 +51,10 @@ class ClipColor(private val clip: Clip, private val offset: Long) : RgbMatrix {
                 min(time.toDouble() / fade, (clip.durationMs - time).toDouble() / fade)
             ).toFloat()
         }
-        val warmth = clip.adjustments.warmth * 0.18f
         val alpha = Timeline.keyframe(clip, clip.sourceAt(time)).opacity
         return floatArrayOf(
-            gain * (1 + warmth), 0f, 0f, 0f, 0f, gain, 0f, 0f, 0f, 0f,
-            gain * (1 - warmth), 0f, 0f, 0f, 0f, alpha
+            gain, 0f, 0f, 0f, 0f, gain, 0f, 0f, 0f, 0f,
+            gain, 0f, 0f, 0f, 0f, alpha
         )
     }
 }

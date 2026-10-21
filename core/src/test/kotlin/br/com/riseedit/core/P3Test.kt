@@ -76,7 +76,7 @@ class P3Test {
         val src = clip(
             "a"
         ).copy(
-            adjustments = Adjustments(brightness = 0.2f),
+            adjustments = ColorAdjust(brightness = 0.2f),
             grade = ColorGrade(curve = ToneCurve.S_SOFT)
         )
         val dst = clip("b").trim(1000, 4000)

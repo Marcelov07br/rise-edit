@@ -2,3 +2,12 @@
 
 - 2026-10-21: v0.11.1 (versionCode 17) — release debug a partir do commit do Antigravity (1da2be9): timecode SMPTE, avanço quadro a quadro, régua/snapping por quadro. APK assinado com debug key padrão. Sem repo público de releases para o Rise Edit (releases ficam neste repo).
 - Build: JAVA_HOME=/home/box/jdk ANDROID_HOME=/home/box/android ./gradlew assembleDebug
+- 2026-10-21: v0.12.0 (versionCode 18) — Cor LOTE A:
+  - Modelo único `ColorAdjust` (core/.../ColorAdjust.kt): brilho, contraste, saturação, temperatura (`warmth`), + exposição EV, tint, sombras, realces, vibrance. JSON do clip ganha `"color": {"v":2,...}`; o array legado `"adjust"` (v1) continua sendo gravado e é migrado na leitura (`ColorAdjust.fromLegacy`). Teste: core/src/test/.../ColorAdjustTest.kt.
+  - Fonte única de fórmulas: `ColorAdjustMath` (GLSL + espelho CPU). Shader próprio `color/ColorAdjustEffect.kt` (GlEffect + BaseGlShaderProgram), ordem fixa exposição→temp/tint→contraste(pivot 0.5)→sombras/realces→saturação/vibrance→LUT do grade (atlas 2D 33³, GLES2 sem textura 3D). Neutro: `isNoOp` no export; na prévia rápida passa direto (uNeutral).
+  - Prévia rápida (ExoPlayer) agora usa o MESMO efeito via `setVideoEffects(ColorAdjustEffect.live)`, lendo `ColorLive` a cada quadro; redesenho pausado via `VideoFrameProcessor.REDRAW`. `FastPreviewStyle` removido. Temperatura saiu de `ClipColor` (agora só fade/opacidade).
+  - UI: toque duplo no slider volta a 0 com spring (riseSpring) + háptico leve; botão "Segure para comparar" (bypass só na prévia, nunca no export).
+  - Limitações: contraste/saturação não são idênticos aos efeitos Media3 antigos (Contrast/HslAdjustment) e o LUT agora vem DEPOIS dos ajustes (antes vinha antes) → projetos antigos com grade+ajuste podem mudar levemente. Sem validação em aparelho/emulador; sem prints (projeto não tem Paparazzi/Roborazzi). HDR: shader assume SDR.
+- Próximos passos:
+  - LOTE B: curvas (RGB/luma), HSL por faixa de cor, rodas de cor (lift/gamma/gain), keyframes de cor, histograma/waveform usando `ColorAdjustMath`.
+  - LOTE C: presets do usuário (salvar/compartilhar), copiar/colar cor entre clips, ajuste em camadas/overlays, máscaras locais, HDR/log-aware, testes instrumentados de paridade prévia×export.

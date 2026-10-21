@@ -9,9 +9,6 @@ package br.com.riseedit.composition
 
 import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
-import androidx.media3.effect.Brightness
-import androidx.media3.effect.Contrast
-import androidx.media3.effect.HslAdjustment
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
@@ -20,6 +17,7 @@ import br.com.riseedit.ClipColor
 import br.com.riseedit.ClipSpeed
 import br.com.riseedit.ClipTransform
 import br.com.riseedit.StabilizationEffect
+import br.com.riseedit.color.ColorAdjustEffect
 import br.com.riseedit.core.Clip
 import br.com.riseedit.core.MotionAnalysis
 import br.com.riseedit.core.Project
@@ -31,7 +29,7 @@ internal fun buildMainSequence(
 ): EditedMediaItemSequence {
     var offsetMs = 0L
     val items = project.clips.map { clip ->
-        val effects = buildClipEffects(clip, analyses, offsetMs)
+        val effects = buildClipEffects(clip, analyses, offsetMs, preview)
         offsetMs += clip.durationMs
         val media = MediaItem.Builder()
             .setUri(clip.effectiveUri(preview))
@@ -60,7 +58,8 @@ internal fun buildMainSequence(
 private fun buildClipEffects(
     clip: Clip,
     analyses: Map<String, MotionAnalysis>,
-    offsetMs: Long
+    offsetMs: Long,
+    preview: Boolean
 ): List<Effect> = buildList {
     if (clip.stabilization.enabled) {
         val analysis = requireNotNull(analyses[clip.uri]) {
@@ -69,9 +68,7 @@ private fun buildClipEffects(
         add(StabilizationEffect(clip, analysis, offsetMs))
     }
     add(ClipTransform(clip, offsetMs))
-    br.com.riseedit.color.GradeLuts.effect(clip.grade)?.let(::add)
-    add(Brightness(clip.adjustments.brightness))
-    add(Contrast(clip.adjustments.contrast))
-    add(HslAdjustment.Builder().adjustSaturation(clip.adjustments.saturation * 100).build())
+    ColorAdjustEffect(clip.adjustments, clip.grade, preview)
+        .takeUnless { it.neutral && !preview }?.let(::add)
     add(ClipColor(clip, offsetMs))
 }

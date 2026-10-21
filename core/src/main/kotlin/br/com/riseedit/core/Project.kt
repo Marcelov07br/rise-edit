@@ -30,7 +30,7 @@ data class Clip(
     val speedPoints: List<SpeedPoint> = emptyList(),
     val volume: Float = 1f,
     val fadeMs: Long = 0,
-    val adjustments: Adjustments = Adjustments(),
+    val adjustments: ColorAdjust = ColorAdjust(),
     val keyframes: List<TransformKeyframe> = emptyList(),
     val sourceInfo: SourceInfo? = null,
     val proxyUri: String? = null,
@@ -90,12 +90,6 @@ data class SpeedPoint(val sourceMs: Long, val speed: Double) {
         )
     }
 }
-data class Adjustments(
-    val brightness: Float = 0f,
-    val contrast: Float = 0f,
-    val saturation: Float = 0f,
-    val warmth: Float = 0f
-)
 data class TransformKeyframe(
     val sourceMs: Long,
     val x: Float = 0f,
