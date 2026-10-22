@@ -55,6 +55,21 @@ object Diagnostics {
 
     fun lines(): List<String> = ring.snapshot()
 
+    /** 0.19.2: a multi-line report (full stack trace) kept in its own file for the shared log. */
+    fun record(tag: String, body: String) {
+        ring.add(
+            "$stamp [$tag] ${body.lineSequence().firstOrNull().orEmpty()} (detalhes em error-*.txt)"
+        )
+        val dir = directory ?: return
+        runCatching {
+            File(dir, "error-${System.currentTimeMillis()}.txt").writeText("$stamp [$tag]\n$body")
+            dir.listFiles { f ->
+                f.name.startsWith("error-")
+            }?.sortedByDescending { it.name }?.drop(5)?.forEach { it.delete() }
+        }
+        flush()
+    }
+
     @Synchronized
     fun flush() {
         val dir = directory ?: return
@@ -99,9 +114,16 @@ object Diagnostics {
             "Rise Edit $version · ${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})"
         )
         appendLine("Gerado em $stamp")
+        appendLine("Aparelho: ${ColorDiagnostics.device()}")
         val dir = directory ?: File(context.filesDir, "diagnostics")
         dir.listFiles { f ->
             f.name.startsWith("crash-")
+        }?.sortedByDescending { it.name }?.forEach {
+            appendLine("\n=== ${it.name} ===")
+            appendLine(it.readText().take(64_000))
+        }
+        dir.listFiles { f ->
+            f.name.startsWith("error-")
         }?.sortedByDescending { it.name }?.forEach {
             appendLine("\n=== ${it.name} ===")
             appendLine(it.readText().take(64_000))

@@ -29,7 +29,17 @@ fun ExportDialog(project: Project, onClose: () -> Unit, onExport: (ExportSetting
     val allowedFps = remember(project) { ExportPlan.allowedFps(project) }
     var value by remember {
         val e = project.export
-        mutableStateOf(e.copy(fps = if (e.fps in allowedFps) e.fps else allowedFps.max()))
+        mutableStateOf(
+            e.copy(
+                fps = if (e.fps in
+                    allowedFps
+                ) {
+                    e.fps
+                } else {
+                    (allowedFps.maxOrNull() ?: 30)
+                }
+            )
+        )
     }
     val mbps = value.bitrate / 1_000_000
     AlertDialog(

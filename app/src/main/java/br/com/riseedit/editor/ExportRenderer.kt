@@ -26,10 +26,58 @@ import kotlinx.coroutines.withContext
 
 /** Media3 callbacks complete the caller's coroutine instead of starting another operation. */
 internal class ExportRenderer(private val context: Context) {
+    /**
+     * 0.19.2: an empty-frame-queue failure (see FrameCompat) is retried once in the tolerant
+     * frame mode; any other failure, or a second one, reaches the caller with a full RiseColor log.
+     */
     suspend fun render(
         project: Project,
         analyses: Map<String, MotionAnalysis>,
         file: File,
+        progress: (Float) -> Unit
+    ) {
+        try {
+            renderOnce(
+                project,
+                analyses,
+                file,
+                br.com.riseedit.media.FrameCompat.factory(),
+                progress
+            )
+        } catch (error: ExportException) {
+            br.com.riseedit.diagnostics.ColorDiagnostics.report(
+                context,
+                "exportação",
+                error,
+                project
+            )
+            if (!br.com.riseedit.media.FrameCompat.isFrameRegistrationFailure(error) ||
+                br.com.riseedit.media.FrameCompat.tolerant
+            ) {
+                throw error
+            }
+            br.com.riseedit.media.FrameCompat.enable(context)
+            br.com.riseedit.diagnostics.Diagnostics.log(
+                "cor",
+                "exportação: repetindo no modo compatível de quadros"
+            )
+            file.delete()
+            progress(0f)
+            renderOnce(
+                project,
+                analyses,
+                file,
+                br.com.riseedit.media.FrameCompat.tolerantFactory(),
+                progress
+            )
+        }
+    }
+
+    private suspend fun renderOnce(
+        project: Project,
+        analyses: Map<String, MotionAnalysis>,
+        file: File,
+        frames: androidx.media3.common.VideoFrameProcessor.Factory?,
         progress: (Float) -> Unit
     ) = coroutineScope {
         val completed = CompletableDeferred<Unit>()
@@ -49,6 +97,7 @@ internal class ExportRenderer(private val context: Context) {
                 }
             )
             .setAudioMimeType(MimeTypes.AUDIO_AAC)
+            .apply { frames?.let { setVideoFrameProcessorFactory(it) } }
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     completed.complete(Unit)

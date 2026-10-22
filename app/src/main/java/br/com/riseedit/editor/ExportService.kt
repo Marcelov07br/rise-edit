@@ -89,7 +89,7 @@ class ExportService : Service() {
                 val code = (error as? androidx.media3.transformer.ExportException)?.errorCode
                 ExportBus.finish(
                     message = if (code != null && code in 5000..5999) {
-                        "Não foi possível aplicar a cor na exportação (${(error as androidx.media3.transformer.ExportException).errorCodeName}, $code). Nada foi salvo com cor diferente."
+                        "A exportação falhou no processamento de imagem deste aparelho (${(error as androidx.media3.transformer.ExportException).errorCodeName}, $code). Nada foi salvo. Envie o registro em Configurações › Sobre."
                     } else {
                         "Não foi possível exportar: ${error.localizedMessage}. Tente em 720p."
                     }

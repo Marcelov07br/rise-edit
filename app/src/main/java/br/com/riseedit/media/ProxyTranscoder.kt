@@ -61,6 +61,7 @@ class ProxyTranscoder(context: Context, cacheLimitBytes: Long = 512L * 1024 * 10
                 .setEncodingProfileLevel(CodecProfileLevel.AVCProfileBaseline, CodecProfileLevel.AVCLevel41).build()
         ).build()
         val engine = Transformer.Builder(context).setEncoderFactory(encoder)
+            .apply { FrameCompat.factory()?.let { setVideoFrameProcessorFactory(it) } }
             .setVideoMimeType(MimeTypes.VIDEO_H264).setAudioMimeType(MimeTypes.AUDIO_AAC)
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) { completion.complete(Unit) }

@@ -338,7 +338,7 @@ internal fun MaskContent(
             Text(EMPTY_HINT, color = RiseMuted, fontSize = 12.sp)
         } else {
             MaskList(set, selectedId, ui)
-            selected?.let { MaskControls(it, set.masks.first().id == it.id, timeMs, ui) }
+            selected?.let { MaskControls(it, set.masks.firstOrNull()?.id == it.id, timeMs, ui) }
         }
     }
 }

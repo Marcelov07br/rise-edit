@@ -13,7 +13,12 @@ internal class ProjectVideoCompositor(
     private val overlays: List<VideoOverlay>,
     private val durationMs: Long
 ) : VideoCompositorSettings {
-    override fun getOutputSize(sizes: List<Size>) = sizes.first()
+    // 0.19.2: never throw inside the GL pipeline; an empty list keeps a sane output size.
+    override fun getOutputSize(sizes: List<Size>) = sizes.firstOrNull() ?: FALLBACK_SIZE
+
+    private companion object {
+        val FALLBACK_SIZE = Size(1920, 1080)
+    }
 
     override fun getOverlaySettings(inputId: Int, presentationTimeUs: Long): OverlaySettings {
         if (inputId == 0) return StaticOverlaySettings.Builder().build()
@@ -30,4 +35,10 @@ internal class ProjectVideoCompositor(
             .setBackgroundFrameAnchor(t.x, t.y)
             .build()
     }
+}
+
+/** Test hook: the compositor's output-size rule without overlays. */
+internal object ProjectVideoCompositorProbe {
+    fun outputSize(sizes: List<Size>): Size =
+        ProjectVideoCompositor(emptyList(), 0).getOutputSize(sizes)
 }

@@ -11,7 +11,10 @@ import java.util.concurrent.atomic.AtomicLong
 
 /** Constructed only after an explicit faithful request and its local resource-budget check. */
 internal class FaithfulPreview(context: Context) {
-    val player = CompositionPlayer.Builder(context).setVideoGraphFactory(MultipleInputVideoGraph.Factory()).build()
+    // 0.19.2: FrameCompat (tolerant frame registration) once this device showed the 7001/NoSuchElement failure.
+    val player = CompositionPlayer.Builder(context).setVideoGraphFactory(
+        br.com.riseedit.media.FrameCompat.factory()?.let { MultipleInputVideoGraph.Factory(it) } ?: MultipleInputVideoGraph.Factory()
+    ).build()
     private val lastFrameAt = AtomicLong(0)
     private val lastFramePts = AtomicLong(Long.MIN_VALUE)
     private var lastPosition = 0L

@@ -171,7 +171,7 @@ class PreviewEngine(
             fast?.tick(muted)
             lastPosition = positionMs
             if (player.playbackState == Player.STATE_ENDED) playing = false
-            if (faithful?.stalled(playing, scrubbing) == true) fallback("A prévia fiel parou de responder. Continuando na prévia rápida.")
+            if (faithful?.stalled(playing, scrubbing) == true) fallback("A prévia Fiel parou de responder neste vídeo; usando a Rápida.")
         }
     }
     fun release() {
@@ -214,9 +214,21 @@ class PreviewEngine(
         try { block() } catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) { failed(error) }
     }
+    /** 0.19.2: the empty-frame-queue failure gets one retry in FrameCompat mode, then Rápida. */
+    private fun faithfulFailed(error: Exception) {
+        if (!br.com.riseedit.media.FrameCompat.isFrameRegistrationFailure(error) || br.com.riseedit.media.FrameCompat.tolerant) {
+            fallback(FAITHFUL_FAILED); return
+        }
+        br.com.riseedit.media.FrameCompat.enable(context)
+        br.com.riseedit.diagnostics.Diagnostics.log("cor", "fiel: modo compatível de quadros ativado; recriando a prévia")
+        val position = positionMs
+        releasePlayers()
+        update(project, analyses, suppliedFaults, position, PreviewQuality.Faithful)
+    }
     private fun failed(error: Exception) {
         br.com.riseedit.diagnostics.Diagnostics.log("prévia", "erro do player (${quality.label})", error)
-        if (faithful != null) { fallback("A prévia fiel falhou. Continuando na prévia rápida."); return }
+        br.com.riseedit.diagnostics.ColorDiagnostics.report(context, "prévia ${quality.label}", error, project)
+        if (faithful != null) { faithfulFailed(error); return }
         val clip = fast?.currentIndex?.let { project.clips.getOrNull(it) } ?: activeClip
         if (clip == null || fault != null) { playing = false; runCatching { player.pause() }; onMessage("A prévia está indisponível para este trecho."); return }
         val position = positionMs
@@ -225,7 +237,7 @@ class PreviewEngine(
             colorPreviewAvailable = false
             releasePlayers()
             runCatching { activateFast(position) }.onFailure { playing = false }
-            onMessage("Prévia de cor indisponível neste aparelho (${technical(error)})"); onChanged()
+            onMessage("A cor na prévia Rápida falhou neste aparelho; mostrando sem cor. A exportação é separada e avisa se falhar."); onChanged()
             return
         }
         runtimeFaults[clip.id] = MediaFault.PreviewFailed(technical(error), error)
@@ -233,6 +245,8 @@ class PreviewEngine(
         onMessage("Um clipe não pôde ser reproduzido. Sua posição foi preservada na timeline."); onChanged()
     }
 }
+
+internal const val FAITHFUL_FAILED = "A prévia Fiel falhou neste vídeo; usando a Rápida. A exportação é separada e avisa se falhar."
 
 /** Video effect / GL failures (not the media file): VFP error codes or a VFP/GL cause. */
 internal fun isEffectFailure(error: Throwable): Boolean {

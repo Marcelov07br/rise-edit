@@ -53,6 +53,7 @@ object StillClip {
         withContext(Dispatchers.Main.immediate) {
             val done = CompletableDeferred<Unit>()
             val engine = Transformer.Builder(context).setVideoMimeType(MimeTypes.VIDEO_H264)
+                .apply { FrameCompat.factory()?.let { setVideoFrameProcessorFactory(it) } }
                 .setAudioMimeType(MimeTypes.AUDIO_AAC)
                 .addListener(object : Transformer.Listener {
                     override fun onCompleted(composition: Composition, exportResult: ExportResult) {
