@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -301,6 +302,20 @@ fun PreviewPanel(
                             onRelease = { it.player = null }
                         )
                     }
+                    // 0.19.3: while a scrub seek is decoding, the nearest cached film-strip tile gives feedback.
+                    if (fast && clip != null && vm.scrubPending) {
+                        br.com.riseedit.MediaAssets.nearestCached(
+                            clip.effectiveUri(true),
+                            vm.previewSourceMs
+                        )?.let {
+                            androidx.compose.foundation.Image(
+                                it.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                            )
+                        }
+                    }
                     if (fast && clip != null) {
                         br.com.riseedit.color.PausedColorOverlay(
                             clip = clip,
@@ -309,6 +324,7 @@ fun PreviewPanel(
                             adjust = adjust,
                             grade = grade,
                             layers = layerPasses,
+                            scrubbing = vm.isScrubbing,
                             modifier = Modifier.fillMaxSize().graphicsLayer {
                                 scaleX = zoom
                                 scaleY = zoom

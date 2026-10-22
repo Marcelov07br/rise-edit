@@ -30,6 +30,10 @@ object MediaAssets {
     private val thumbnails = LruCache<String,Bitmap>(96)
     private val waves = LruCache<String,List<Float>>(32)
     private val workers = Semaphore(2)
+    /** 0.19.3: nearest already-decoded film-strip tile (no decode; instant scrub feedback). */
+    fun nearestCached(uri: String, time: Long): Bitmap? = thumbnails.snapshot().entries
+        .mapNotNull { (k, v) -> k.removePrefix("$uri:").takeIf { k.startsWith("$uri:") }?.toLongOrNull()?.let { it to v } }
+        .minByOrNull { kotlin.math.abs(it.first - time) }?.second
     suspend fun thumbnail(context: Context, uri: String, time: Long): Bitmap? = withContext(Dispatchers.IO) { workers.withPermit {
         val key = "$uri:$time"; thumbnails.get(key)?.let { return@withPermit it }
         val r = MediaMetadataRetriever()

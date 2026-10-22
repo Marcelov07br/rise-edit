@@ -44,7 +44,8 @@ internal fun PausedColorOverlay(
     adjust: ColorAdjust,
     grade: ColorGrade,
     modifier: Modifier = Modifier,
-    layers: List<br.com.riseedit.core.AdjustmentPass> = emptyList()
+    layers: List<br.com.riseedit.core.AdjustmentPass> = emptyList(),
+    scrubbing: Boolean = false
 ) {
     val context = LocalContext.current
     var ready by remember { mutableStateOf(false) }
@@ -57,12 +58,13 @@ internal fun PausedColorOverlay(
     val currentSourceMs by rememberUpdatedState(sourceMs)
     // Keyed on state changes only: while playing the source position is NOT a key (it changes every
     // frame and used to relaunch this effect + log "overlay hidden" ~30x/s).
-    LaunchedEffect(uri, playing) {
+    // 0.19.3: hidden while dragging too (the old still covered the live seek frames); re-grabbed on release.
+    LaunchedEffect(uri, playing, scrubbing) {
         ready = false
         shown = null
         ColorLive.overlayActive = false
-        if (playing) {
-            Log.d(TAG, "overlay hidden (playing)")
+        if (playing || scrubbing) {
+            Log.d(TAG, "overlay hidden (${if (playing) "playing" else "scrubbing"})")
             return@LaunchedEffect
         }
         snapshotFlow { currentSourceMs() }.distinctUntilChanged().collectLatest { sourceMs ->

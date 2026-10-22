@@ -16,6 +16,13 @@ import kotlin.math.min
 internal class FastPreview(context: Context, colorEffect: Boolean = true) {
     val player = ExoPlayer.Builder(context).build().apply {
         setSeekParameters(androidx.media3.exoplayer.SeekParameters.EXACT)
+        // 0.19.3: scrub decodes video only and asks the codec to run faster (Media3 1.9 API).
+        setScrubbingModeParameters(
+            androidx.media3.exoplayer.ScrubbingModeParameters.DEFAULT.buildUpon()
+                .setDisabledTrackTypes(setOf(androidx.media3.common.C.TRACK_TYPE_AUDIO))
+                .setShouldIncreaseCodecOperatingRate(true)
+                .build()
+        )
         // Same shader as export; reads ColorLive each frame. Must be set before the first prepare().
         if (colorEffect) {
             runCatching {

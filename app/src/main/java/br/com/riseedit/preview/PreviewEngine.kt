@@ -37,6 +37,14 @@ class PreviewEngine(
     private var playing = false
     private var muted = false
     private var scrubbing = false
+    val isScrubbing: Boolean get() = scrubbing
+    /** 0.19.3: live scrub on the fast player: coalesced CLOSEST_SYNC seeks, EXACT on release. */
+    private val scrubber = ScrubSeeker({ ms -> guard { fast?.seek(ms) } }, android.os.SystemClock::elapsedRealtime)
+    private var scrubTarget: Long? = null
+    /** Compose state: the picture is older than the dragged position (UI shows a film-strip thumbnail). */
+    private val scrubPendingState = androidx.compose.runtime.mutableStateOf(false)
+    val scrubPending: Boolean get() = scrubPendingState.value
+    private fun syncScrubPending() { scrubPendingState.value = scrubbing && fast != null && scrubber.waitingForFrame }
     private var released = false
     private var revision = 0L
     private var pending: Job? = null
@@ -53,7 +61,7 @@ class PreviewEngine(
     var faithfulPlayersCreated = 0
         private set
     val player: Player get() = lastPlayer
-    val positionMs: Long get() = runCatching { fast?.positionMs ?: faithful?.player?.currentPosition ?: lastPosition }
+    val positionMs: Long get() = scrubTarget?.takeIf { scrubbing } ?: runCatching { fast?.positionMs ?: faithful?.player?.currentPosition ?: lastPosition }
         .getOrDefault(lastPosition).coerceIn(0, timeline.durationMs)
     val durationMs: Long get() = timeline.durationMs
     val activeClip: Clip? get() = project.clips.getOrNull(timeline.indexAt(positionMs))
@@ -125,6 +133,13 @@ class PreviewEngine(
     fun seek(ms: Long) {
         if (released) return
         lastPosition = ms.coerceIn(0, project.durationMs)
+        if (scrubbing && fast != null) {
+            scrubTarget = lastPosition
+            scrubber.request(lastPosition)
+            syncScrubPending()
+            onChanged()
+            return
+        }
         guard { fast?.seek(lastPosition); faithful?.seek(lastPosition); fast?.tick(muted) }
         onChanged()
     }
@@ -159,7 +174,19 @@ class PreviewEngine(
     fun scrubbing(enabled: Boolean) {
         if (released) return
         scrubbing = enabled
-        guard { fast?.player?.setScrubbingModeEnabled(enabled); faithful?.player?.setScrubbingModeEnabled(enabled); faithful?.resetWatchdog() }
+        guard {
+            fast?.player?.setScrubbingModeEnabled(enabled)
+            fast?.player?.setSeekParameters(if (enabled) androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC else androidx.media3.exoplayer.SeekParameters.EXACT)
+            faithful?.player?.setScrubbingModeEnabled(enabled); faithful?.resetWatchdog()
+        }
+        if (!enabled) {
+            // Release: one exact seek to where the finger stopped (the paused color overlay follows).
+            scrubber.reset()
+            scrubTarget?.let { target -> lastPosition = target; guard { fast?.seek(target); fast?.tick(muted) } }
+            scrubTarget = null
+        }
+        syncScrubPending()
+        onChanged()
     }
     fun setMuted(enabled: Boolean) {
         muted = enabled
@@ -169,7 +196,7 @@ class PreviewEngine(
         if (released) return
         guard {
             fast?.tick(muted)
-            lastPosition = positionMs
+            if (scrubbing) { scrubber.poll(); syncScrubPending() } else lastPosition = positionMs
             if (player.playbackState == Player.STATE_ENDED) playing = false
             if (faithful?.stalled(playing, scrubbing) == true) fallback("A prévia Fiel parou de responder neste vídeo; usando a Rápida.")
         }
@@ -207,6 +234,9 @@ class PreviewEngine(
     }
     private fun listen(source: Player) = source.addListener(object : Player.Listener {
         override fun onPlayerError(error: PlaybackException) { if (!released && source === player) failed(error) }
+        override fun onRenderedFirstFrame() {
+            if (!released && source === player) { scrubber.frameRendered(); syncScrubPending(); onChanged() }
+        }
         override fun onIsPlayingChanged(isPlaying: Boolean) { if (!released && source === player) onChanged() }
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) { if (!released && source === player) { fast?.tick(muted); onChanged() } }
     })

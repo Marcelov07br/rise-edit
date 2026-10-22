@@ -51,6 +51,8 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     val player: Player get() = preview.engine.player
     val previewClip get() = preview.engine.activeClip
     val previewSourceMs get() = preview.engine.activeSourceMs
+    val scrubPending get() = preview.engine.scrubPending
+    val isScrubbing get() = preview.engine.isScrubbing
     fun motionAnalysis(uri: String) = document.analyses[uri]
     fun message(text: String?) = document.message(text)
     val appContext: android.content.Context get() = getApplication()

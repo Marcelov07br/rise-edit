@@ -58,7 +58,20 @@ object ColorDiagnostics {
             int(MediaFormat.KEY_COLOR_TRANSFER)?.let { "colorTransfer=$it" },
             int(MediaFormat.KEY_COLOR_RANGE)?.let { "colorRange=$it" },
             bitDepth(mime, int(MediaFormat.KEY_PROFILE))?.let { "bitDepth=$it" },
-            int(MediaFormat.KEY_FRAME_RATE)?.let { "fps=$it" }
+            // 0.19.3: phone footage is VFR with a fractional nominal rate (e.g. 29.567234); never truncate it.
+            runCatching {
+                if (!format.containsKey(MediaFormat.KEY_FRAME_RATE)) {
+                    null
+                } else if (Build.VERSION.SDK_INT >= 29) {
+                    format.getNumber(MediaFormat.KEY_FRAME_RATE)?.toFloat()
+                } else {
+                    runCatching {
+                        format.getFloat(MediaFormat.KEY_FRAME_RATE)
+                    }.getOrElse { format.getInteger(MediaFormat.KEY_FRAME_RATE).toFloat() }
+                }
+            }.getOrNull()?.let {
+                "fps=$it${if (it != kotlin.math.round(it)) " (fracionário/VFR provável)" else ""}"
+            }
         ).joinToString(" ")
     }
 
