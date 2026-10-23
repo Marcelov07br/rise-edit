@@ -32,12 +32,18 @@ data class MotionAnalysis(
     }
 }
 
-/** Correction pose plus the crop zoom needed at this instant (eased, never above maxZoom). */
+/**
+ * Correction pose plus the crop zoom needed at this instant (eased, never above maxZoom).
+ * [velocity] is the raw trajectory slope at this sample (analysis pixels per sample): the
+ * frame-to-frame motion the sensor captures progressively, i.e. the rolling-shutter/wobble
+ * source that the per-line WARP correction undoes. Zero at segment borders.
+ */
 data class Correction(
     val timeMs: Long,
     val pose: Pose,
     val segment: Int = 0,
-    val zoom: Double = 1.0
+    val zoom: Double = 1.0,
+    val velocity: Pose = Pose()
 )
 
 /** Frame-to-frame motion measured by an analyzer; [delta] is null when tracking failed. */
@@ -63,6 +69,12 @@ object MotionSmoother {
                 listOf(analysis.samples.minBy { abs(it.timeMs - startMs) })
             }
         val radiusMs = settings.smoothSeconds * 1000.0
+        val velocities =
+            if (settings.warpAmount > 0.0) {
+                warpVelocities(samples, analysis.width, analysis.height)
+            } else {
+                List(samples.size) { Pose() }
+            }
         val poses = ArrayList<Correction>(samples.size)
         segmentRanges(samples).forEach { range ->
             val part = samples.subList(range.first, range.last + 1)
@@ -73,9 +85,10 @@ object MotionSmoother {
                     smoothPoses(part, radiusMs)
                 }
             part.forEachIndexed { i, sample ->
+                val index = range.first + i
                 val desired = targets[i].compose(sample.pose.inverse()).scaled(settings.strength)
                 val pose = bounded(desired, analysis.width, analysis.height, settings.maxZoom)
-                poses += Correction(sample.timeMs, pose, sample.segment)
+                poses += Correction(sample.timeMs, pose, sample.segment, 1.0, velocities[index])
             }
         }
         val zooms =
@@ -84,7 +97,8 @@ object MotionSmoother {
                 analysis.width,
                 analysis.height,
                 settings.maxZoom,
-                max(ZOOM_EASE_MS, radiusMs)
+                max(ZOOM_EASE_MS, radiusMs),
+                settings.warpAmount
             )
         return poses.mapIndexed { i, c -> c.copy(zoom = zooms[i]) }
     }
@@ -93,21 +107,71 @@ object MotionSmoother {
      * Crop zoom over time: a running maximum of the required zoom over ±[radiusMs], then a box
      * average over the same radius. The average of maxima that each cover the instant is never
      * below the instant's requirement, so borders stay hidden while transitions ease in and out.
+     * [warpAmount] widens the requirement by the per-line warp reach so WARP never shows borders.
      */
     fun easedZoom(
         corrections: List<Correction>,
         width: Int,
         height: Int,
         maxZoom: Double,
-        radiusMs: Double
+        radiusMs: Double,
+        warpAmount: Double = 0.0
     ): DoubleArray {
         val times = LongArray(corrections.size) { corrections[it].timeMs }
         val required =
-            DoubleArray(corrections.size) { requiredZoom(corrections[it].pose, width, height) }
+            DoubleArray(corrections.size) {
+                warpExtras(corrections[it].velocity, width, height, warpAmount).let { e ->
+                    requiredZoom(corrections[it].pose, width, height, e.first, e.second)
+                }
+            }
         val peaks = SlidingWindow.max(times, required, radiusMs)
         val eased = SlidingWindow.mean(times, peaks, radiusMs)
         return DoubleArray(eased.size) { eased[it].coerceIn(1.0, max(1.0, maxZoom)) }
     }
+
+    /**
+     * Raw trajectory slope per sample (central difference, analysis pixels/sample), zeroed at
+     * segment borders where the tracker reset makes the difference meaningless. Magnitudes are
+     * capped at [VELOCITY_CAP] of the frame per sample so a single bad estimate cannot tear the
+     * warp; RANSAC already rejects most outliers, this is the second line of defense.
+     */
+    internal fun warpVelocities(
+        samples: List<MotionSample>,
+        width: Int,
+        height: Int
+    ): List<Pose> = List(samples.size) { i ->
+        val s = samples[i]
+        val prev = samples.getOrNull(i - 1)
+        val next = samples.getOrNull(i + 1)
+        if (prev == null ||
+            next == null ||
+            prev.segment != s.segment ||
+            next.segment != s.segment
+        ) {
+            Pose()
+        } else {
+            Pose(
+                ((next.pose.x - prev.pose.x) / 2).coerceIn(-VELOCITY_CAP * width, VELOCITY_CAP * width),
+                ((next.pose.y - prev.pose.y) / 2).coerceIn(-VELOCITY_CAP * height, VELOCITY_CAP * height),
+                ((next.pose.angle - prev.pose.angle) / 2).coerceIn(-VELOCITY_CAP, VELOCITY_CAP)
+            )
+        }
+    }
+
+    /**
+     * Max per-line warp displacement in pixels: the RS shear moves the top/bottom edge by
+     * velocity·amount (shear is linear over the ±0.5 line span), the angular term by
+     * angle·amount·height/2 (small-angle rotation ≈ horizontal shear).
+     */
+    internal fun warpExtras(
+        velocity: Pose,
+        width: Int,
+        height: Int,
+        amount: Double
+    ): Pair<Double, Double> =
+        (
+            abs(velocity.x) * amount + abs(velocity.angle) * amount * height / 2
+            ) to (abs(velocity.y) * amount)
 
     /** Triangular (two-pass box) low-pass of the trajectory, linear in the number of samples. */
     private fun smoothPoses(part: List<MotionSample>, radiusMs: Double): List<Pose> {
@@ -151,7 +215,13 @@ object MotionSmoother {
         return pose.scaled(lo)
     }
 
-    fun requiredZoom(pose: Pose, width: Int, height: Int): Double {
+    fun requiredZoom(
+        pose: Pose,
+        width: Int,
+        height: Int,
+        extraX: Double = 0.0,
+        extraY: Double = 0.0
+    ): Double {
         val c = cos(pose.angle)
         val s = sin(pose.angle)
         val x = c * pose.x + s * pose.y
@@ -159,8 +229,8 @@ object MotionSmoother {
         return max(
             1.0,
             max(
-                (abs(c) * width + abs(s) * height + 2 * abs(x)) / width,
-                (abs(c) * height + abs(s) * width + 2 * abs(y)) / height
+                (abs(c) * width + abs(s) * height + 2 * abs(x) + 2 * extraX) / width,
+                (abs(c) * height + abs(s) * width + 2 * abs(y) + 2 * extraY) / height
             )
         )
     }
@@ -185,11 +255,19 @@ object MotionSmoother {
         fun mix(p: Double, q: Double) = p + (q - p) * t
         val pose =
             Pose(mix(a.pose.x, b.pose.x), mix(a.pose.y, b.pose.y), mix(a.pose.angle, b.pose.angle))
-        return Correction(timeMs, pose, a.segment, mix(a.zoom, b.zoom))
+        val velocity = Pose(
+            mix(a.velocity.x, b.velocity.x),
+            mix(a.velocity.y, b.velocity.y),
+            mix(a.velocity.angle, b.velocity.angle)
+        )
+        return Correction(timeMs, pose, a.segment, mix(a.zoom, b.zoom), velocity)
     }
 
     private const val BISECTION_STEPS = 30
     private const val ZOOM_EASE_MS = 500.0
+
+    /** Per-sample trajectory slope cap, as a fraction of the frame per sample. */
+    internal const val VELOCITY_CAP = 0.05
 }
 
 /** Builds a continuous trajectory from frame deltas, bridging short tracking losses. */
