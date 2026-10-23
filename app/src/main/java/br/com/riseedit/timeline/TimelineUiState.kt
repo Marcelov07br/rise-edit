@@ -75,6 +75,10 @@ internal class TimelineUiState(density: Float) {
     /** Opened when the user taps a keyframe diamond (low panel, not a popup). */
     var keyframePanel by mutableStateOf<KeyframeTarget?>(null)
 
+    /** 0.22 mouse: clip under the pointer and the right-click menu. */
+    var hoverId by mutableStateOf<String?>(null)
+    var clipMenu by mutableStateOf<ClipMenu?>(null)
+
     /** Snaps [valueUs] (or a span when [lengthUs] > 0) to [targets]; returns the snapped start. */
     fun magnet(
         valueUs: Double,
@@ -116,3 +120,13 @@ internal data class KeyframeTarget(
     /** Source or local time of the key, matching [TimelineEntry.keyOffsetsUs] domain. */
     val timeMs: Long
 )
+
+/** 0.22: commands the editor (keyboard) sends to the timeline that owns the viewport. */
+class TimelineRemote {
+    var zoom: (Double) -> Unit = {}
+    var fit: () -> Unit = {}
+    var toggleSnap: () -> Unit = {}
+}
+
+/** Right-click context menu anchored at the pointer (px inside the timeline). */
+internal data class ClipMenu(val entry: TimelineEntry, val xPx: Float, val yPx: Float)

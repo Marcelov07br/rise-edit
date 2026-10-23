@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import br.com.riseedit.designsystem.riseSafeArea
 import br.com.riseedit.editor.ExportBus
 import br.com.riseedit.editor.ExportService
+import br.com.riseedit.keys.editorKeyboard
+import br.com.riseedit.keys.externalMediaDrop
 
 /** Fixed regions; timeline and tool sheet scroll internally, never the entire editor. */
 @Composable
@@ -25,7 +27,8 @@ fun EditorScreen(
     vm: EditorViewModel,
     state: EditorState,
     onBack: () -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onShortcuts: () -> Unit = onSettings
 ) {
     val context = LocalContext.current
     val ui = rememberEditorUiState()
@@ -33,8 +36,13 @@ fun EditorScreen(
     val enabled = state.busy == null
     val hasClips = state.project.clips.isNotEmpty()
     EditorScreenEffects(vm, state, ui)
-    BoxWithConstraints(Modifier.fillMaxSize().background(RiseBlack).riseSafeArea()) {
+    BoxWithConstraints(
+        Modifier.fillMaxSize().background(RiseBlack).riseSafeArea()
+            .editorKeyboard(vm, state, ui, media, onShortcuts)
+            .externalMediaDrop(vm)
+    ) {
         val workspaceHeight = maxHeight
+        val expanded = isExpanded(maxWidth, maxHeight)
         Column(Modifier.fillMaxSize()) {
             EditorTopBar(
                 state.project.name,
@@ -55,7 +63,9 @@ fun EditorScreen(
                     Text("⚠ ${state.missingMedia.size} mídia(s) ausente(s) — tocar para recuperar")
                 }
             }
-            if (hasClips) {
+            if (hasClips && expanded) {
+                EditorWorkspaceExpanded(vm, state, ui, media, workspaceHeight)
+            } else if (hasClips) {
                 EditorWorkspace(vm, state, ui, media, workspaceHeight)
             } else {
                 EditorEmptyPanel(enabled, media.videos)

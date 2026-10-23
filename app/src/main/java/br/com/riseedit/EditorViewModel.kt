@@ -101,6 +101,11 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun remove() = commands.remove()
     fun duplicate() = cuts.duplicate()
     fun cutToCursor(left: Boolean) = cuts.cutToCursor(left)
+    fun rippleTrim(toStart: Boolean) {
+        cuts.rippleTrim(toStart)?.let { seek(it) }
+    }
+    fun copyClip() = cuts.copyClip()
+    fun pasteClip() = cuts.pasteClip()
     fun nudge(edge: br.com.riseedit.core.editing.TrimEdge, frames: Int) = cuts.nudge(edge, frames)
     fun speed(value: Double, keepPitch: Boolean) = cuts.speed(value, keepPitch)
 

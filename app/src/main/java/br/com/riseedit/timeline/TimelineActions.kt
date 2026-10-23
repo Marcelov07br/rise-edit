@@ -52,4 +52,11 @@ internal class TimelineActions(
         ui.keyframePanel = KeyframeTarget(entry.id, timeMs)
         onKeyframe()
     }
+
+    // 0.22 context menu (right click): act on the clip under the pointer.
+    fun split(entry: TimelineEntry) { select(entry); vm.split() }
+    fun duplicate(entry: TimelineEntry) { select(entry); if (entry.mainIndex != null) vm.duplicate() }
+    fun delete(entry: TimelineEntry) { select(entry); vm.deleteSelected() }
+    fun copyEffects(entry: TimelineEntry) { select(entry); vm.copyAttributes() }
+    fun pasteEffects(entry: TimelineEntry) { select(entry); vm.pasteAttributes() }
 }

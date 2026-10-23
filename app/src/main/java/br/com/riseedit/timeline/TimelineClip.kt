@@ -73,8 +73,12 @@ internal fun BoxScope.TimelineClip(
         KeyDiamonds(entry, left - visibleLeft, ui.viewport.pixelsPerSecond)
         Box(
             Modifier.fillMaxSize().border(
-                if (entry.selected) 2.dp else 1.dp,
-                if (entry.selected) Color.White else entry.color,
+                if (entry.selected) 2.dp else if (ui.hoverId == entry.id) 1.5.dp else 1.dp,
+                when {
+                    entry.selected -> Color.White
+                    ui.hoverId == entry.id -> Color.White.copy(alpha = 0.7f)
+                    else -> entry.color
+                },
                 RoundedCornerShape(6.dp)
             )
         )

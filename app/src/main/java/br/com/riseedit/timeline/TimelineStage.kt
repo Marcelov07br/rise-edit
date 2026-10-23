@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.unit.sp
 import br.com.riseedit.EditorState
 import br.com.riseedit.RiseMuted
@@ -84,6 +85,7 @@ internal fun TimelineStage(
                     ui.viewport = ui.viewport.resized(it.width.toDouble(), duration)
                 }
                 .semantics { contentDescription = "Timeline interativa" }
+                .timelineMouse(ui, state, entries, density) { scroll.value }
                 .timelineGestures(ui, state, entries, actions, density) { scroll.value }
         ) {
             Column {
@@ -96,6 +98,7 @@ internal fun TimelineStage(
                 TimelineTrackList(lanes, entries.value, ui, actions, scroll)
             }
             PlayheadNeedle(ui, state, density, Modifier.matchParentSize())
+            ClipContextMenu(ui, actions, density)
         }
     }
 }
@@ -217,6 +220,43 @@ private fun AddLaneButton(ui: TimelineUiState, lanes: List<Int>) {
                     open = false
                 })
             }
+        }
+    }
+}
+
+/** 0.22: right-click menu on a clip (split, duplicate, delete, copy/paste effects). */
+@Composable
+private fun ClipContextMenu(ui: TimelineUiState, actions: TimelineActions, density: Float) {
+    val menu = ui.clipMenu
+    Box(
+        Modifier.offset(((menu?.xPx ?: 0f) / density).dp, ((menu?.yPx ?: 0f) / density).dp)
+    ) {
+        androidx.compose.material3.DropdownMenu(
+            expanded = menu != null,
+            onDismissRequest = { ui.clipMenu = null },
+            containerColor = br.com.riseedit.RiseSurfaceHigh
+        ) {
+            val entry = menu?.entry ?: return@DropdownMenu
+            fun item(label: String, keys: String, enabled: Boolean = true, run: (TimelineEntry) -> Unit) =
+                @Composable {
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { androidx.compose.material3.Text(label, color = RiseWhite) },
+                        trailingIcon = {
+                            androidx.compose.material3.Text(keys, color = br.com.riseedit.RiseMuted, fontSize = 12.sp)
+                        },
+                        enabled = enabled,
+                        onClick = {
+                            ui.clipMenu = null
+                            run(entry)
+                        }
+                    )
+                }
+            val main = entry.mainIndex != null
+            item("Dividir", "C") { actions.split(it) }()
+            item("Duplicar", "Alt+D", enabled = main) { actions.duplicate(it) }()
+            item("Excluir", "Del") { actions.delete(it) }()
+            item("Copiar efeitos", "", enabled = main) { actions.copyEffects(it) }()
+            item("Colar efeitos", "Ctrl+Alt+V", enabled = main) { actions.pasteEffects(it) }()
         }
     }
 }

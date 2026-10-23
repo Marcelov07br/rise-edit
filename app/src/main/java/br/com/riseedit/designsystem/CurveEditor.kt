@@ -67,19 +67,24 @@ fun CurveEditor(
                         drag = near(o, size.width.toFloat(), size.height.toFloat())
                     },
                     onDragEnd = { drag = -1 },
-                    onDrag = { c, _ ->
+                    onDrag = { c, amount ->
                         val i = drag
                         if (i < 0) return@detectDragGestures
                         val w = size.width.toFloat()
                         val h = size.height.toFloat()
                         val lo = if (i == 0) 0f else pts[i - 1].x + 0.01f
                         val hi = if (i == pts.lastIndex) 1f else pts[i + 1].x - 0.01f
+                        // 0.22 S Pen: the stylus moves the point relatively at 1/3 speed (fine
+                        // control, the tip never hides the point); finger/mouse follow absolutely.
+                        val pen = c.type == androidx.compose.ui.input.pointer.PointerType.Stylus
+                        val px = if (pen) pts[i].x + amount.x * PEN_GAIN / w else c.position.x / w
+                        val py = if (pen) pts[i].y - amount.y * PEN_GAIN / h else 1 - c.position.y / h
                         val x = when (i) {
                             0 -> 0f
                             pts.lastIndex -> 1f
-                            else -> (c.position.x / w).coerceIn(lo, hi)
+                            else -> px.coerceIn(lo, hi)
                         }
-                        val y = (1 - c.position.y / h).coerceIn(0f, 1f)
+                        val y = py.coerceIn(0f, 1f)
                         change(pts.mapIndexed { k, p -> if (k == i) CurvePoint(x, y) else p })
                     }
                 )
@@ -106,5 +111,8 @@ fun CurveEditor(
         }
     }
 }
+
+/** Stylus drag gain on curve points (S Pen precision). */
+internal const val PEN_GAIN = 0.33f
 
 private fun Int.dp() = androidx.compose.ui.unit.Dp(this.toFloat())

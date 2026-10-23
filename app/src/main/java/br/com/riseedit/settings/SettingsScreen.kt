@@ -61,6 +61,7 @@ enum class SettingsSection(val label: String) {
     EXPORT("Exportação"),
     PREVIEW("Prévia"),
     TIMELINE("Timeline"),
+    SHORTCUTS("Atalhos"),
     ABOUT("Sobre")
 }
 
@@ -77,7 +78,9 @@ class SettingsInfo(
     val versionName: String,
     val versionCode: Long,
     val cacheBytes: Long = 0,
-    val folderLabel: String? = null
+    val folderLabel: String? = null,
+    /** 0.22: keymap shown in Atalhos (null → the app keymap). */
+    val keymap: br.com.riseedit.core.shortcuts.Keymap? = null
 )
 
 internal val LICENSES = listOf(
@@ -139,6 +142,11 @@ fun SettingsScreen(
                 SettingsSection.EXPORT -> Export(s, onChange, info, actions)
                 SettingsSection.PREVIEW -> Preview(s, onChange, info, actions)
                 SettingsSection.TIMELINE -> Timeline(s, onChange)
+                SettingsSection.SHORTCUTS -> ShortcutsSection(
+                    info.keymap ?: br.com.riseedit.keys.AppKeymap.get(
+                        androidx.compose.ui.platform.LocalContext.current
+                    )
+                )
                 SettingsSection.ABOUT -> About(info, actions)
             }
         }
@@ -421,4 +429,44 @@ private fun About(info: SettingsInfo, actions: SettingsActions) {
         Text(FFMPEG_NOTICE, color = RiseMuted, fontSize = 11.sp, lineHeight = 15.sp)
         Spacer(Modifier.height(2.dp))
     }
+}
+
+/** 0.22: every keyboard shortcut of the active keymap, grouped like the Meta+/ list. */
+@Composable
+private fun ShortcutsSection(map: br.com.riseedit.core.shortcuts.Keymap) {
+    Group("Preset") {
+        Row2(
+            map.name,
+            "Derivado do arquivo de atalhos (.kys) do Premiere · Meta+/ mostra a lista do sistema"
+        ) {}
+    }
+    br.com.riseedit.core.shortcuts.ShortcutGroup.entries.forEach { group ->
+        val actions = br.com.riseedit.core.shortcuts.RiseAction.entries
+            .filter { it.group == group && map.chordsFor(it).isNotEmpty() }
+        if (actions.isNotEmpty()) {
+            Group(group.label) {
+                actions.forEach { a ->
+                    Row2(a.label) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            map.chordsFor(a).take(3).forEach { KeyCap(it.label) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun KeyCap(text: String) {
+    Text(
+        text,
+        color = RiseWhite,
+        fontSize = 12.sp,
+        fontFamily = FontFamily.Monospace,
+        modifier = Modifier.clip(RoundedCornerShape(8.dp))
+            .background(br.com.riseedit.RiseSurfaceHigh)
+            .border(1.dp, RiseOutline, RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    )
 }

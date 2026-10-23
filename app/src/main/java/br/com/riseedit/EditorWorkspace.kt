@@ -79,7 +79,8 @@ internal fun ColumnScope.EditorWorkspace(
                         ui.contextual = true
                         ui.lastTool = br.com.riseedit.tools.EditorTool.Keyframe
                         ui.tool = br.com.riseedit.tools.EditorTool.Keyframe
-                    }
+                    },
+                    remote = ui.timeline
                 )
             }
         }

@@ -13,6 +13,7 @@ import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.isSecondaryPressed
 import br.com.riseedit.EditorState
 import br.com.riseedit.core.editing.AudioTrimSession
 import br.com.riseedit.core.editing.ClipTrimSession
@@ -48,7 +49,8 @@ internal fun Modifier.timelineGestures(
     try {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            if (state.value.busy == null) {
+            // 0.22: right click is the context menu (TimelineMouse), never a scrub/trim.
+            if (state.value.busy == null && !currentEvent.buttons.isSecondaryPressed) {
                 val draft = beginGesture(
                     down,
                     entries.value,
@@ -266,7 +268,13 @@ private fun applyMovement(
 ) {
     when (draft.mode) {
         GestureMode.TRIM -> {
-            val raw = draft.edgeUs + delta.x * 1_000_000 / draft.scale
+            // 0.22 S Pen: trim handles move at 1/3 speed for frame-precise edges.
+            val gain = if (change.type == androidx.compose.ui.input.pointer.PointerType.Stylus) {
+                br.com.riseedit.designsystem.PEN_GAIN
+            } else {
+                1f
+            }
+            val raw = draft.edgeUs + delta.x * gain * 1_000_000 / draft.scale
             val snapped = ui.magnet(raw, draft.targets, draft.thresholdUs)
             val deltaUs = snapped - draft.edgeUs
             ui.trimDraft = when (val t = ui.trimDraft) {

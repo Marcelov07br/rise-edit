@@ -22,6 +22,35 @@ internal class CutCommands(
         }
     }
 
+    /** 0.22: Premiere-style ripple trim at the playhead (Marce's Z / D). Returns the new playhead. */
+    fun rippleTrim(toStart: Boolean): Long? {
+        val state = document.current
+        val r = br.com.riseedit.core.editing.RippleTrim.atPlayhead(state.project, state.positionMs, toStart)
+            ?: run {
+                document.message("Posicione a agulha dentro de um clipe.")
+                return null
+            }
+        if (!document.edit(r.project)) return null
+        return r.playheadMs
+    }
+
+    private var clipboard: br.com.riseedit.core.Clip? = null
+
+    /** 0.22: Ctrl+C on the main track. */
+    fun copyClip() {
+        val state = document.current
+        clipboard = state.project.clips.getOrNull(state.selected) ?: return
+        document.message("Clipe copiado.")
+    }
+
+    /** 0.22: Ctrl+V — inserts the copied clip at the edit after the playhead. */
+    fun pasteClip() {
+        val clip = clipboard ?: return document.message("Copie um clipe primeiro (Ctrl+C).")
+        val state = document.current
+        val (next, at) = br.com.riseedit.core.editing.ClipClipboard.paste(state.project, clip, state.positionMs)
+        if (document.edit(next)) document.update { it.copy(selected = at, selectionId = next.clips[at].id) }
+    }
+
     /** 0.18: removes the part before ([left]) or after the cursor from the selected clip. */
     fun cutToCursor(left: Boolean) {
         val state = document.current

@@ -35,7 +35,7 @@ fun time(ms: Long): String = String.format(
 )
 
 /** 0.19: top-level routes (Configurações and Criar projeto are real screens, not dialogs). */
-private enum class Route { HOME, SETTINGS, NEW_PROJECT }
+private enum class Route { HOME, SETTINGS, SHORTCUTS, NEW_PROJECT }
 
 class MainActivity : ComponentActivity() {
     private val editor by viewModels<EditorViewModel>()
@@ -46,6 +46,9 @@ class MainActivity : ComponentActivity() {
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
         setContent {
+            @OptIn(androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
+            val windowSize = androidx.compose.material3.windowsizeclass.calculateWindowSizeClass(this)
+            androidx.compose.runtime.CompositionLocalProvider(LocalWindowSizeClass provides windowSize) {
             RiseTheme {
                 val state by editor.state.collectAsStateWithLifecycle()
                 val projects by library.projects.collectAsStateWithLifecycle()
@@ -81,6 +84,9 @@ class MainActivity : ComponentActivity() {
                             route =
                                 Route.HOME
                         }
+                        route == Route.SHORTCUTS -> br.com.riseedit.settings.SettingsRoute(
+                            br.com.riseedit.settings.SettingsSection.SHORTCUTS
+                        ) { route = Route.HOME }
                         route == Route.NEW_PROJECT -> {
                             val f = form ?: newForm(projects.size).also { form = it }
                             NewProjectScreen(f, { form = it }, onCreate = {
@@ -109,7 +115,7 @@ class MainActivity : ComponentActivity() {
                             EditorScreen(editor, state, onBack = { home() }, onSettings = {
                                 route =
                                     Route.SETTINGS
-                            })
+                            }, onShortcuts = { route = Route.SHORTCUTS })
                         editing -> Box(
                             Modifier.fillMaxSize(),
                             contentAlignment = androidx.compose.ui.Alignment.Center
@@ -127,6 +133,28 @@ class MainActivity : ComponentActivity() {
                   }
                 }
             }
+            }
+        }
+    }
+
+    /** 0.22: the keymap in the system Meta+/ keyboard shortcuts list (DeX / hardware keyboards). */
+    override fun onProvideKeyboardShortcuts(
+        data: MutableList<android.view.KeyboardShortcutGroup>,
+        menu: android.view.Menu?,
+        deviceId: Int
+    ) {
+        super.onProvideKeyboardShortcuts(data, menu, deviceId)
+        val map = br.com.riseedit.keys.AppKeymap.get(this)
+        br.com.riseedit.core.shortcuts.ShortcutGroup.entries.forEach { group ->
+            val items = map.bindings.filter { it.action.group == group }.mapNotNull { b ->
+                val code = br.com.riseedit.keys.AppKeymap.keyCode(b.chord) ?: return@mapNotNull null
+                android.view.KeyboardShortcutInfo(
+                    b.action.label,
+                    code,
+                    br.com.riseedit.keys.AppKeymap.metaState(b.chord)
+                )
+            }
+            if (items.isNotEmpty()) data.add(android.view.KeyboardShortcutGroup("Rise Edit · ${group.label}", items))
         }
     }
     override fun onStop() {

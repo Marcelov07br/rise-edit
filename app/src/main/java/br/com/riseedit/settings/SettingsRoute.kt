@@ -52,10 +52,10 @@ internal object CacheCleaner {
 /** The Configurações route: state + system intents around the stateless [SettingsScreen]. */
 @Suppress("LongMethod") // single Compose screen body
 @Composable
-fun SettingsRoute(onBack: () -> Unit) {
+fun SettingsRoute(initial: SettingsSection = SettingsSection.UPDATES, onBack: () -> Unit) {
     val context = LocalContext.current
     val settings by SettingsStore.state.collectAsState()
-    var section by rememberSaveable { mutableStateOf(SettingsSection.UPDATES) }
+    var section by rememberSaveable { mutableStateOf(initial) }
     var cache by remember { mutableLongStateOf(0L) }
     var refresh by remember { mutableStateOf(0) }
     LaunchedEffect(refresh) { cache = withContext(Dispatchers.IO) { CacheCleaner.size(context) } }

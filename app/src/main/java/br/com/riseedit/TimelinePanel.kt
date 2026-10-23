@@ -28,7 +28,8 @@ fun TimelinePanel(
     trackAreaHeight: Dp = 270.dp,
     onSelect: () -> Unit = {},
     onAddToLane: (Int) -> Unit = {},
-    onKeyframe: () -> Unit = {}
+    onKeyframe: () -> Unit = {},
+    remote: br.com.riseedit.timeline.TimelineRemote? = null
 ) {
     val density = LocalDensity.current.density
     val ui = remember(state.project.id, density) { TimelineUiState(density) }
@@ -37,6 +38,16 @@ fun TimelinePanel(
     val keyframe = rememberUpdatedState(onKeyframe)
     val actions = remember(vm, state.project.id) {
         TimelineActions(vm, { latest.value }, { select.value() }) { keyframe.value() }
+    }
+    if (remote != null) {
+        androidx.compose.runtime.SideEffect {
+            remote.zoom = { f -> zoomTimeline(ui, f, latest.value.project.durationMs) }
+            remote.fit = {
+                val d = latest.value.project.durationMs * 1000
+                ui.viewport = ui.viewport.fitted(d).bounded(d)
+            }
+            remote.toggleSnap = { ui.snapping = !ui.snapping }
+        }
     }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {

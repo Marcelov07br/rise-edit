@@ -18,6 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -73,10 +77,32 @@ internal fun BottomToolbar(
     }
 }
 
+/** 0.22 (DeX/tablet): the same items as a vertical side tool column. */
+@Composable
+internal fun SideToolColumn(
+    items: List<ToolbarItem>,
+    modifier: Modifier = Modifier,
+    leading: ToolbarItem? = null
+) {
+    androidx.compose.foundation.layout.Column(
+        modifier.width(84.dp).fillMaxHeight().background(RiseBlack)
+            .verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        if (leading != null) {
+            ToolButton(leading)
+            Box(Modifier.width(36.dp).height(1.dp).background(RiseOutline))
+        }
+        items.forEach { ToolButton(it) }
+    }
+}
+
 @Composable
 private fun ToolButton(item: ToolbarItem, modifier: Modifier = Modifier) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val hovered by interaction.collectIsHoveredAsState()
     val scale by animateFloatAsState(if (pressed) 0.9f else 1f, riseSpring(), label = "press")
     val tint = if (item.active) RiseBlack else RiseWhite
     Column(
@@ -88,6 +114,8 @@ private fun ToolButton(item: ToolbarItem, modifier: Modifier = Modifier) {
             }
             .alpha(if (item.enabled) 1f else 0.35f)
             .clip(RoundedCornerShape(14.dp))
+            .background(if (hovered && item.enabled) RiseSurface else androidx.compose.ui.graphics.Color.Transparent)
+            .hoverable(interaction, enabled = item.enabled)
             .clickable(interaction, null, enabled = item.enabled, onClick = item.onClick)
             .padding(horizontal = 6.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

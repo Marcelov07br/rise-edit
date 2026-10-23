@@ -43,6 +43,9 @@ internal class EditorUiState(toolState: MutableState<EditorTool?>) {
     var eyedropper by mutableStateOf<((Int) -> Unit)?>(null)
     var audioTrack by mutableIntStateOf(0)
     var overlayTrack by mutableIntStateOf(0)
+
+    /** 0.22: lets the keyboard reach the timeline viewport (zoom, fit, snap). */
+    val timeline = br.com.riseedit.timeline.TimelineRemote()
 }
 
 @Composable
