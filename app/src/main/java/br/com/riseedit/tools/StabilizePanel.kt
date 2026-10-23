@@ -1,6 +1,20 @@
 package br.com.riseedit.tools
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import br.com.riseedit.core.Clip
+import br.com.riseedit.core.MotionAnalysis
+import br.com.riseedit.core.MotionSmoother
+import br.com.riseedit.designsystem.GraphicSurface
+import br.com.riseedit.designsystem.PanelIconButton
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +24,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Compare
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.RestartAlt
@@ -17,7 +33,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,7 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import br.com.riseedit.EditorState
 import br.com.riseedit.EditorViewModel
-import br.com.riseedit.RiseWhite
 import br.com.riseedit.core.MotionGoal
 import br.com.riseedit.core.Stabilization
 import br.com.riseedit.core.StabilizeMethod
@@ -62,41 +76,45 @@ internal class StabilizeActions(
     val compare: () -> Unit = {},
     val copy: () -> Unit = {},
     val paste: () -> Unit = {},
-    val hasClipboard: Boolean = false
+    val hasClipboard: Boolean = false,
+    /** Measured trajectory of the selected clip's source (null = not analyzed yet). */
+    val analysis: MotionAnalysis? = null
 )
 
 @Composable
-internal fun StabilizePanel(vm: EditorViewModel, state: EditorState) = StabilizeContent(
-    state,
-    StabilizeActions(
-        vm::settings,
-        vm::analyze,
-        vm::compare,
-        vm::copyAttributes,
-        vm::pasteAttributes,
-        vm.hasClipboard
+internal fun StabilizePanel(vm: EditorViewModel, state: EditorState) {
+    val clip = state.project.clips.getOrNull(state.selected)
+    StabilizeContent(
+        state,
+        StabilizeActions(
+            vm::settings,
+            vm::analyze,
+            vm::compare,
+            vm::copyAttributes,
+            vm::pasteAttributes,
+            vm.hasClipboard,
+            clip?.let { vm.motionAnalysis(it.uri) }
+        )
     )
-)
+}
 
 @Composable
 internal fun StabilizeContent(
     state: EditorState,
     vm: StabilizeActions,
     initialTab: StabilizeTab = StabilizeTab.SMOOTH,
-    presetsOpenInitially: Boolean = false
+    presetsOpenInitially: Boolean = false,
+    infoOpenInitially: Boolean = false
 ) {
     val clip = state.project.clips.getOrNull(state.selected) ?: return
     val enabled = state.busy == null
     val analyzed = clip.uri in state.analyzed
     val s = clip.stabilization
     var tab by remember { mutableStateOf(initialTab) }
-    LaunchedEffect(analyzed) {
-        if (!analyzed) tab = StabilizeTab.SMOOTH
-    }
     fun change(next: Stabilization) = vm.settings(next)
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        StabilizeHeader(vm, state, enabled, analyzed, s.tuned(), s.enabled) { change(it) }
+        StabilizeHeader(vm, state, enabled, analyzed, s) { change(it) }
         SegmentedTabs(
             StabilizeTab.entries.toList(),
             tab,
@@ -113,26 +131,32 @@ internal fun StabilizeContent(
         when (tab) {
             StabilizeTab.SMOOTH ->
                 SmoothTab(vm, state, enabled, analyzed, s, presetsOpenInitially) { change(it) }
-            StabilizeTab.WARP -> WarpTab(analyzed, s) { change(it) }
-            StabilizeTab.DIAG -> DiagTab(state)
+            StabilizeTab.WARP -> WarpTab(analyzed, s, infoOpenInitially) { change(it) }
+            StabilizeTab.DIAG -> DiagTab(vm, state, enabled, clip, analyzed)
         }
     }
 }
 
+/** Level 2, same as the color zone: icon-only actions in the top corner, reset set apart. */
 @Composable
 private fun StabilizeHeader(
     vm: StabilizeActions,
     state: EditorState,
     enabled: Boolean,
     analyzed: Boolean,
-    tuned: Boolean,
-    keepEnabled: Boolean,
+    s: Stabilization,
     change: (Stabilization) -> Unit
 ) {
-    Row(Modifier.fillMaxWidth()) {
-        Spacer(Modifier.weight(1f).width(8.dp))
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         ActionBar(
             listOfNotNull(
+                PanelAction(
+                    Icons.Rounded.PowerSettingsNew,
+                    if (s.enabled) "Desligar estabilização" else "Ligar estabilização",
+                    enabled && analyzed,
+                    primary = true,
+                    onClick = { change(s.copy(enabled = !s.enabled)) }
+                ),
                 if (analyzed) {
                     PanelAction(
                         Icons.Rounded.Compare,
@@ -144,31 +168,21 @@ private fun StabilizeHeader(
                 } else {
                     null
                 },
+                PanelAction(Icons.Rounded.ContentCopy, "Copiar ajustes", enabled, onClick = vm.copy),
                 PanelAction(
-                    Icons.Rounded.ContentCopy,
-                    "Copiar ajustes",
-                    enabled,
-                    onClick = vm.copy
+                    Icons.Rounded.ContentPaste,
+                    "Colar ajustes",
+                    enabled && vm.hasClipboard,
+                    onClick = vm.paste
                 ),
-                if (vm.hasClipboard) {
-                    PanelAction(
-                        Icons.Rounded.ContentPaste,
-                        "Colar ajustes",
-                        enabled,
-                        onClick = vm.paste
-                    )
-                } else {
-                    null
-                },
                 PanelAction(
                     Icons.Rounded.RestartAlt,
                     "Resetar ajustes",
-                    enabled && tuned,
+                    enabled && s.tuned(),
                     danger = true,
-                    onClick = { change(Stabilization(enabled = keepEnabled)) }
+                    onClick = { change(Stabilization(enabled = s.enabled)) }
                 )
-            ),
-            modifier = Modifier.weight(1f, fill = false)
+            )
         )
     }
 }
@@ -187,25 +201,13 @@ private fun SmoothTab(
         if (!analyzed) {
             AnalyzeCta(vm, enabled)
         } else {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    if (s.enabled) "Ativada" else "Desativada",
-                    style = MaterialTheme.typography.labelLarge
-                )
-                RiseToggle(s.enabled) { if (enabled) change(s.copy(enabled = it)) }
-                Spacer(Modifier.width(4.dp))
-                RiseDropdown(
-                    "Predefinição",
-                    listOf<Stabilization?>(PRESET_SUAVE, PRESET_FORTE, PRESET_FIXA),
-                    presetMatch(s),
-                    Modifier.weight(1f),
-                    expandedInitially = presetsOpenInitially,
-                    text = { it?.let(::presetName) ?: "Personalizado" }
-                ) { p -> p?.let { change(it.copy(enabled = true)) } }
-            }
+            RiseDropdown(
+                "Predefinição",
+                listOf<Stabilization?>(PRESET_SUAVE, PRESET_FORTE, PRESET_FIXA),
+                presetMatch(s),
+                expandedInitially = presetsOpenInitially,
+                text = { it?.let(::presetName) ?: "Personalizado" }
+            ) { p -> p?.let { change(it.copy(enabled = true)) } }
             DialGrid(
                 listOf(
                     Dial(
@@ -224,56 +226,63 @@ private fun SmoothTab(
                     ) { change(s.copy(maxZoom = it.toDouble().coerceIn(1.0, 1.25))) }
                 )
             )
-            if (s.enabled && s.method == StabilizeMethod.WARP) {
-                Text(
-                    "Método Warp ativo: a correção de distorção está na aba Distorção.",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
         }
-        if (state.busy != null && state.progress > 0f) {
-            Text(
-                "Analisando… ${(state.progress * 100).toInt()}%",
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
+        BusyLine(state)
     }
 }
 
 @Composable
-private fun AnalyzeCta(vm: StabilizeActions, enabled: Boolean) {
-    Text("✦ De tremido a suave", color = RiseWhite, style = MaterialTheme.typography.titleMedium)
-    Text(
-        "1. Analise o movimento  2. Ajuste os dials  3. Compare antes e depois",
-        style = MaterialTheme.typography.bodySmall
-    )
+private fun BusyLine(state: EditorState) {
+    if (state.busy != null && state.progress > 0f) {
+        Text(
+            "Analisando… ${(state.progress * 100).toInt()}%",
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+@Composable
+private fun AnalyzeCta(vm: StabilizeActions, enabled: Boolean, again: Boolean = false) {
     Button(
         onClick = vm.analyze,
         enabled = enabled,
         modifier = Modifier.fillMaxWidth().height(52.dp)
-    ) { Text("Analisar e estabilizar") }
+    ) { Text(if (again) "Analisar novamente" else "Analisar movimento") }
 }
 
 @Composable
 private fun WarpTab(
     analyzed: Boolean,
     s: Stabilization,
+    infoOpenInitially: Boolean,
     change: (Stabilization) -> Unit
 ) {
+    var info by remember { mutableStateOf(infoOpenInitially) }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (!analyzed) {
-            Text(
-                "Analise o movimento na aba Estabilidade para liberar a correção de distorção.",
-                style = MaterialTheme.typography.bodySmall
-            )
+            Text("Analise o movimento primeiro.", style = MaterialTheme.typography.bodySmall)
             return@Column
         }
-        RiseDropdown(
-            "Método",
-            StabilizeMethod.entries.toList(),
-            s.method,
-            text = { if (it == StabilizeMethod.RIGID) "Rígido" else "Warp" }
-        ) { change(s.copy(method = it)) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RiseDropdown(
+                "Método",
+                StabilizeMethod.entries.toList(),
+                s.method,
+                Modifier.weight(1f),
+                text = { if (it == StabilizeMethod.RIGID) "Rígido" else "Warp" }
+            ) { change(s.copy(method = it)) }
+            Spacer(Modifier.width(10.dp))
+            PanelIconButton(Icons.Rounded.Info, "Sobre o Warp") { info = !info }
+        }
+        AnimatedVisibility(info) {
+            GraphicSurface {
+                Text(
+                    "Warp corrige o “jello” do rolling shutter linha a linha. " +
+                        "Rígido só move, gira e corta.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
         DialGrid(
             listOf(
                 Dial(
@@ -281,35 +290,92 @@ private fun WarpTab(
                     Stabilization().rollingShutter.toFloat()
                 ) { change(s.copy(rollingShutter = it.toDouble())) },
                 Dial(
-                    "Intensidade", s.strength.toFloat(), 0f..1f,
+                    "Força do Warp", s.strength.toFloat(), 0f..1f,
                     Stabilization().strength.toFloat()
-                ) { change(s.copy(strength = it.toDouble())) },
-                Dial(
-                    "Crop", s.maxZoom.toFloat(), 1f..1.25f,
-                    Stabilization().maxZoom.toFloat(),
-                    format = { "%.2f×".format(it) }
-                ) { change(s.copy(maxZoom = it.toDouble().coerceIn(1.0, 1.25))) }
+                ) { change(s.copy(strength = it.toDouble())) }
             )
-        )
-        Text(
-            "Warp endireita o tremor de rolling shutter (jello) que a correção rígida não " +
-                "alcança: cada linha do quadro é corrigida com a velocidade medida entre " +
-                "quadros. Rígido aplica apenas posição, rotação e crop.",
-            style = MaterialTheme.typography.bodySmall
         )
     }
 }
 
 @Composable
-private fun DiagTab(state: EditorState) {
+private fun DiagTab(
+    vm: StabilizeActions,
+    state: EditorState,
+    enabled: Boolean,
+    clip: Clip,
+    analyzed: Boolean
+) {
+    val analysis = vm.analysis.takeIf { analyzed }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        GraphicSurface {
+            if (analysis == null) {
+                Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                    Text("Sem análise", style = MaterialTheme.typography.bodySmall)
+                }
+            } else {
+                MotionGraph(analysis, clip)
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Legend(MEASURED_COLOR, "Medido")
+                    Legend(MaterialTheme.colorScheme.primary, "Suavizado")
+                }
+            }
+        }
+        AnalyzeCta(vm, enabled, again = analyzed)
+        BusyLine(state)
         TelemetryReadout(state)
-        Text(
-            "Até 20 minutos por fonte. Confira o resultado: cenas com pouca textura ou objetos " +
-                "grandes em movimento podem exigir ajustes.",
-            style = MaterialTheme.typography.bodySmall
-        )
     }
+}
+
+private val MEASURED_COLOR = Color(0xFF8A8A90)
+
+@Composable
+private fun Legend(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(8.dp).background(color, CircleShape))
+        Spacer(Modifier.width(6.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+/**
+ * Horizontal camera path over the clip: measured (raw tracker pose) vs. what the viewer sees
+ * after the correction (measured + correction), both normalized to the same scale.
+ */
+@Composable
+private fun MotionGraph(analysis: MotionAnalysis, clip: Clip) {
+    val accent = MaterialTheme.colorScheme.primary
+    val paths = remember(analysis, clip.stabilization, clip.startMs, clip.endMs) {
+        motionPaths(analysis, clip)
+    }
+    Canvas(Modifier.fillMaxWidth().height(120.dp)) {
+        val (raw, smooth) = paths
+        if (raw.size < 2) return@Canvas
+        val all = raw + smooth
+        val lo = all.min()
+        val span = (all.max() - lo).takeIf { it > 1e-9 } ?: 1.0
+        fun line(v: List<Double>, color: Color, w: Float) {
+            val path = Path()
+            v.forEachIndexed { i, y ->
+                val px = size.width * i / (v.size - 1)
+                val py = (size.height * (1 - (y - lo) / span)).toFloat()
+                if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
+            }
+            drawPath(path, color, style = Stroke(w))
+        }
+        line(raw, MEASURED_COLOR, 1.5.dp.toPx())
+        line(smooth, accent, 2.dp.toPx())
+    }
+}
+
+internal fun motionPaths(analysis: MotionAnalysis, clip: Clip): Pair<List<Double>, List<Double>> {
+    val settings = clip.stabilization.copy(enabled = true)
+    val corrections = MotionSmoother.corrections(analysis, settings, clip.startMs, clip.endMs)
+    val samples = analysis.samples.filter { it.timeMs in clip.startMs..clip.endMs }
+    if (samples.size != corrections.size) return emptyList<Double>() to emptyList()
+    val raw = samples.map { it.pose.x }
+    val smooth = samples.indices.map { samples[it].pose.x + corrections[it].pose.x }
+    return raw to smooth
 }
 
 private fun presetName(p: Stabilization): String = when (p) {

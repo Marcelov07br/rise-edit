@@ -17,6 +17,9 @@ import app.cash.paparazzi.Paparazzi
 import br.com.riseedit.EditorState
 import br.com.riseedit.RiseTheme
 import br.com.riseedit.core.Clip
+import br.com.riseedit.core.MotionAnalysis
+import br.com.riseedit.core.MotionSample
+import br.com.riseedit.core.Pose
 import br.com.riseedit.core.Project
 import br.com.riseedit.core.Stabilization
 import br.com.riseedit.core.StabilizeMethod
@@ -30,6 +33,19 @@ class StabilizeShots {
     val paparazzi =
         Paparazzi(deviceConfig = DeviceConfig.PIXEL_5, theme = "android:Theme.Material.NoActionBar")
 
+    /** Shaky handheld pan: slow drift + fast jitter, 30 samples/s over the 8 s clip. */
+    private val analysis = MotionAnalysis(
+        1920,
+        1080,
+        (0 until 240).map { i ->
+            val t = i / 30.0
+            MotionSample(
+                (i * 1000L) / 30,
+                Pose(60 * kotlin.math.sin(t * 0.8) + 14 * kotlin.math.sin(t * 11) + 6 * kotlin.math.sin(t * 23), 0.0, 0.0)
+            )
+        }
+    )
+
     private fun state(analyzed: Boolean, s: Stabilization): EditorState {
         val clip = Clip(uri = "file:///praia.mp4", name = "Praia", sourceDurationMs = 8000)
             .copy(stabilization = s)
@@ -42,7 +58,8 @@ class StabilizeShots {
     private fun shot(
         state: EditorState,
         tab: StabilizeTab = StabilizeTab.SMOOTH,
-        open: Boolean = false
+        open: Boolean = false,
+        info: Boolean = false
     ) = paparazzi.snapshot {
         RiseTheme {
             RiseScreenFrame {
@@ -53,7 +70,13 @@ class StabilizeShots {
                         )
                     )
                     Column(Modifier.padding(16.dp)) {
-                        StabilizeContent(state, StabilizeActions(hasClipboard = true), tab, open)
+                        StabilizeContent(
+                            state,
+                            StabilizeActions(hasClipboard = true, analysis = analysis),
+                            tab,
+                            open,
+                            info
+                        )
                     }
                 }
             }
@@ -70,6 +93,14 @@ class StabilizeShots {
         state(true, Stabilization(enabled = true, method = StabilizeMethod.WARP)),
         StabilizeTab.WARP
     )
+
+    @Test fun warpInfo() = shot(
+        state(true, Stabilization(enabled = true, method = StabilizeMethod.WARP)),
+        StabilizeTab.WARP,
+        info = true
+    )
+
+    @Test fun diagEmpty() = shot(state(false, Stabilization()), StabilizeTab.DIAG)
 
     @Test fun diag() = shot(state(true, Stabilization(enabled = true)), StabilizeTab.DIAG)
 }
