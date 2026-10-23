@@ -1,84 +1,356 @@
 package br.com.riseedit.tools
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Compare
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import br.com.riseedit.EditorState
 import br.com.riseedit.EditorViewModel
 import br.com.riseedit.RiseWhite
 import br.com.riseedit.core.MotionGoal
 import br.com.riseedit.core.Stabilization
+import br.com.riseedit.core.StabilizeMethod
+import br.com.riseedit.designsystem.ActionBar
+import br.com.riseedit.designsystem.RiseDropdown
+import br.com.riseedit.designsystem.RiseToggle
+import br.com.riseedit.designsystem.PanelAction
+import br.com.riseedit.designsystem.SegmentedTabs
+import br.com.riseedit.designsystem.TileSlider
+import kotlin.math.roundToInt
+
+/** Same tab/segmented/dial philosophy as the color zone (AdjustPanel). */
+internal enum class StabilizeTab(val label: String) {
+    SMOOTH("Estabilidade"),
+    WARP("Distorção"),
+    DIAG("Análise")
+}
+
+/** A non-neutral Stabilization compared against defaults with [enabled] preserved. */
+private fun Stabilization.tuned(): Boolean = copy(enabled = false) != Stabilization(enabled = false)
+
+private val PRESET_SUAVE = Stabilization(true, MotionGoal.SMOOTH, 0.65, 0.4, 1.10)
+private val PRESET_FORTE =
+    Stabilization(true, MotionGoal.SMOOTH, 1.0, 1.1, 1.25, StabilizeMethod.WARP, 0.8)
+private val PRESET_FIXA =
+    Stabilization(true, MotionGoal.FIXED, 1.0, 0.8, 1.25, StabilizeMethod.WARP, 1.0)
+
+/** Callbacks of the stabilization zone (stateless content → Paparazzi without a ViewModel). */
+internal class StabilizeActions(
+    val settings: (Stabilization) -> Unit = {},
+    val analyze: () -> Unit = {},
+    val compare: () -> Unit = {},
+    val copy: () -> Unit = {},
+    val paste: () -> Unit = {},
+    val hasClipboard: Boolean = false
+)
 
 @Composable
-internal fun StabilizePanel(vm: EditorViewModel, state: EditorState) {
-    val p = state.project
-    val clip = p.clips.getOrNull(state.selected) ?: return
-    val enabled = state.busy == null
-    Text("✦ De tremido a suave", color = RiseWhite, fontWeight = FontWeight.Bold)
-    TelemetryReadout(state)
-    Text(
-        "1. Escolha um modo  2. Analise  3. Compare e ajuste",
-        style = MaterialTheme.typography.bodySmall
+internal fun StabilizePanel(vm: EditorViewModel, state: EditorState) = StabilizeContent(
+    state,
+    StabilizeActions(
+        vm::settings,
+        vm::analyze,
+        vm::compare,
+        vm::copyAttributes,
+        vm::pasteAttributes,
+        vm.hasClipboard
     )
+)
+
+@Composable
+internal fun StabilizeContent(
+    state: EditorState,
+    vm: StabilizeActions,
+    initialTab: StabilizeTab = StabilizeTab.SMOOTH,
+    presetsOpenInitially: Boolean = false
+) {
+    val clip = state.project.clips.getOrNull(state.selected) ?: return
+    val enabled = state.busy == null
     val analyzed = clip.uri in state.analyzed
     val s = clip.stabilization
-    Row(
-        Modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        listOf("Suave", "Forte", "Câmera fixa").forEach { mode ->
-            OutlinedButton(onClick = {
-                vm.settings(
-                    when (mode) {
-                        "Suave" -> Stabilization(analyzed, MotionGoal.SMOOTH, 0.65, 0.4, 1.10)
-                        "Forte" -> Stabilization(analyzed, MotionGoal.SMOOTH, 1.0, 1.1, 1.25)
-                        else -> Stabilization(analyzed, MotionGoal.FIXED, 1.0, 0.8, 1.25)
-                    }
-                )
-            }, enabled = enabled) { Text(mode) }
+    var tab by remember { mutableStateOf(initialTab) }
+    LaunchedEffect(analyzed) {
+        if (!analyzed) tab = StabilizeTab.SMOOTH
+    }
+    fun change(next: Stabilization) = vm.settings(next)
+
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        StabilizeHeader(vm, state, enabled, analyzed, s.tuned(), s.enabled) { change(it) }
+        SegmentedTabs(
+            StabilizeTab.entries.toList(),
+            tab,
+            label = { it.label },
+            marked = {
+                when (it) {
+                    StabilizeTab.SMOOTH -> s.tuned()
+                    StabilizeTab.WARP -> s.method == StabilizeMethod.WARP
+                    StabilizeTab.DIAG -> false
+                }
+            },
+            onSelect = { tab = it }
+        )
+        when (tab) {
+            StabilizeTab.SMOOTH ->
+                SmoothTab(vm, state, enabled, analyzed, s, presetsOpenInitially) { change(it) }
+            StabilizeTab.WARP -> WarpTab(analyzed, s) { change(it) }
+            StabilizeTab.DIAG -> DiagTab(state)
         }
     }
-    Button(
-        onClick = vm::analyze,
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth().height(52.dp)
-    ) {
-        Text(if (analyzed) "Analisar novamente" else "Analisar e estabilizar")
+}
+
+@Composable
+private fun StabilizeHeader(
+    vm: StabilizeActions,
+    state: EditorState,
+    enabled: Boolean,
+    analyzed: Boolean,
+    tuned: Boolean,
+    keepEnabled: Boolean,
+    change: (Stabilization) -> Unit
+) {
+    Row(Modifier.fillMaxWidth()) {
+        Spacer(Modifier.weight(1f).width(8.dp))
+        ActionBar(
+            listOfNotNull(
+                if (analyzed) {
+                    PanelAction(
+                        Icons.Rounded.Compare,
+                        if (state.comparing) "Ver estabilizado" else "Antes / depois",
+                        enabled,
+                        primary = true,
+                        onClick = vm.compare
+                    )
+                } else {
+                    null
+                },
+                PanelAction(
+                    Icons.Rounded.ContentCopy,
+                    "Copiar ajustes",
+                    enabled,
+                    onClick = vm.copy
+                ),
+                if (vm.hasClipboard) {
+                    PanelAction(
+                        Icons.Rounded.ContentPaste,
+                        "Colar ajustes",
+                        enabled,
+                        onClick = vm.paste
+                    )
+                } else {
+                    null
+                },
+                PanelAction(
+                    Icons.Rounded.RestartAlt,
+                    "Resetar ajustes",
+                    enabled && tuned,
+                    danger = true,
+                    onClick = { change(Stabilization(enabled = keepEnabled)) }
+                )
+            ),
+            modifier = Modifier.weight(1f, fill = false)
+        )
     }
-    if (analyzed) {
-        Row {
-            FilterChip(s.enabled, {
-                vm.settings(s.copy(enabled = !s.enabled))
-            }, label = { Text(if (s.enabled) "Ativada" else "Desativada") })
-            TextButton(onClick = vm::compare) {
-                Text(if (state.comparing) "Ver estabilizado" else "Antes / depois")
+}
+
+@Composable
+private fun SmoothTab(
+    vm: StabilizeActions,
+    state: EditorState,
+    enabled: Boolean,
+    analyzed: Boolean,
+    s: Stabilization,
+    presetsOpenInitially: Boolean,
+    change: (Stabilization) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        if (!analyzed) {
+            AnalyzeCta(vm, enabled)
+        } else {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    if (s.enabled) "Ativada" else "Desativada",
+                    style = MaterialTheme.typography.labelLarge
+                )
+                RiseToggle(s.enabled) { if (enabled) change(s.copy(enabled = it)) }
+                Spacer(Modifier.width(4.dp))
+                RiseDropdown(
+                    "Predefinição",
+                    listOf<Stabilization?>(PRESET_SUAVE, PRESET_FORTE, PRESET_FIXA),
+                    presetMatch(s),
+                    Modifier.weight(1f),
+                    expandedInitially = presetsOpenInitially,
+                    text = { it?.let(::presetName) ?: "Personalizado" }
+                ) { p -> p?.let { change(it.copy(enabled = true)) } }
+            }
+            DialGrid(
+                listOf(
+                    Dial(
+                        "Intensidade", s.strength.toFloat(), 0f..1f,
+                        Stabilization().strength.toFloat()
+                    ) { change(s.copy(strength = it.toDouble())) },
+                    Dial(
+                        "Suavidade", s.smoothSeconds.toFloat(), 0.1f..2f,
+                        Stabilization().smoothSeconds.toFloat(),
+                        format = { "%.2f s".format(it) }
+                    ) { change(s.copy(smoothSeconds = it.toDouble().coerceIn(0.1, 2.0))) },
+                    Dial(
+                        "Crop", s.maxZoom.toFloat(), 1f..1.25f,
+                        Stabilization().maxZoom.toFloat(),
+                        format = { "%.2f×".format(it) }
+                    ) { change(s.copy(maxZoom = it.toDouble().coerceIn(1.0, 1.25))) }
+                )
+            )
+            if (s.enabled && s.method == StabilizeMethod.WARP) {
+                Text(
+                    "Método Warp ativo: a correção de distorção está na aba Distorção.",
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
         }
-        ValueSlider("Intensidade", s.strength.toFloat(), 0f..1f, enabled) {
-            vm.settings(s.copy(strength = it.toDouble()))
-        }
-        ValueSlider("Suavidade (s)", s.smoothSeconds.toFloat(), 0.1f..2f, enabled) {
-            vm.settings(s.copy(smoothSeconds = it.toDouble().coerceIn(0.1, 2.0)))
-        }
-        ValueSlider("Crop automático · limite de zoom", s.maxZoom.toFloat(), 1f..1.25f, enabled) {
-            vm.settings(s.copy(maxZoom = it.toDouble().coerceIn(1.0, 1.25)))
+        if (state.busy != null && state.progress > 0f) {
+            Text(
+                "Analisando… ${(state.progress * 100).toInt()}%",
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
+}
+
+@Composable
+private fun AnalyzeCta(vm: StabilizeActions, enabled: Boolean) {
+    Text("✦ De tremido a suave", color = RiseWhite, style = MaterialTheme.typography.titleMedium)
     Text(
-        "Até 20 minutos por fonte. Confira o resultado: cenas com pouca textura ou objetos grandes em movimento podem exigir ajustes.",
+        "1. Analise o movimento  2. Ajuste os dials  3. Compare antes e depois",
         style = MaterialTheme.typography.bodySmall
     )
+    Button(
+        onClick = vm.analyze,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth().height(52.dp)
+    ) { Text("Analisar e estabilizar") }
+}
+
+@Composable
+private fun WarpTab(
+    analyzed: Boolean,
+    s: Stabilization,
+    change: (Stabilization) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        if (!analyzed) {
+            Text(
+                "Analise o movimento na aba Estabilidade para liberar a correção de distorção.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            return@Column
+        }
+        RiseDropdown(
+            "Método",
+            StabilizeMethod.entries.toList(),
+            s.method,
+            text = { if (it == StabilizeMethod.RIGID) "Rígido" else "Warp" }
+        ) { change(s.copy(method = it)) }
+        DialGrid(
+            listOf(
+                Dial(
+                    "Distorção", s.rollingShutter.toFloat(), 0f..1f,
+                    Stabilization().rollingShutter.toFloat()
+                ) { change(s.copy(rollingShutter = it.toDouble())) },
+                Dial(
+                    "Intensidade", s.strength.toFloat(), 0f..1f,
+                    Stabilization().strength.toFloat()
+                ) { change(s.copy(strength = it.toDouble())) },
+                Dial(
+                    "Crop", s.maxZoom.toFloat(), 1f..1.25f,
+                    Stabilization().maxZoom.toFloat(),
+                    format = { "%.2f×".format(it) }
+                ) { change(s.copy(maxZoom = it.toDouble().coerceIn(1.0, 1.25))) }
+            )
+        )
+        Text(
+            "Warp endireita o tremor de rolling shutter (jello) que a correção rígida não " +
+                "alcança: cada linha do quadro é corrigida com a velocidade medida entre " +
+                "quadros. Rígido aplica apenas posição, rotação e crop.",
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+@Composable
+private fun DiagTab(state: EditorState) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        TelemetryReadout(state)
+        Text(
+            "Até 20 minutos por fonte. Confira o resultado: cenas com pouca textura ou objetos " +
+                "grandes em movimento podem exigir ajustes.",
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+private fun presetName(p: Stabilization): String = when (p) {
+    PRESET_SUAVE -> "Suave"
+    PRESET_FORTE -> "Forte"
+    else -> "Câmera fixa"
+}
+
+private fun presetMatch(s: Stabilization): Stabilization? =
+    listOf(PRESET_SUAVE, PRESET_FORTE, PRESET_FIXA).firstOrNull { it == s }
+
+private data class Dial(
+    val label: String,
+    val value: Float,
+    val range: ClosedFloatingPointRange<Float>,
+    val default: Float,
+    val format: (Float) -> String = { v -> "%d%%".format((v * 100).roundToInt()) },
+    val change: (Float) -> Unit
+)
+
+/** Responsive TileSlider grid, same layout as the color zone's AdjustGrid. */
+@Composable
+private fun DialGrid(dials: List<Dial>) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val cols = (maxWidth / 170.dp).toInt().coerceIn(2, 3) // 2 colunas no celular, como a zona de cor
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            dials.chunked(cols).forEach { line ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    line.forEach { d ->
+                        TileSlider(
+                            d.label,
+                            d.value,
+                            d.range,
+                            Modifier.weight(1f),
+                            default = d.default,
+                            format = d.format
+                        ) { d.change(it) }
+                    }
+                    repeat(cols - line.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
 }

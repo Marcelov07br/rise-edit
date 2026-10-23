@@ -97,14 +97,29 @@ fun PreviewPanel(
                 emptyList()
             }
         }
+    // Stabilization now runs in the fast preview's GL pipeline (same shader as the export),
+    // reading these live values each frame — no player rebuild while dragging sliders.
+    StabilizationLive.corrections = corrections
+    StabilizationLive.analysis = if (corrections.isEmpty()) null else analysis
+    StabilizationLive.settings = clip?.stabilization ?: Stabilization()
+    StabilizationLive.comparing = state.comparing
+    StabilizationLive.clipStartMs = clip?.startMs ?: 0L
+    // The paused overlay re-draws frames without the GL pipeline: it can reproduce the rigid
+    // pose/zoom with a graphicsLayer, but not the per-line warp. RIGID keeps the cheap overlay;
+    // WARP falls back to a same-position seek so the paused frame matches play exactly.
+    val overlayFriendly = corrections.isEmpty() ||
+        clip?.stabilization?.method != StabilizeMethod.WARP
     val zoom = corrections.takeIf { it.isNotEmpty() }
         ?.let { MotionSmoother.zoomAt(it, vm.previewSourceMs).toFloat() } ?: 1f
-    val pose = if (fast &&
-        corrections.isNotEmpty()
-    ) {
+    val pose = if (overlayFriendly && corrections.isNotEmpty()) {
         MotionSmoother.interpolate(corrections, vm.previewSourceMs)
     } else {
         Pose()
+    }
+    LaunchedEffect(corrections, overlayFriendly, state.playing, fast) {
+        if (!fast) return@LaunchedEffect
+        StabilizationLive.tick.intValue++
+        if (!state.playing) redrawColor(previewPlayer)
     }
     val edit = remember { PreviewEditState() }
     val key = mainTransform(fast, clip, edit.draftFor(clip?.id), vm.previewSourceMs)
@@ -278,27 +293,9 @@ fun PreviewPanel(
                             update = { view ->
                                 if (view.player !== previewPlayer) view.player = previewPlayer
                             },
-                            modifier = Modifier.fillMaxSize().graphicsLayer {
-                                scaleX = if (fast) zoom else 1f
-                                scaleY = if (fast) zoom else 1f
-                                rotationZ = (pose.angle * 180 / PI).toFloat()
-                                translationX =
-                                    if (analysis ==
-                                        null
-                                    ) {
-                                        0f
-                                    } else {
-                                        (pose.x * videoWidth * density / analysis.width).toFloat()
-                                    }
-                                translationY =
-                                    if (analysis ==
-                                        null
-                                    ) {
-                                        0f
-                                    } else {
-                                        (pose.y * videoHeight * density / analysis.height).toFloat()
-                                    }
-                            },
+                            // Stabilization runs inside the player's GL pipeline (live effect):
+                            // no Compose-side pose/zoom approximation anymore.
+                            modifier = Modifier.fillMaxSize(),
                             onRelease = { it.player = null }
                         )
                     }
@@ -316,7 +313,7 @@ fun PreviewPanel(
                             )
                         }
                     }
-                    if (fast && clip != null) {
+                    if (fast && clip != null && overlayFriendly) {
                         br.com.riseedit.color.PausedColorOverlay(
                             clip = clip,
                             sourceMs = { vm.previewSourceMs },

@@ -128,4 +128,91 @@ class MotionSmoothingTest {
         assertEquals(0, samples[19].segment)
         assertTrue(samples.last().segment > 0)
     }
+
+    @Test fun warpVelocitiesFollowTrajectorySlope() {
+        val samples = (0..50).map { MotionSample(it * 33L, Pose(it * 2.0, -it * 0.5, 0.001 * it)) }
+        val velocities = MotionSmoother.warpVelocities(samples, 640, 360)
+        // Central difference of a linear trajectory: one step per sample.
+        (1 until samples.size - 1).forEach {
+            assertEquals(2.0, velocities[it].x, 1e-9)
+            assertEquals(-0.5, velocities[it].y, 1e-9)
+            assertEquals(0.001, velocities[it].angle, 1e-9)
+        }
+        // Trajectory ends have no neighbor on one side.
+        assertEquals(0.0, velocities.first().x, 1e-9)
+        assertEquals(0.0, velocities.last().x, 1e-9)
+    }
+
+    @Test fun warpVelocitiesZeroAtSegmentBordersAndCapped() {
+        val shaky = shaky(40).let { a ->
+            // Force a tracker reset in the middle.
+            MotionAnalysis(
+                a.width,
+                a.height,
+                a.samples.mapIndexed { i, s ->
+                    if (i >= 20) s.copy(segment = 1) else s
+                }
+            )
+        }
+        val velocities = MotionSmoother.warpVelocities(shaky.samples, shaky.width, shaky.height)
+        assertEquals(0.0, velocities[19].x, 1e-9)
+        assertEquals(0.0, velocities[20].x, 1e-9)
+        // A tracking spike 100× the frame is capped at 5% of it (shows up in the neighbors).
+        val spike = (0..4).map {
+            MotionSample(it * 33L, Pose(if (it == 2) 1e5 else it * 1.0, 0.0))
+        }
+        val capped = MotionSmoother.warpVelocities(spike, 640, 360)
+        assertTrue(kotlin.math.abs(capped[1].x) <= 0.05 * 640 + 1e-9)
+        assertTrue(kotlin.math.abs(capped[3].x) <= 0.05 * 640 + 1e-9)
+    }
+
+    @Test fun warpRaisesRequiredZoomButStaysWithinLimit() {
+        val analysis = shaky(300)
+        val rigid = MotionSmoother.corrections(
+            analysis,
+            Stabilization(true, strength = 1.0, maxZoom = 1.25),
+            0,
+            10_000
+        )
+        val warp = MotionSmoother.corrections(
+            analysis,
+            Stabilization(
+                true,
+                strength = 1.0,
+                maxZoom = 1.25,
+                method = StabilizeMethod.WARP,
+                rollingShutter = 1.0
+            ),
+            0,
+            10_000
+        )
+        warp.forEachIndexed { i, c ->
+            assertTrue(c.zoom + 1e-9 >= MotionSmoother.requiredZoom(c.pose, 640, 360))
+            assertTrue(c.zoom in 1.0..1.25)
+            assertTrue(c.velocity == Pose() || c.zoom >= rigid[i].zoom - 1e-9)
+        }
+    }
+
+    @Test fun rigidMethodKeepsVelocitiesZero() {
+        val analysis = shaky(100)
+        val result = MotionSmoother.corrections(
+            analysis,
+            Stabilization(true, strength = 1.0),
+            0,
+            10_000
+        )
+        assertTrue(result.all { it.velocity == Pose() })
+    }
+
+    @Test fun velocityInterpolatesBetweenSamples() {
+        val samples = (0..10).map { MotionSample(it * 33L, Pose(it * 3.0, 0.0)) }
+        val corrections = MotionSmoother.corrections(
+            MotionAnalysis(640, 360, samples),
+            Stabilization(true, method = StabilizeMethod.WARP),
+            0,
+            10_000
+        )
+        val midway = MotionSmoother.at(corrections, 5 * 33L + 16)
+        assertEquals(3.0, midway.velocity.x, 1e-9)
+    }
 }

@@ -5,18 +5,33 @@ import kotlin.math.roundToLong
 
 enum class MotionGoal { SMOOTH, FIXED }
 
+/**
+ * RIGID applies the correction as a single rigid transform (translate/rotate/zoom).
+ * WARP keeps that transform and adds a per-line rolling-shutter/distorção correction built from
+ * the measured frame-to-frame velocity, straightening the jello/skew the rigid pass cannot move.
+ */
+enum class StabilizeMethod { RIGID, WARP }
+
 data class Stabilization(
     val enabled: Boolean = false,
     val goal: MotionGoal = MotionGoal.SMOOTH,
     val strength: Double = 0.75,
     val smoothSeconds: Double = 0.6,
-    val maxZoom: Double = 1.10
+    val maxZoom: Double = 1.10,
+    val method: StabilizeMethod = StabilizeMethod.RIGID,
+    /** Rolling-shutter/wobble correction amount (0..1); only used when [method] is WARP. */
+    val rollingShutter: Double = 0.6
 ) {
     init {
         require(strength in 0.0..1.0)
         require(smoothSeconds in 0.1..2.0)
         require(maxZoom in 1.0..1.25)
+        require(rollingShutter in 0.0..1.0)
     }
+
+    /** Amount of per-line warp actually applied (0 when the method is RIGID). */
+    val warpAmount: Double
+        get() = if (method == StabilizeMethod.WARP) rollingShutter else 0.0
 }
 
 data class Clip(
