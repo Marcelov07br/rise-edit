@@ -61,8 +61,17 @@ internal fun TimelineStage(
 ) {
     val scroll = rememberScrollState()
     val density = LocalDensity.current.density
-    val entries = rememberUpdatedState(timelineEntries(state.value, ui))
-    val lanes = visibleLanes(entries.value, ui.extraLanes)
+    // Perf 0.22.2: rebuild entries only when what they depend on changes (not on every
+    // playhead tick / scroll frame), and index each lane for O(log n) visible lookup.
+    val s = state.value
+    val built = androidx.compose.runtime.remember(
+        s.project, s.layerId, s.selected, ui.trimDraft, ui.movingId, ui.movingUs
+    ) { timelineEntries(s, ui) }
+    val entries = rememberUpdatedState(built)
+    val laneIndex = androidx.compose.runtime.remember(built) { LaneIndex.of(built) }
+    val lanes = androidx.compose.runtime.remember(laneIndex, ui.extraLanes) {
+        visibleLanes(laneIndex.rows, ui.extraLanes)
+    }
     ui.lanes = lanes
     val duration = state.value.project.durationMs * 1000
     LaunchedEffect(duration) { ui.viewport = ui.viewport.fitted(duration).bounded(duration) }
@@ -74,7 +83,7 @@ internal fun TimelineStage(
             Box(Modifier.height(RULER_DP.dp))
             Column(Modifier.verticalScroll(scroll)) {
                 lanes.forEach { row ->
-                    LaneLabel(row, entries.value.none { it.row == row }) { onAddToLane(row) }
+                    LaneLabel(row, laneIndex.isEmpty(row)) { onAddToLane(row) }
                 }
                 AddLaneButton(ui, lanes)
             }
@@ -95,7 +104,7 @@ internal fun TimelineStage(
                     state.value.project.markers.map { it.timeMs },
                     state.value.project.export.fps
                 )
-                TimelineTrackList(lanes, entries.value, ui, actions, scroll)
+                TimelineTrackList(lanes, laneIndex, ui, actions, scroll)
             }
             PlayheadNeedle(ui, state, density, Modifier.matchParentSize())
             ClipContextMenu(ui, actions, density)
@@ -150,7 +159,7 @@ private fun PlayheadNeedle(
 @Composable
 private fun TimelineTrackList(
     lanes: List<Int>,
-    entries: List<TimelineEntry>,
+    index: LaneIndex,
     ui: TimelineUiState,
     actions: TimelineActions,
     scroll: androidx.compose.foundation.ScrollState
@@ -161,8 +170,9 @@ private fun TimelineTrackList(
                 Modifier.fillMaxWidth().height(LANE_DP.dp).padding(vertical = 3.dp)
                     .background(RiseSurface, RoundedCornerShape(8.dp))
             ) {
-                entries.filter { it.row == row }.sortedBy { it.selected }
-                    .forEach { TimelineClip(it, ui, actions) }
+                val v = ui.viewport
+                index.visible(row, v.timeAtPx(0.0), v.timeAtPx(v.widthPx)).sortedBy { it.selected }
+                    .forEach { androidx.compose.runtime.key(it.id) { TimelineClip(it, ui, actions) } }
             }
         }
         Box(Modifier.height(32.dp))

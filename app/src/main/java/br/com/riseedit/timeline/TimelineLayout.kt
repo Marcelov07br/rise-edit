@@ -24,10 +24,11 @@ internal val BASE_LANES = listOf(0, 1, 4)
 internal const val LANE_DP = 44
 internal const val RULER_DP = 28
 
-internal fun visibleLanes(entries: List<TimelineEntry>, extra: Set<Int>): List<Int> = (
-    BASE_LANES + entries.map {
-        it.row
-    } + extra
+internal fun visibleLanes(entries: List<TimelineEntry>, extra: Set<Int>): List<Int> =
+    visibleLanes(entries.mapTo(HashSet()) { it.row }, extra)
+
+internal fun visibleLanes(rows: Set<Int>, extra: Set<Int>): List<Int> = (
+    BASE_LANES + rows + extra
     ).distinct().filter { it in trackNames.indices }.sortedBy { LANE_ORDER.indexOf(it) }
 
 /** Next hidden lane of a kind: overlay (1-2), text (3) or audio (4-6). */
@@ -54,6 +55,7 @@ internal data class TimelineEntry(
 
 internal fun timelineEntries(state: EditorState, ui: TimelineUiState): List<TimelineEntry> =
     buildList {
+        TimelinePerfProbe.entryBuilds++
         addAll(mainEntries(state, ui))
         state.project.overlays.forEach { live ->
             val it = (ui.trimDraft as? TrimDraft.Overlay)?.draft?.takeIf { d -> d.id == live.id }
@@ -168,4 +170,35 @@ private fun outputMsOf(clip: br.com.riseedit.core.Clip, sourceMs: Long): Long? {
         if (clip.sourceAt(mid) < sourceMs) low = mid + 1 else high = mid
     }
     return low
+}
+
+/**
+ * Perf 0.22.2: entries grouped by lane, sorted by start, with a [TimelineIndex] per lane so the
+ * stage composes only the clips inside the viewport (was: every clip of every lane per frame).
+ */
+internal class LaneIndex private constructor(
+    private val byRow: Map<Int, List<TimelineEntry>>,
+    private val index: Map<Int, br.com.riseedit.core.editing.TimelineIndex>
+) {
+    val rows: Set<Int> get() = byRow.keys
+    fun isEmpty(row: Int) = byRow[row].isNullOrEmpty()
+
+    fun visible(row: Int, fromUs: Double, toUs: Double): List<TimelineEntry> {
+        val list = byRow[row] ?: return emptyList()
+        val range = index.getValue(row).visible(kotlin.math.floor(fromUs).toLong(), kotlin.math.ceil(toUs).toLong() + 1)
+        return range.map { list[it] }.filter { it.endUs > fromUs && it.startUs < toUs }
+    }
+
+    companion object {
+        fun of(entries: List<TimelineEntry>): LaneIndex {
+            val byRow = entries.groupBy { it.row }.mapValues { (_, l) -> l.sortedBy { it.startUs } }
+            val index = byRow.mapValues { (_, l) ->
+                br.com.riseedit.core.editing.TimelineIndex.ofSpans(
+                    LongArray(l.size) { kotlin.math.floor(l[it].startUs).toLong() },
+                    LongArray(l.size) { kotlin.math.ceil(l[it].endUs).toLong() }
+                )
+            }
+            return LaneIndex(byRow, index)
+        }
+    }
 }

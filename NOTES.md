@@ -217,3 +217,48 @@
 - Diálogo de nome (`NameDialog`/`NameDialogBody`) compartilhado entre nova biblioteca, renomear biblioteca e renomear projeto.
 - Testes: core 218, app 111 (novos: ProjectLibrariesTest, 11). Prints em screenshots/0.22.1/ (Release0221PhoneShots / Release0221DexShots, DeX = 1024×576 dp).
 - Não verificado em aparelho: tudo acima (layout real no DeX, persistência de libraries.json, menus com mouse). A biblioteca selecionada não persiste entre aberturas do app (volta para a primeira).
+
+## Performance (0.22.2, branch perf-timeline)
+
+> **Measured on the box (JVM 17 / Paparazzi layoutlib), not on the tablet.** Absolute times will differ on device; ratios are what matter.
+> Fixture: `PerfFixture.marce(seed=22)` — 47 min, 2000 multicam clips (0.5–5 s, 4 cams), 80 overlays, 40 texts,
+> 1 continuous voice track + 12 music + 120 SFX, 60 markers (`app/src/test/resources/perf/marce-45min.json`, 2.5 MB).
+> Run: `./gradlew :core:test -Dperf=true` and `./gradlew :app:testDebugUnitTest -Dperf=true --tests '*TimelinePerfShots*'`.
+
+### Core (median of runs, time / allocated per op)
+
+| Benchmark | Before | After |
+|---|---|---|
+| ripple trim Z | 579 ms / 2.46 GB | 0.154 ms / 24 KB |
+| ripple trim D | 520.7 ms / 2.46 GB | 0.151 ms / 23 KB |
+| ripple trim Z, 200 linked audio | 609.5 ms / 2.46 GB | 0.897 ms / 409 KB |
+| ripple delete | 263 ms / 1.23 GB | 0.309 ms / 53 KB |
+| split | 0.586 ms / 1278 KB | 0.273 ms / 45 KB |
+| 100 edits + undo + redo | 0.262 ms / 13 KB | 0.137 ms / 18 KB |
+| AudioSchedule (1 frame) | 33.6 ms / 163 MB | 0.040 ms / 2 KB |
+| Project.durationMs (new copy) | 0.368 ms / 1218 KB | 0.132 ms / 0 KB |
+| naive layout | 0.379 ms / 1219 KB | 0.148 ms / 0 KB |
+| visible range (TimelineIndex) | — | 0.003 ms lookup, 0.37 ms build |
+| toComposition (core, not Media3) | 2.96 ms | 3.36 ms (noise) |
+| ProjectStore.save | 61.9 ms / 68 MB | 58.1 ms / 59 MB |
+| ProjectStore.load | 44.4 ms / 68 MB | 41.3 ms / 68 MB |
+
+### Timeline UI (DeX 1920×1080, real TimelineStage)
+
+| Scenario | Before | After |
+|---|---|---|
+| normal zoom: TimelineClip calls / emitted | 4506 / 40 | 40 / 40 |
+| min zoom: calls / emitted | 4506 / 856 | 856 / 856 |
+| scroll 30 frames: calls per frame, entry rebuilds | 2253, 31 | 21, 1 |
+| scroll ms/frame (incl. layoutlib render) | 75.6 | 57.5 |
+| playhead 30 frames: calls/frame, ms/frame | 145, 32 | 1, 29.2 |
+
+### Fixes
+- `SeparateAudio.syncAll` was O(n²) (per-audio fold over clips) → single O(n) pass with id map; early exit with no links.
+- `Clip.durationMs` fast path without speed points; `Project.durationMs` lazy; `audibleAudio()` computes duration once.
+- New `TimelineIndex` (prefix/running-max spans + binary search) and app `LaneIndex`: the stage composes only clips in the viewport, wrapped in `key(id)`.
+- `timelineEntries` memoized on (project, layer, selection, trimDraft, moving); lanes/empty-lane derived from the index instead of O(n) scans per recomposition.
+- Snapshot on save copies the file instead of read/write text.
+
+### Device-only (not measurable here)
+Real frame time/jank on the Tab (Choreographer/Macrobenchmark), thumbnail decode and the 96-entry LruCache hit rate, waveform Canvas draw (walks all samples), ExoPlayer/Media3 composition and seeking, and the **synchronous save on commit** (~60 ms on JVM for 2000 clips, likely several × on device — the next candidate is moving save off the main thread).

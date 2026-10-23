@@ -36,12 +36,14 @@ internal fun BoxScope.TimelineClip(
     ui: TimelineUiState,
     actions: TimelineActions
 ) {
+    TimelinePerfProbe.clipCalls++
     val density = LocalDensity.current.density
     val left = ui.viewport.pxAtTime(entry.startUs)
     val right = ui.viewport.pxAtTime(entry.endUs)
     val visibleLeft = left.coerceAtLeast(0.0)
     val visibleRight = right.coerceAtMost(ui.viewport.widthPx)
     if (visibleRight <= visibleLeft) return
+    TimelinePerfProbe.clipEmitted++
     Box(
         Modifier.offset(x = (visibleLeft / density).dp)
             .width(((visibleRight - visibleLeft) / density).dp).fillMaxHeight()

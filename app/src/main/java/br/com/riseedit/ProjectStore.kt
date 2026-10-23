@@ -76,7 +76,7 @@ class ProjectStore(private val context: Context) {
         runCatching {
             val dir = versionDir(id)
             val stamp = System.currentTimeMillis()
-            File(dir, "$stamp.json").writeText(projectFile(id).baseFile.readText())
+            projectFile(id).baseFile.copyTo(File(dir, "$stamp.json"), overwrite = true)
             dir.listFiles()?.filter {
                 it.extension == "json"
             }?.sortedByDescending { it.name }?.drop(maxVersions)?.forEach { it.delete() }

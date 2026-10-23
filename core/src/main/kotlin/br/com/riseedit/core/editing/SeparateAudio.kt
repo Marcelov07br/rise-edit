@@ -50,5 +50,26 @@ object SeparateAudio {
         return if (changed) project.copy(audio = audio) else project
     }
 
-    fun syncAll(project: Project): Project = project.clips.fold(project) { p, c -> sync(p, c.id) }
+    /**
+     * Same result as calling [sync] for every clip, in one pass (perf 0.22.2: was O(clips²),
+     * ~0.5 s and ~2.8 GB allocated per ripple trim on a 2000-clip timeline).
+     */
+    fun syncAll(project: Project): Project {
+        if (project.audio.none { it.linkedClipId != null }) return project
+        val at = HashMap<String, Pair<br.com.riseedit.core.Clip, Long>>(project.clips.size * 2)
+        var offset = 0L
+        for (c in project.clips) {
+            at.putIfAbsent(c.id, c to offset)
+            offset += c.durationMs
+        }
+        var changed = false
+        val audio = project.audio.map { a ->
+            val link = a.linkedClipId ?: return@map a
+            val (clip, off) = at[link] ?: return@map a
+            val next = a.syncedTo(clip, off)
+            if (next != a) changed = true
+            next
+        }
+        return if (changed) project.copy(audio = audio) else project
+    }
 }

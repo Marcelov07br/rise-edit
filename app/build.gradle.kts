@@ -19,8 +19,8 @@ android {
         applicationId = "br.com.riseedit"
         minSdk = 27
         targetSdk = 35
-        versionCode = 38
-        versionName = "0.22.1"
+        versionCode = 39
+        versionName = "0.22.2"
         externalNativeBuild { cmake { arguments += listOf("-DANDROID_STL=c++_static") } }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -104,4 +104,11 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
+}
+
+// Perf 0.22.2: ./gradlew :app:testDebugUnitTest -Dperf=true --tests '*TimelinePerf*'
+tasks.withType<Test>().configureEach {
+    systemProperty("perf", System.getProperty("perf") ?: "false")
+    System.getProperty("perf.out")?.let { systemProperty("perf.out", it) }
+    outputs.upToDateWhen { System.getProperty("perf") != "true" }
 }

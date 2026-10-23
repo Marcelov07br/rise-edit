@@ -106,9 +106,12 @@ data class Clip(
             speedPoints.map { it.sourceMs }.filter { it in (startMs + 1) until endMs } +
             endMs
         ).distinct().sorted()
-    val durationMs get() = intervals().zipWithNext().sumOf { (a, b) ->
-        (b - a) / speedAt(a)
-    }.roundToLong().coerceAtLeast(1)
+    /** Perf 0.22.2: no allocation for the common constant-speed clip. */
+    val durationMs: Long get() = if (speedPoints.isEmpty()) {
+        (endMs - startMs).coerceAtLeast(1)
+    } else {
+        intervals().zipWithNext().sumOf { (a, b) -> (b - a) / speedAt(a) }.roundToLong().coerceAtLeast(1)
+    }
     fun sourceAt(outputMs: Long): Long {
         var remaining = outputMs.toDouble().coerceIn(0.0, durationMs.toDouble())
         for ((a, b) in intervals().zipWithNext()) {
@@ -181,7 +184,10 @@ data class AudioClip(
 }
 
 /** Audio layers that reach the mix (preview and export): not muted and starting inside the project. */
-fun Project.audibleAudio(): List<AudioClip> = audio.filter { !it.muted && it.offsetMs < durationMs }
+fun Project.audibleAudio(): List<AudioClip> {
+    val end = durationMs
+    return audio.filter { !it.muted && it.offsetMs < end }
+}
 data class VideoOverlay(
     val id: String = UUID.randomUUID().toString(),
     val clip: Clip,
@@ -319,7 +325,8 @@ data class Project(
     /** Camadas de ajuste (0.16), applied after composition; see [AdjustmentStack]. */
     val adjustmentLayers: List<AdjustmentLayer> = emptyList()
 ) {
-    val durationMs get() = clips.sumOf { it.durationMs }
+    /** Cached per instance (Project is immutable; every edit is a copy). Perf 0.22.2. */
+    val durationMs: Long by lazy(LazyThreadSafetyMode.PUBLICATION) { clips.sumOf { it.durationMs } }
     fun replace(index: Int, clip: Clip) =
         copy(clips = clips.toMutableList().apply { set(index, clip) })
 
