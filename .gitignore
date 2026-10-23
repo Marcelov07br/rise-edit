@@ -18,3 +18,4 @@ app/.cxx/
 *.box-store-snap-*
 screenshots/0.12.1/
 app/src/test/snapshots/
+core-transcode/.cxx/

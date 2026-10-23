@@ -104,7 +104,7 @@ static int64_t next_frame(Ingest *s) {
 
 JNIEXPORT jlong JNICALL
 Java_br_com_riseedit_transcode_FfmpegIngest_nativeDecode(JNIEnv *env, jclass cls, jlong h,
-        jobject y, jint ys, jobject u, jint us, jint up, jobject v, jint vs, jint vp, jboolean tenBit) {
+        jobject y, jint ys, jobject u, jint us, jint up, jobject v, jint vs, jint vp, jint layout) {
     Ingest *s = (Ingest *)(intptr_t)h;
     int64_t pts = next_frame(s);
     if (pts < 0) return pts;
@@ -115,7 +115,10 @@ Java_br_com_riseedit_transcode_FfmpegIngest_nativeDecode(JNIEnv *env, jclass cls
     uint8_t *dst[4] = {py, NULL, NULL, NULL};
     int stride[4] = {ys, 0, 0, 0};
     int fmt;
-    if (tenBit) {                         // P010: interleaved 16-bit Cb/Cr, 10 bits in the MSBs
+    if (layout == 2) {                    // P210: 4:2:2 semi-planar, 16-bit, 10 bits in the MSBs
+        fmt = AV_PIX_FMT_P210LE;
+        dst[1] = pu < pv ? pu : pv; stride[1] = us;
+    } else if (layout == 1) {             // P010: interleaved 16-bit Cb/Cr, 10 bits in the MSBs
         fmt = AV_PIX_FMT_P010LE;
         dst[1] = pu < pv ? pu : pv; stride[1] = us;
     } else if (up == 1) {                 // I420

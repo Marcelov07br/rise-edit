@@ -75,6 +75,7 @@ class MainActivity : ComponentActivity() {
                 }
                 SystemBarIcons()
                 br.com.riseedit.designsystem.RiseScreenFrame {
+                  Box(Modifier.fillMaxSize()) {
                     when {
                         route == Route.SETTINGS -> br.com.riseedit.settings.SettingsRoute {
                             route =
@@ -121,6 +122,9 @@ class MainActivity : ComponentActivity() {
                                 Route.NEW_PROJECT
                         })
                     }
+                    // 0.21: render tab / floating bubble above every screen.
+                    br.com.riseedit.export.RenderHost()
+                  }
                 }
             }
         }

@@ -55,18 +55,6 @@ fun EditorScreen(
                     Text("⚠ ${state.missingMedia.size} mídia(s) ausente(s) — tocar para recuperar")
                 }
             }
-            val export by ExportBus.state.collectAsState()
-            if (export.active) {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
-                    Text("Exportando em segundo plano… ${(export.progress * 100).toInt()}%")
-                    LinearProgressIndicator(progress = {
-                        export.progress
-                    }, modifier = Modifier.fillMaxWidth())
-                    TextButton(onClick = {
-                        ExportService.cancel(context)
-                    }) { Text("Cancelar exportação") }
-                }
-            }
             if (hasClips) {
                 EditorWorkspace(vm, state, ui, media, workspaceHeight)
             } else {

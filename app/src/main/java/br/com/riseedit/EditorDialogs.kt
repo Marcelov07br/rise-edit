@@ -54,7 +54,7 @@ internal fun EditorDialogs(
     }
     if (ui.full) FullscreenPreview(vm, state, onClose = { ui.full = false })
     if (ui.exportDialog) {
-        ExportDialog(
+        br.com.riseedit.export.ExportDialog(
             state.project,
             onClose = { ui.exportDialog = false },
             onExport = media.export

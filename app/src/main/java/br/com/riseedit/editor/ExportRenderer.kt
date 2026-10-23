@@ -26,6 +26,9 @@ import kotlinx.coroutines.withContext
 
 /** Media3 callbacks complete the caller's coroutine instead of starting another operation. */
 internal class ExportRenderer(private val context: Context) {
+    /** 0.21: what Transformer writes — the final MP4, or a high-bitrate intermediate for 4:2:2 finishing. */
+    data class Spec(val mime: String, val bitrate: Int, val keepHdr: Boolean)
+
     /**
      * 0.19.2: an empty-frame-queue failure (see FrameCompat) is retried once in the tolerant
      * frame mode; any other failure, or a second one, reaches the caller with a full RiseColor log.
@@ -34,6 +37,7 @@ internal class ExportRenderer(private val context: Context) {
         project: Project,
         analyses: Map<String, MotionAnalysis>,
         file: File,
+        spec: Spec,
         progress: (Float) -> Unit
     ) {
         try {
@@ -41,6 +45,7 @@ internal class ExportRenderer(private val context: Context) {
                 project,
                 analyses,
                 file,
+                spec,
                 br.com.riseedit.media.FrameCompat.factory(),
                 progress
             )
@@ -67,6 +72,7 @@ internal class ExportRenderer(private val context: Context) {
                 project,
                 analyses,
                 file,
+                spec,
                 br.com.riseedit.media.FrameCompat.tolerantFactory(),
                 progress
             )
@@ -77,6 +83,7 @@ internal class ExportRenderer(private val context: Context) {
         project: Project,
         analyses: Map<String, MotionAnalysis>,
         file: File,
+        spec: Spec,
         frames: androidx.media3.common.VideoFrameProcessor.Factory?,
         progress: (Float) -> Unit
     ) = coroutineScope {
@@ -85,17 +92,11 @@ internal class ExportRenderer(private val context: Context) {
             .setEncoderFactory(
                 DefaultEncoderFactory.Builder(context)
                     .setRequestedVideoEncoderSettings(
-                        VideoEncoderSettings.Builder().setBitrate(project.export.bitrate).build()
+                        VideoEncoderSettings.Builder().setBitrate(spec.bitrate).build()
                     )
                     .build()
             )
-            .setVideoMimeType(
-                if (project.export.codec == br.com.riseedit.core.VideoCodec.HEVC) {
-                    MimeTypes.VIDEO_H265
-                } else {
-                    MimeTypes.VIDEO_H264
-                }
-            )
+            .setVideoMimeType(spec.mime)
             .setAudioMimeType(MimeTypes.AUDIO_AAC)
             .apply { frames?.let { setVideoFrameProcessorFactory(it) } }
             .addListener(object : Transformer.Listener {
@@ -121,7 +122,7 @@ internal class ExportRenderer(private val context: Context) {
             }
         }
         try {
-            transformer.start(VideoEngine.composition(project, analyses), file.absolutePath)
+            transformer.start(VideoEngine.composition(project, analyses, keepHdr = spec.keepHdr), file.absolutePath)
             completed.await()
         } finally {
             withContext(NonCancellable) {

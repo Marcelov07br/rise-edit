@@ -26,7 +26,14 @@ import kotlin.coroutines.coroutineContext
 class ProxyConverter(private val context: Context) {
     data class Result(val file: File, val tenBit: Boolean, val codec: String, val audio: String)
 
-    private class Encoder(val name: String, val mime: String, val tenBit: Boolean)
+    /**
+     * 0.21: an explicit encoder (export finishing: APV / HEVC 4:2:2 / AVC High 4:2:2). [layout] is
+     * [FfmpegIngest.LAYOUT_P210] for 4:2:2 10-bit input.
+     */
+    class Target(val name: String, val mime: String, val profile: Int?, val colorFormat: Int, val layout: Int, val bitrate: Int)
+
+    private class Encoder(val name: String, val mime: String, val tenBit: Boolean,
+                          val color: Int, val layout: Int, val profile: Int?, val bitrate: Int?)
 
     private fun pickEncoder(info: IngestInfo): Encoder {
         val list = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.filter { it.isEncoder }
@@ -41,15 +48,16 @@ class ProxyConverter(private val context: Context) {
         if (info.bits >= 10 && Build.VERSION.SDK_INT >= 33) {
             has(MediaFormat.MIMETYPE_VIDEO_HEVC, CodecCapabilities.COLOR_FormatYUVP010,
                 MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10)
-                ?.let { return Encoder(it.name, MediaFormat.MIMETYPE_VIDEO_HEVC, true) }
+                ?.let { return Encoder(it.name, MediaFormat.MIMETYPE_VIDEO_HEVC, true, CodecCapabilities.COLOR_FormatYUVP010,
+                    FfmpegIngest.LAYOUT_P010, MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10, null) }
         }
         val flex = CodecCapabilities.COLOR_FormatYUV420Flexible
-        has(MediaFormat.MIMETYPE_VIDEO_AVC, flex)?.let { return Encoder(it.name, MediaFormat.MIMETYPE_VIDEO_AVC, false) }
-        has(MediaFormat.MIMETYPE_VIDEO_HEVC, flex)?.let { return Encoder(it.name, MediaFormat.MIMETYPE_VIDEO_HEVC, false) }
+        has(MediaFormat.MIMETYPE_VIDEO_AVC, flex)?.let { return Encoder(it.name, MediaFormat.MIMETYPE_VIDEO_AVC, false, flex, FfmpegIngest.LAYOUT_8BIT, null, null) }
+        has(MediaFormat.MIMETYPE_VIDEO_HEVC, flex)?.let { return Encoder(it.name, MediaFormat.MIMETYPE_VIDEO_HEVC, false, flex, FfmpegIngest.LAYOUT_8BIT, null, null) }
         throw IllegalStateException("Nenhum codificador de vídeo aceita ${info.width}x${info.height}.")
     }
 
-    suspend fun convert(source: Uri, out: File, progress: (Float) -> Unit): Result = withContext(Dispatchers.IO) {
+    suspend fun convert(source: Uri, out: File, target: Target? = null, progress: (Float) -> Unit): Result = withContext(Dispatchers.IO) {
         check(FfmpegIngest.available) { "Conversor indisponível neste aparelho." }
         val partial = File(out.parentFile, out.name + ".partial").apply { delete() }
         val audioTemp = File(out.parentFile, out.name + ".audio.m4a").apply { delete() }
@@ -63,11 +71,11 @@ class ProxyConverter(private val context: Context) {
         try {
             val info = IngestInfo.of(raw)
             val audio = AudioPlan.prepare(context, source, audioTemp)
-            val enc = pickEncoder(info)
+            val enc = target?.let { Encoder(it.name, it.mime, it.layout != FfmpegIngest.LAYOUT_8BIT, it.colorFormat, it.layout, it.profile, it.bitrate) }
+                ?: pickEncoder(info)
             val format = MediaFormat.createVideoFormat(enc.mime, info.width, info.height).apply {
-                setInteger(MediaFormat.KEY_COLOR_FORMAT,
-                    if (enc.tenBit) CodecCapabilities.COLOR_FormatYUVP010 else CodecCapabilities.COLOR_FormatYUV420Flexible)
-                setInteger(MediaFormat.KEY_BIT_RATE, ProxyPlan.bitrate(info.width, info.height, info.fps))
+                setInteger(MediaFormat.KEY_COLOR_FORMAT, enc.color)
+                setInteger(MediaFormat.KEY_BIT_RATE, enc.bitrate ?: ProxyPlan.bitrate(info.width, info.height, info.fps))
                 setFloat(MediaFormat.KEY_FRAME_RATE, info.fps.toFloat())
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
                 setInteger(MediaFormat.KEY_COLOR_STANDARD, ProxyPlan.standard(info.primaries, info.matrix))
@@ -75,14 +83,18 @@ class ProxyConverter(private val context: Context) {
                 // 8-bit output keeps SDR tagging only when the source is SDR; HDR→8-bit is tagged
                 // as-is (no tone mapping) — see NOTES.
                 setInteger(MediaFormat.KEY_COLOR_TRANSFER, ProxyPlan.transfer(info.transfer))
-                if (enc.tenBit) setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10)
+                enc.profile?.let { setInteger(MediaFormat.KEY_PROFILE, it) }
             }
             codec = MediaCodec.createByCodecName(enc.name).apply {
                 configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE); start()
             }
             muxer = MediaMuxer(partial.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
             muxer.setOrientationHint(info.rotation)
-            val frameBytes = if (enc.tenBit) info.width * info.height * 3 else info.width * info.height * 3 / 2
+            val frameBytes = when (enc.layout) {
+                FfmpegIngest.LAYOUT_P210 -> info.width * info.height * 4
+                FfmpegIngest.LAYOUT_P010 -> info.width * info.height * 3
+                else -> info.width * info.height * 3 / 2
+            }
             var videoTrack = -1
             var audioExtractor: MediaExtractor? = null
             var audioTrack = -1
@@ -99,7 +111,7 @@ class ProxyConverter(private val context: Context) {
                         val pts = FfmpegIngest.nativeDecode(
                             handle, p[0].buffer, p[0].rowStride,
                             p[1].buffer, p[1].rowStride, p[1].pixelStride,
-                            p[2].buffer, p[2].rowStride, p[2].pixelStride, enc.tenBit
+                            p[2].buffer, p[2].rowStride, p[2].pixelStride, enc.layout
                         )
                         when {
                             pts >= 0 -> {

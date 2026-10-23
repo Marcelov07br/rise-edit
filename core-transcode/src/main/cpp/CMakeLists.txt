@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 project(rise_ingest C)
 set(FF ${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg)
-add_library(rise_ingest SHARED rise_ingest.c)
+add_library(rise_ingest SHARED rise_ingest.c rise_prores.c)
 target_include_directories(rise_ingest PRIVATE ${FF}/include)
 foreach(l avformat avcodec swscale avutil)
   add_library(${l} SHARED IMPORTED)

@@ -238,7 +238,22 @@ data class TextLayer(
         tracks = tracks
     )
 }
-enum class VideoCodec(val label: String) { H264("H.264"), HEVC("HEVC") }
+enum class VideoCodec(val label: String) {
+    H264("H.264"), HEVC("HEVC"),
+    /** 0.21: Advanced Professional Video, hardware encoder only (Android 16 / API 36). */
+    APV("APV"),
+    /** 0.21: Apple ProRes 422 via FFmpeg prores_ks (software), .mov. */
+    PRORES("ProRes 422")
+}
+
+/** 0.21: chroma subsampling of the exported file. */
+enum class Chroma(val label: String) { YUV420("4:2:0"), YUV422("4:2:2") }
+
+/** 0.21: ProRes 422 flavour (FFmpeg profile 3 = HQ "apch", 2 = standard "apcn"). */
+enum class ProresProfile(val label: String, val ffmpeg: Int) { HQ("HQ", 3), STANDARD("Standard", 2) }
+
+/** 0.21: audio inside a ProRes .mov. */
+enum class MovAudio(val label: String) { AAC("AAC"), PCM("PCM 16 bits") }
 
 /** Export target. 2160 = 4K; bitrate is free (1–150 Mbps); fps is a cap, never upsampled. */
 data class ExportSettings(
@@ -247,14 +262,20 @@ data class ExportSettings(
     val bitrate: Int = 8_000_000,
     val codec: VideoCodec = VideoCodec.H264,
     /** 0.19: NTSC rate (fps × 1000/1001: 23.976 / 29.97 / 59.94). Only for 24/30/60. */
-    val ntsc: Boolean = false
+    val ntsc: Boolean = false,
+    /** 0.21: 8 or 10; see [ExportOptions] for what the phone can actually encode. */
+    val bitDepth: Int = 10,
+    val chroma: Chroma = Chroma.YUV420,
+    val prores: ProresProfile = ProresProfile.HQ,
+    val movAudio: MovAudio = MovAudio.AAC
 ) {
     init {
         require(
             height in HEIGHTS &&
                 fps in FPS &&
                 bitrate in MIN_BITRATE..MAX_BITRATE &&
-                (!ntsc || fps in NTSC_BASES)
+                (!ntsc || fps in NTSC_BASES) &&
+                bitDepth in DEPTHS
         )
     }
 
@@ -274,6 +295,7 @@ data class ExportSettings(
         val HEIGHTS = listOf(480, 720, 1080, 1440, 2160)
         const val MIN_BITRATE = 1_000_000
         const val MAX_BITRATE = 150_000_000
+        val DEPTHS = listOf(8, 10)
     }
 }
 

@@ -167,3 +167,33 @@
 - Só no celular: layout de planos/P010 do encoder, recodificação de áudio, rotação no muxer, velocidade/temperatura,
   notificação. HDR→8 bits não faz tone mapping (mantém tags).
 - Sobre: crédito FFmpeg LGPL 2.1+ e texto da licença em assets/licenses.
+
+## 0.21.0 — export 10-bit 4:2:2, painel novo e render em segundo plano
+
+- **Opções por aparelho** (`EncoderProbe` → `core.EncoderSupport` → `ExportOptions`): só aparece o que o MediaCodecList
+  anuncia. HEVC 10 bits = Main10; HEVC 4:2:2 = encoder HEVC de hardware com `COLOR_FormatYUVP210` (não existe constante
+  de perfil HEVC 4:2:2 pública); H.264 4:2:2 = `AVCProfileHigh422` + P210; APV = `video/apv` + `APVProfile422_10` (=1) + P210.
+- **APV**: `MIMETYPE_VIDEO_APV`, `APVProfile422_10*` e `COLOR_FormatYUVP210` são **API 36**; o projeto compila com SDK 35
+  (só android-35 instalado), então ficam como literais atrás de `SDK_INT >= 36`. Não verificado: se o MediaMuxer aceita APV
+  em MP4 em aparelho real.
+- **ProRes 422 HQ/Standard 10 bits** por software: FFmpeg `prores_ks` (LGPL, sem `--enable-gpl`) + muxer mov, áudio AAC
+  (cópia) ou PCM s16le. build.sh agora habilita decoder aac, encoders prores_ks/pcm_s16le e muxer mov
+  (libavcodec ≈ 1,50 MB).
+- **Pipeline**: Media3 não entrega quadros 10 bits pós-efeitos fora do encoder, então rotas 4:2:2 usam um **intermediário**
+  HEVC de alta taxa (2× bitrate, 80–150 Mb/s; 10 bits/KEEP_HDR se houver Main10) e depois:
+  ProRes → `rise_prores.c`; APV/HEVC/H.264 4:2:2 → FFmpeg decode → swscale P210 → MediaCodec → MediaMuxer
+  (`ProxyConverter.Target`). Perdas documentadas: uma geração extra de compressão; o croma 4:2:2 é reconstruído do 4:2:0.
+- **10 bits 4:2:0 (padrão)**: `HDR_MODE_KEEP_HDR` quando 10 bits; fontes SDR continuam saindo SDR (Media3 não promove SDR
+  para 10 bits). 8 bits mantém o tone-mapping para SDR de antes. Projetos antigos (sem índice 5) carregam como 8 bits.
+- **Painel** (`export/ExportPanel.kt`): Resolução, fps, Qualidade visíveis; "Avançado" recolhido com codec (RiseDropdown),
+  taxa de bits (TileSlider; ProRes mostra taxa fixa estimada), profundidade, croma, perfil ProRes e áudio do .mov.
+  ProRes salva `.mov`/`video/quicktime`.
+- **Render em segundo plano**: ExportService (foreground) + ExportBus (fase, início, painel/minimizado, concluído/resultado).
+  `RenderHost` na raiz da MainActivity: aba de render (progresso, fase, tempo restante, minimizar/cancelar) e bolha
+  arrastável dentro do app (mola dampingRatio 0,78 até a borda mais próxima, anel de progresso, ✓ ao terminar — toque
+  abre o vídeo com ACTION_VIEW). Bloco inline antigo do editor removido.
+- **Testes**: ExportOptionsTest; host-test ProRes (HostProresTest) com ffprobe: prores, profile HQ, apch, yuv422p10le,
+  60 quadros, HLG/BT.2020, pcm_s16le 48 kHz 2 canais; Standard (apcn) + AAC — passou.
+- **Só no celular** (não verificado): encode MediaCodec P210/APV real, velocidade do prores_ks em ARM, KEEP_HDR com os
+  efeitos GL, arraste/mola da bolha, abrir resultado.
+- Screenshots: ExportShots_exportNormal, exportAdvanced, bubbleOverEditor, renderTab.

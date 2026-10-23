@@ -319,7 +319,7 @@ private fun Export(
     Group("Padrão de exportação") {
         Pair2(
             "Codec" to
-                Triple(VideoCodec.entries, s.codec) { v: VideoCodec ->
+                Triple(listOf(VideoCodec.H264, VideoCodec.HEVC), s.codec) { v: VideoCodec ->
                     onChange { it.copy(codec = v) }
                 },
             "Qualidade (bitrate)" to

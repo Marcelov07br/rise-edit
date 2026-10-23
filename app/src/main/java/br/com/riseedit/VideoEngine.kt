@@ -21,7 +21,8 @@ object VideoEngine {
     fun composition(
         project: Project,
         analyses: Map<String, MotionAnalysis>,
-        preview: Boolean = false
+        preview: Boolean = false,
+        keepHdr: Boolean = false
     ): Composition {
         require(project.clips.isNotEmpty())
         val overlays = project.overlays.filter { it.offsetMs < project.durationMs }
@@ -37,7 +38,12 @@ object VideoEngine {
         }
         return composition
             .setEffects(Effects(emptyList(), buildOutputEffects(project, preview)))
-            .setHdrMode(Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL)
+            // 0.21: 10-bit exports keep HDR (HLG/PQ sources stay 10-bit through the effects);
+            // the preview and 8-bit exports keep tone-mapping to SDR as before.
+            .setHdrMode(
+                if (keepHdr) Composition.HDR_MODE_KEEP_HDR
+                else Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL
+            )
             .build()
     }
 }

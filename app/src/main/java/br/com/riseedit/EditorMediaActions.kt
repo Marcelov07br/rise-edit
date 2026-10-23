@@ -35,6 +35,10 @@ internal fun rememberEditorMediaActions(
     val exportPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("video/mp4")
     ) { it?.let(vm::export) }
+    // 0.21: ProRes goes to a QuickTime .mov.
+    val movPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("video/quicktime")
+    ) { it?.let(vm::export) }
     return EditorMediaActions(
         // 0.19: in-app MediaStore picker (Vídeos | Imagens) replaces the system document picker.
         videos = { ui.mediaPicker = true },
@@ -46,8 +50,14 @@ internal fun rememberEditorMediaActions(
             val name = state.project.name.replace(Regex("[^\\p{L}\\p{N} _-]"), "")
             // 0.19: Configurações › Exportação › pasta destino (SAF tree) skips "Salvar como".
             val folder = br.com.riseedit.settings.SettingsStore.current.exportFolder
-            val direct = folder?.let { createInTree(context, it, "$name.mp4") }
-            if (direct != null) vm.export(direct) else exportPicker.launch("$name.mp4")
+            val ext = br.com.riseedit.core.ExportOptions.extension(settings)
+            val mime = br.com.riseedit.core.ExportOptions.mime(settings)
+            val direct = folder?.let { createInTree(context, it, "$name.$ext", mime) }
+            when {
+                direct != null -> vm.export(direct)
+                ext == "mov" -> movPicker.launch("$name.mov")
+                else -> exportPicker.launch("$name.mp4")
+            }
         },
         extract = { extractPicker.launch(arrayOf("video/*")) },
         audioFile = { vm.importAudio(listOf(it), ui.audioTrack) }
@@ -58,7 +68,8 @@ internal fun rememberEditorMediaActions(
 internal fun createInTree(
     context: android.content.Context,
     tree: String,
-    name: String
+    name: String,
+    mime: String = "video/mp4"
 ): android.net.Uri? = runCatching {
     val treeUri = android.net.Uri.parse(tree)
     val parent = android.provider.DocumentsContract.buildDocumentUriUsingTree(
@@ -68,7 +79,7 @@ internal fun createInTree(
     android.provider.DocumentsContract.createDocument(
         context.contentResolver,
         parent,
-        "video/mp4",
+        mime,
         name
     )
 }.onFailure { android.util.Log.w("RiseExport", "pasta destino indisponível", it) }.getOrNull()

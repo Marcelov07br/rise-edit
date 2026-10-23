@@ -37,6 +37,21 @@ object FfmpegIngest {
         }.isSuccess
     }
 
+    /** 0.21: coded size of the export intermediate (first video track), via MediaExtractor. */
+    fun probeSize(context: android.content.Context, file: java.io.File): Pair<Int, Int> {
+        val ex = android.media.MediaExtractor()
+        try {
+            ex.setDataSource(file.absolutePath)
+            for (i in 0 until ex.trackCount) {
+                val f = ex.getTrackFormat(i)
+                if (f.getString(android.media.MediaFormat.KEY_MIME)?.startsWith("video/") == true) {
+                    return f.getInteger(android.media.MediaFormat.KEY_WIDTH) to f.getInteger(android.media.MediaFormat.KEY_HEIGHT)
+                }
+            }
+            error("intermediário sem vídeo")
+        } finally { ex.release() }
+    }
+
     val version: String? get() = if (available) runCatching { nativeVersion() }.getOrNull() else null
 
     @JvmStatic external fun nativeOpen(fd: Int, out: LongArray): Long
@@ -46,8 +61,13 @@ object FfmpegIngest {
         y: ByteBuffer, yStride: Int,
         u: ByteBuffer, uStride: Int, uPixel: Int,
         v: ByteBuffer, vStride: Int, vPixel: Int,
-        tenBit: Boolean
+        /** [LAYOUT_8BIT] (I420/NV12/NV21 from the plane strides), [LAYOUT_P010] or [LAYOUT_P210]. */
+        layout: Int
     ): Long
+
+    const val LAYOUT_8BIT = 0
+    const val LAYOUT_P010 = 1
+    const val LAYOUT_P210 = 2
 
     @JvmStatic external fun nativeClose(handle: Long)
 

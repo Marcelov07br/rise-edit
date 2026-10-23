@@ -26,8 +26,9 @@ TC=$NDK/toolchains/llvm/prebuilt/linux-x86_64
   --disable-avfilter --disable-postproc --disable-network --disable-debug \
   --disable-autodetect --enable-small \
   --enable-avcodec --enable-avformat --enable-avutil --enable-swscale \
-  --enable-decoder=h264,hevc --enable-parser=h264,hevc \
+  --enable-decoder=h264,hevc,aac --enable-parser=h264,hevc,aac \
   --enable-demuxer=mov,matroska --enable-protocol=file,fd \
+  --enable-encoder=prores_ks,pcm_s16le --enable-muxer=mov \
   --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb
 # Plain sonames (libavcodec.so, not .so.61) so Android's loader finds them in the APK.
 sed -i -e "s/^SLIBNAME_WITH_MAJOR=.*/SLIBNAME_WITH_MAJOR=\$(SLIBNAME)/" \

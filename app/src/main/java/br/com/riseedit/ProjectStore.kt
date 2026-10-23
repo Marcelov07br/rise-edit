@@ -284,7 +284,11 @@ class ProjectStore(private val context: Context) {
                     p.export.fps,
                     p.export.bitrate,
                     p.export.codec.name,
-                    p.export.ntsc
+                    p.export.ntsc,
+                    p.export.bitDepth,
+                    p.export.chroma.name,
+                    p.export.prores.name,
+                    p.export.movAudio.name
                 )
             )
         )
@@ -415,7 +419,15 @@ class ProjectStore(private val context: Context) {
                         VideoCodec.valueOf(e.optString(3, "H264"))
                     }.getOrDefault(VideoCodec.H264),
                     // 0.19: 5th element = NTSC (absent → integer rate).
-                    e.optBoolean(4, false) && e.getInt(1) in ExportSettings.NTSC_BASES
+                    e.optBoolean(4, false) && e.getInt(1) in ExportSettings.NTSC_BASES,
+                    // 0.21: depth/chroma/ProRes/mov audio (absent → 8-bit 4:2:0 as before).
+                    e.optInt(5, 8).takeIf { it in ExportSettings.DEPTHS } ?: 8,
+                    runCatching { br.com.riseedit.core.Chroma.valueOf(e.optString(6, "YUV420")) }
+                        .getOrDefault(br.com.riseedit.core.Chroma.YUV420),
+                    runCatching { br.com.riseedit.core.ProresProfile.valueOf(e.optString(7, "HQ")) }
+                        .getOrDefault(br.com.riseedit.core.ProresProfile.HQ),
+                    runCatching { br.com.riseedit.core.MovAudio.valueOf(e.optString(8, "AAC")) }
+                        .getOrDefault(br.com.riseedit.core.MovAudio.AAC)
                 )
             },
             markers = objects(j.optJSONArray("markers")).map {

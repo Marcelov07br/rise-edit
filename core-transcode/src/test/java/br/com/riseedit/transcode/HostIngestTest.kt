@@ -34,7 +34,7 @@ class HostIngestTest {
             val pts = mutableListOf<Long>()
             while (true) {
                 val t = FfmpegIngest.nativeDecode(
-                    h, y, info.width * bpp, u, info.width * bpp, 2 * bpp, v, info.width * bpp, 2 * bpp, tenBit
+                    h, y, info.width * bpp, u, info.width * bpp, 2 * bpp, v, info.width * bpp, 2 * bpp, if (tenBit) FfmpegIngest.LAYOUT_P010 else FfmpegIngest.LAYOUT_8BIT
                 )
                 if (t < 0) { assertEquals("clean end", -1L, t); break }
                 pts += t
