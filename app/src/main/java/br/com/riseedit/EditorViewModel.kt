@@ -45,6 +45,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private val media = EditorMedia(application, document)
     private val loader = ProjectLoader(application, document, operations, media)
     private val importer = ImportCoordinator(document, operations, media)
+    private val conversion = br.com.riseedit.editor.ConversionCoordinator(application, document, operations, media)
     private val cutMedia = br.com.riseedit.editor.CutMediaCommands(application, document, operations, media)
     private val motion = MotionCoordinator(application, document, operations)
     private val exporter = ExportCoordinator(application, document, operations)
@@ -108,6 +109,9 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun freezeFrame(durationMs: Long) = cutMedia.freezeFrame(durationMs)
     fun reverseClip() = cutMedia.reverse()
     fun replaceMedia(uri: Uri?) = cutMedia.replace(uri)
+
+    fun convertForEditing() = conversion.convert()
+    fun dismissConversion() = conversion.dismiss()
 
     /** Opens the app's own picker in "replace selected clip" mode (EditorDialogs). */
     val replacePicker = androidx.compose.runtime.mutableStateOf(false)

@@ -65,7 +65,12 @@ data class Clip(
      */
     val masks: br.com.riseedit.core.mask.MaskSet = br.com.riseedit.core.mask.MaskSet(),
     /** 0.18: when false, changing speed also shifts the audio pitch (chipmunk/slow-mo voice). */
-    val keepPitch: Boolean = true
+    val keepPitch: Boolean = true,
+    /**
+     * 0.21: set when [uri] is an in-app converted copy ("Converter para edição", 10-bit 4:2:2);
+     * the camera original the user picked, kept for reference/relinking.
+     */
+    val originalUri: String? = null
 ) {
     /**
      * Adjust + grade at [sourceMs] (keyframes applied, masks evaluated into [ColorAdjust.masks]);

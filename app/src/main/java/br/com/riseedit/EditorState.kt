@@ -28,7 +28,9 @@ data class EditorState(
     val previewDegraded: String? = null,
     val previewGeneration: Int = 0,
     val previewFault: MediaFault? = null,
-    val missingMedia: List<br.com.riseedit.core.MissingMedia> = emptyList()
+    val missingMedia: List<br.com.riseedit.core.MissingMedia> = emptyList(),
+    /** 0.21: imported files the phone can't decode but the in-app converter can. */
+    val conversionOffer: br.com.riseedit.editor.ConversionOffer? = null
 ) {
     /** Typed single selection, revalidated against the current project (deleted target → None). */
     val selection: Selection get() = Selection.of(project, selectionId)

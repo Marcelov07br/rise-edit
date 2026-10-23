@@ -1,0 +1,43 @@
+{
+  "buildFiles": [
+    "/workspace/apps/rise-edit/core-transcode/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/home/box/android/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/workspace/apps/rise-edit/core-transcode/.cxx/Debug/6v64o5k2/arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/home/box/android/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/workspace/apps/rise-edit/core-transcode/.cxx/Debug/6v64o5k2/arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "rise_ingest::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "arm64-v8a",
+      "artifactName": "rise_ingest",
+      "output": "/workspace/apps/rise-edit/core-transcode/build/intermediates/cxx/Debug/6v64o5k2/obj/arm64-v8a/librise_ingest.so",
+      "runtimeFiles": [
+        "/workspace/apps/rise-edit/core-transcode/src/main/cpp/ffmpeg/lib/arm64-v8a/libavformat.so",
+        "/workspace/apps/rise-edit/core-transcode/src/main/cpp/ffmpeg/lib/arm64-v8a/libavcodec.so",
+        "/workspace/apps/rise-edit/core-transcode/src/main/cpp/ffmpeg/lib/arm64-v8a/libswscale.so",
+        "/workspace/apps/rise-edit/core-transcode/src/main/cpp/ffmpeg/lib/arm64-v8a/libavutil.so"
+      ]
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/home/box/android/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/home/box/android/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [
+    "c"
+  ],
+  "cppFileExtensions": []
+}

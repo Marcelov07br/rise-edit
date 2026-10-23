@@ -20,6 +20,9 @@ internal class ImportCoordinator(
                     document.current.project.clips + clips
                 )
             )
+            if (media.convertible.isNotEmpty()) {
+                document.update { it.copy(conversionOffer = ConversionOffer.of(media.convertible)) }
+            }
             if (saved && clips.size == uris.size) {
                 document.message("${clips.size} vídeo(s) importado(s). Projeto salvo no aparelho.")
             }

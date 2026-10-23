@@ -29,7 +29,29 @@ internal fun EditorDialogs(
     ui: EditorUiState,
     media: EditorMediaActions
 ) {
-    state.busy?.let { ProcessingDialog(it, state.progress, vm::cancel) }
+    val tenBit = androidx.compose.runtime.remember {
+        br.com.riseedit.transcode.ProxyConverter.supportsTenBit()
+    }
+    state.busy?.let { busy ->
+        if (busy.startsWith("Convert")) {
+            ConversionDialog(
+                ConversionUi(1, "O vídeo está sendo copiado num formato que este aparelho edita.", tenBit, state.progress, busy),
+                onConvert = {},
+                onCancel = vm::cancel
+            )
+        } else {
+            ProcessingDialog(busy, state.progress, vm::cancel)
+        }
+    }
+    if (state.busy == null) {
+        state.conversionOffer?.let { offer ->
+            ConversionDialog(
+                ConversionUi(offer.count, offer.reason, tenBit),
+                onConvert = vm::convertForEditing,
+                onCancel = vm::dismissConversion
+            )
+        }
+    }
     if (ui.full) FullscreenPreview(vm, state, onClose = { ui.full = false })
     if (ui.exportDialog) {
         ExportDialog(

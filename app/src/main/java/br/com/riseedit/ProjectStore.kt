@@ -141,6 +141,7 @@ class ProjectStore(private val context: Context) {
             .put("keys", keys(c.keyframes))
             .put("sourceInfo", c.sourceInfo?.let(SourceMetadataJson::encode) ?: JSONObject.NULL)
             .put("proxyUri", c.proxyUri ?: JSONObject.NULL).put("proxyRequired", c.proxyRequired)
+            .put("originalUri", c.originalUri ?: JSONObject.NULL)
             .put("muted", c.muted)
             .put(
                 "orientation",
@@ -226,6 +227,7 @@ class ProjectStore(private val context: Context) {
             sourceInfo = c.optJSONObject("sourceInfo")?.let(SourceMetadataJson::decode),
             proxyUri = if (c.isNull("proxyUri")) null else c.optString("proxyUri").ifBlank { null },
             proxyRequired = c.optBoolean("proxyRequired"),
+            originalUri = c.optString("originalUri").takeIf { it.isNotBlank() && it != "null" },
             muted = c.optBoolean("muted", false),
             orientation = readOrientation(c.optJSONObject("orientation")),
             tracks = TracksJson.decode(c.optJSONObject("tracks")),

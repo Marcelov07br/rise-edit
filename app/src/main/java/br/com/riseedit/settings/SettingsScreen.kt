@@ -86,8 +86,18 @@ internal val LICENSES = listOf(
     "AndroidX DataStore" to "Apache 2.0",
     "Kotlin · kotlinx.coroutines" to "Apache 2.0",
     "OpenCV" to "Apache 2.0",
-    "whisper.cpp (legendas)" to "MIT"
+    "whisper.cpp (legendas)" to "MIT",
+    "FFmpeg 7.1.1 (conversão 10 bits 4:2:2)" to "LGPL 2.1+"
 )
+
+/**
+ * FFmpeg attribution (LGPL 2.1+): unmodified 7.1.1 release built as shared libraries without GPL
+ * or nonfree parts (tools/ffmpeg/build.sh); license text in assets/licenses.
+ */
+internal const val FFMPEG_NOTICE =
+    "Este app usa código do FFmpeg (ffmpeg.org) sob a LGPL v2.1 ou posterior, como bibliotecas " +
+        "dinâmicas não modificadas (libavcodec, libavformat, libavutil, libswscale). O código-fonte " +
+        "está em ffmpeg.org/download.html. FFmpeg é marca de Fabrice Bellard."
 
 /** 0.19: Configurações as its own screen: pill sections on top, grouped rows below. */
 @Composable
@@ -408,6 +418,7 @@ private fun About(info: SettingsInfo, actions: SettingsActions) {
                 Text(license, color = RiseMuted, fontSize = 12.sp)
             }
         }
+        Text(FFMPEG_NOTICE, color = RiseMuted, fontSize = 11.sp, lineHeight = 15.sp)
         Spacer(Modifier.height(2.dp))
     }
 }

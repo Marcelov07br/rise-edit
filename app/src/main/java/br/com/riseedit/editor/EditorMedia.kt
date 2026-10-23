@@ -25,7 +25,11 @@ internal class EditorMedia(private val context: Context, private val document: E
         clip
     }
 
+    /** 0.21: files of the last import that "Converter para edição" can handle. */
+    val convertible = mutableListOf<Pair<Uri, String>>()
+
     suspend fun import(uris: List<Uri>, kind: MediaKind): List<Clip> {
+        convertible.clear()
         val clips = mutableListOf<Clip>()
         val faults = mutableListOf<String>()
         uris.forEachIndexed { index, uri ->
@@ -38,6 +42,10 @@ internal class EditorMedia(private val context: Context, private val document: E
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
+                if (kind == MediaKind.MAIN_VIDEO && ConversionOffer.canConvert(error)) {
+                    convertible += uri to (error as MediaFault).userMessage
+                    return@forEachIndexed
+                }
                 faults += (error as? MediaFault)?.displayMessage()
                     ?: "Um arquivo não pôde ser importado. Selecione uma cópia compatível."
             }

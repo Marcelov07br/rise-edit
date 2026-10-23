@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "RiseEdit"
-include(":app", ":core")
+include(":app", ":core", ":core-transcode")

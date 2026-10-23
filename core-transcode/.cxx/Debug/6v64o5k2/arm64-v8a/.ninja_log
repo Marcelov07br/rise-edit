@@ -1,0 +1,3 @@
+# ninja log v5
+0	135	1792793061434526138	CMakeFiles/rise_ingest.dir/rise_ingest.c.o	8a45ee3a0e096634
+135	155	1792793061454525459	/workspace/apps/rise-edit/core-transcode/build/intermediates/cxx/Debug/6v64o5k2/obj/arm64-v8a/librise_ingest.so	f9099e09d67a26ac

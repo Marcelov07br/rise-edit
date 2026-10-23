@@ -150,3 +150,20 @@
   - 4:2:2/10 bits: a importação já falhava com uma mensagem tipada. Agora `UnsupportedChroma(chroma, bits, codec)` nomeia o formato ("vídeo H.264 4:2:2 · 10 bits") quando o MediaCodecList não tem decodificador.
   - Pesquisa decoder_ffmpeg 1.9.0: `ExperimentalFfmpegVideoRenderer` é um stub ("not yet functional", supportsFormat → UNSUPPORTED); só o áudio funciona. Não está no Maven: é preciso compilar FFmpeg 6.0 com NDK (build_ffmpeg.sh). Recomendação: na importação, decodificar com FFmpeg nativo (h264/hevc) para um proxy 4:2:0 encodado com MediaCodec.
   - Não verificado em aparelho: orientação dos quadros do MMR (congelar/inverter em vídeo girado), tempo de inversão e uso de disco. Prints: screenshots/0.21.0/.
+
+## 0.21.0 — conversão 10-bit 4:2:2 na importação (FFmpeg LGPL)
+- `tools/ffmpeg/build.sh`: FFmpeg 7.1.1 oficial (SHA256 verificado), NDK 27.2, arm64-v8a, API 27, só LGPL
+  (sem --enable-gpl/nonfree, --disable-autodetect). Só decoders/parsers h264/hevc (+áudio comum), demuxers mov/mp4/matroska,
+  swscale. Saída em `core-transcode/src/main/cpp/ffmpeg/`. 4 .so ≈ 2,6 MB (avcodec 1,29 MB, avformat 394 KB, avutil 538 KB,
+  swscale 370 KB) + librise_ingest.so 10 KB. APK arm64 debug: 51,5 MB (antes ~47 MB).
+- Módulo `:core-transcode`: JNI mínimo em C (`rise_ingest.c`), `ProxyConverter` (FFmpeg decode → swscale direto nos planos do
+  Image de entrada do MediaCodec → HEVC Main10/P010 se API 33+ e suportado; senão AVC/HEVC 8 bits). Mantém resolução, pts (VFR),
+  rotação, tags de cor. Áudio AAC/AMR remuxado, resto → AAC 256k (≤2 canais). Proxy em `filesDir/converted/conv-<hash>.mp4`;
+  Clip.originalUri guarda o original.
+- Importação: arquivos com UnsupportedChroma/Unsupported10Bit abrem o diálogo "Converter para edição" (ConversionDialog),
+  progresso com Cancelar + notificação (canal rise_convert).
+- Testes: `tools/ffmpeg/host-test.sh` gera amostras 4:2:2 10 bits (H.264 VFR rotacionado + HEVC HLG) e valida o JNI no host
+  (HostIngestTest) — passou. ProxyPlanTest unitário.
+- Só no celular: layout de planos/P010 do encoder, recodificação de áudio, rotação no muxer, velocidade/temperatura,
+  notificação. HDR→8 bits não faz tone mapping (mantém tags).
+- Sobre: crédito FFmpeg LGPL 2.1+ e texto da licença em assets/licenses.
