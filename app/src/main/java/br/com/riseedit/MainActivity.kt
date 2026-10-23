@@ -109,7 +109,8 @@ class MainActivity : ComponentActivity() {
                             }, onBack = {
                                 form = null
                                 route = Route.HOME
-                            })
+                            }, libraryName = library.libraries.value.folders
+                                .firstOrNull { it.id == library.selected.value }?.name)
                         }
                         editing && state.project.id == activeId ->
                             EditorScreen(editor, state, onBack = { home() }, onSettings = {
@@ -120,13 +121,14 @@ class MainActivity : ComponentActivity() {
                             Modifier.fillMaxSize(),
                             contentAlignment = androidx.compose.ui.Alignment.Center
                         ) { CircularProgressIndicator() }
-                        else -> HomeScreen(projects, libraryError, library, onOpen = {
-                            editor.open(it)
-                            activeId = it.id
-                        }, onSettings = { route = Route.SETTINGS }, onNew = {
-                            route =
-                                Route.NEW_PROJECT
-                        })
+                        else -> {
+                            val libs by library.libraries.collectAsStateWithLifecycle()
+                            val sel by library.selected.collectAsStateWithLifecycle()
+                            HomeScreen(projects, libraryError, libs, sel, library.homeActions(open = {
+                                editor.open(it)
+                                activeId = it.id
+                            }, settings = { route = Route.SETTINGS }, new = { route = Route.NEW_PROJECT }))
+                        }
                     }
                     // 0.21: render tab / floating bubble above every screen.
                     br.com.riseedit.export.RenderHost()

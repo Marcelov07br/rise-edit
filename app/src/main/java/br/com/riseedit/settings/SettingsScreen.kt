@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -113,7 +115,9 @@ fun SettingsScreen(
     actions: SettingsActions = SettingsActions()
 ) {
     Column(
-        Modifier.fillMaxSize().background(RiseBlack).riseSafeArea().padding(horizontal = 16.dp)
+        Modifier.fillMaxSize().background(RiseBlack).riseSafeArea()
+            .wrapContentWidth(Alignment.CenterHorizontally)
+            .widthIn(max = br.com.riseedit.designsystem.AdaptiveTokens.SettingsMax).fillMaxWidth().padding(horizontal = 16.dp)
     ) {
         Row(
             Modifier.fillMaxWidth().padding(vertical = 12.dp),

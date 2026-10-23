@@ -81,7 +81,7 @@ class Release0191Shots {
     }
 
     @Test fun home() = phone {
-        HomeScreen(emptyList(), null, null, onOpen = {}, onSettings = {}, onNew = {})
+        HomeScreen(emptyList(), null, br.com.riseedit.core.library.ProjectLibraries(), "padrao", br.com.riseedit.HomeActions())
     }
 
     @Test fun pickerGestureBar() = phone {

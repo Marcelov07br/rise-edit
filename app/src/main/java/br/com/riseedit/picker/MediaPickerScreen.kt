@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -77,6 +78,7 @@ fun MediaPickerScreen(
     onRequest: () -> Unit,
     thumb: @Composable (GalleryItem) -> Unit
 ) {
+    val wide = br.com.riseedit.designsystem.screenWidth() != br.com.riseedit.designsystem.ScreenWidth.COMPACT
     Column(Modifier.fillMaxSize().background(RiseBlack).riseSafeArea().padding(top = 12.dp)) {
         Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             PanelIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Voltar", onClick = onBack)
@@ -88,7 +90,7 @@ fun MediaPickerScreen(
                 modifier = Modifier.padding(start = 12.dp)
             )
         }
-        SegmentedTabs(GalleryTab.entries, tab, Modifier.padding(12.dp), label = {
+        SegmentedTabs(GalleryTab.entries, tab, Modifier.padding(12.dp).then(if (wide) Modifier.widthIn(max = 420.dp) else Modifier), label = {
             it.label
         }, minTab = 120.dp, onSelect = onTab)
         if (access ==
@@ -123,14 +125,15 @@ fun MediaPickerScreen(
                     onRequest
                 )
                 else -> LazyVerticalGrid(
-                    GridCells.Fixed(3),
-                    Modifier.fillMaxSize().padding(horizontal = 2.dp),
+                    // 0.22.1: phone keeps 3 columns; DeX/tablet ~180 dp thumbnails.
+                    if (wide) GridCells.Adaptive(180.dp) else GridCells.Fixed(3),
+                    Modifier.fillMaxSize().padding(horizontal = if (wide) 16.dp else 2.dp),
                     // Last row stays fully visible above the Adicionar bar.
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
                         bottom = 12.dp
                     ),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    horizontalArrangement = Arrangement.spacedBy(if (wide) 8.dp else 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (wide) 8.dp else 2.dp)
                 ) {
                     items(items, key = { it.uri.toString() }) { item ->
                         Tile(item, PickerSelection.order(selected, item.uri), {
@@ -141,19 +144,13 @@ fun MediaPickerScreen(
             }
         }
         val enabled = selected.isNotEmpty()
-        Box(
-            Modifier.fillMaxWidth().padding(12.dp).height(56.dp).clip(RoundedCornerShape(16.dp))
-                .background(if (enabled) RiseAccent else RiseSurface)
-                .clickable(enabled = enabled, onClick = onAdd),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                if (enabled) "Adicionar (${selected.size})" else "Selecione mídias",
-                color = if (enabled) RiseBlack else RiseMuted,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-        }
+        br.com.riseedit.designsystem.PillButton(
+            if (enabled) "Adicionar (${selected.size})" else "Selecione mídias",
+            Modifier.padding(12.dp).align(if (wide) Alignment.End else Alignment.CenterHorizontally)
+                .then(if (wide) Modifier else Modifier.fillMaxWidth()),
+            enabled = enabled,
+            onClick = onAdd
+        )
     }
 }
 

@@ -33,7 +33,12 @@ import br.com.riseedit.core.Aspect
 import br.com.riseedit.core.FrameRateChoice
 import br.com.riseedit.core.Resolution
 import br.com.riseedit.core.TvStandard
+import br.com.riseedit.designsystem.AdaptiveTokens
 import br.com.riseedit.designsystem.GraphicSurface
+import br.com.riseedit.designsystem.PillButton
+import br.com.riseedit.designsystem.ScreenWidth
+import br.com.riseedit.designsystem.screenWidth
+import androidx.compose.foundation.layout.widthIn
 import br.com.riseedit.designsystem.HierarchyTokens
 import br.com.riseedit.designsystem.PanelIconButton
 import br.com.riseedit.designsystem.riseSafeArea
@@ -48,91 +53,97 @@ data class NewProjectForm(
     val rate: FrameRateChoice
 )
 
-@Suppress("LongMethod") // single Compose screen body
 @Composable
 fun NewProjectScreen(
     form: NewProjectForm,
     onChange: (NewProjectForm) -> Unit,
     onCreate: () -> Unit,
     onBack: () -> Unit,
-    expandedFps: Boolean = false
+    expandedFps: Boolean = false,
+    libraryName: String? = null
 ) {
-    Column(
-        Modifier.fillMaxSize().background(
-            RiseBlack
-        ).riseSafeArea().padding(16.dp).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            PanelIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Voltar", onClick = onBack)
-            Text(
-                "Criar projeto",
-                color = RiseWhite,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 12.dp)
-            )
-        }
-        val t = HierarchyTokens
+    val wide = screenWidth() != ScreenWidth.COMPACT
+    Box(Modifier.fillMaxSize().background(RiseBlack).riseSafeArea(), contentAlignment = Alignment.TopCenter) {
         Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(t.FieldRadius)).background(t.FieldBg)
-                .border(
-                    1.dp,
-                    t.FieldBorder,
-                    RoundedCornerShape(t.FieldRadius)
-                ).padding(horizontal = 14.dp, vertical = 8.dp)
+            Modifier.widthIn(max = AdaptiveTokens.FormMax).fillMaxWidth().padding(if (wide) 24.dp else 16.dp)
+                .then(if (wide) Modifier else Modifier.verticalScroll(rememberScrollState())),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Nome", color = RiseMuted, fontSize = t.FieldLabel)
-            BasicTextField(
-                form.name,
-                { onChange(form.copy(name = it.take(80))) },
-                singleLine = true,
-                textStyle = TextStyle(color = RiseWhite, fontSize = 16.sp),
-                cursorBrush = SolidColor(RiseAccent),
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-        GraphicSurface {
-            Box(Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
-                val r = form.aspect.ratio.takeIf { it > 0f } ?: (16f / 9f)
-                val w = if (r >= 1f) 220f else 120f * r
-                val h = if (r >= 1f) 220f / r else 120f
-                Box(
-                    Modifier.size(w.dp, h.coerceAtMost(130f).dp).clip(RoundedCornerShape(6.dp))
-                        .border(2.dp, RiseAccent, RoundedCornerShape(6.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "${form.aspect.label}\n${form.resolution.label} · ${form.rate.label}",
-                        color = RiseWhite,
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PanelIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Voltar", onClick = onBack)
+                Column(Modifier.padding(start = 12.dp)) {
+                    Text("Criar projeto", color = RiseWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    libraryName?.let { Text("em $it", color = RiseMuted, fontSize = 12.sp) }
                 }
             }
+            if (wide) {
+                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    FormatPreview(form, Modifier.weight(1f), tall = true)
+                    Column(
+                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        NameField(form, onChange)
+                        Fields(form, onChange, expandedFps)
+                        PillButton("Criar e escolher mídia", Modifier.align(Alignment.End), onClick = onCreate)
+                    }
+                }
+            } else {
+                NameField(form, onChange)
+                FormatPreview(form, Modifier.fillMaxWidth(), tall = false)
+                Fields(form, onChange, expandedFps)
+                PillButton("Criar e escolher mídia", Modifier.align(Alignment.CenterHorizontally).fillMaxWidth(), onClick = onCreate)
+            }
         }
-        FormatFields(form.aspect, form.resolution, form.standard, form.rate, expandedFps) {
-                a,
-                r,
-                s,
-                rate
-            ->
-            onChange(form.copy(aspect = a, resolution = r, standard = s, rate = rate))
-        }
-        Box(
-            Modifier.fillMaxWidth().height(
-                56.dp
-            ).clip(RoundedCornerShape(16.dp)).background(RiseAccent)
-                .clickable(onClick = onCreate),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                "Criar e escolher mídia",
-                color = RiseBlack,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
+    }
+}
+
+@Composable
+private fun Fields(form: NewProjectForm, onChange: (NewProjectForm) -> Unit, expandedFps: Boolean) {
+    FormatFields(form.aspect, form.resolution, form.standard, form.rate, expandedFps) { a, r, s, rate ->
+        onChange(form.copy(aspect = a, resolution = r, standard = s, rate = rate))
+    }
+}
+
+@Composable
+private fun NameField(form: NewProjectForm, onChange: (NewProjectForm) -> Unit) {
+    val t = HierarchyTokens
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(t.FieldRadius)).background(t.FieldBg)
+            .border(1.dp, t.FieldBorder, RoundedCornerShape(t.FieldRadius)).padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        Text("Nome", color = RiseMuted, fontSize = t.FieldLabel)
+        BasicTextField(
+            form.name,
+            { onChange(form.copy(name = it.take(80))) },
+            singleLine = true,
+            textStyle = TextStyle(color = RiseWhite, fontSize = 16.sp),
+            cursorBrush = SolidColor(RiseAccent),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun FormatPreview(form: NewProjectForm, modifier: Modifier, tall: Boolean) {
+    GraphicSurface(modifier) {
+        Box(Modifier.fillMaxWidth().height(if (tall) 320.dp else 150.dp), contentAlignment = Alignment.Center) {
+            val r = form.aspect.ratio.takeIf { it > 0f } ?: (16f / 9f)
+            val box = if (tall) 280f else 130f
+            val w = if (r >= 1f) box * 1.6f else box * r
+            val h = if (r >= 1f) (box * 1.6f / r).coerceAtMost(box) else box
+            Box(
+                Modifier.size(w.dp, h.dp).clip(RoundedCornerShape(6.dp)).border(2.dp, RiseAccent, RoundedCornerShape(6.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "${form.aspect.label}\n${form.resolution.label} · ${form.rate.label}",
+                    color = RiseWhite,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
         }
     }
 }

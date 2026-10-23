@@ -205,3 +205,15 @@
   - Mouse: hover (ToolButton, clipes), botão direito no clipe (Dividir/Duplicar/Excluir/Copiar/Colar efeitos), roda = rolar timeline, Ctrl+roda = zoom no ponteiro; drop de arquivos externos (requestDragAndDropPermissions → import).
   - S Pen: pontos da curva e alças de trim movem a 1/3 da velocidade com caneta (PEN_GAIN).
   - Prints: screenshots/0.22.0/ (dexEditor = arranjo real `ExpandedEditorLayout` com timeline/prévia simuladas, pois o VM real precisa de ExoPlayer).
+
+## 0.22.1 (versionCode 38) — telas iniciais adaptadas ao DeX + bibliotecas de projetos
+- Feedback do Marce no DeX real: editor ok; Home, Criar projeto e seletor de mídia apareciam "com cara de telefone" esticados.
+- `designsystem/Adaptive.kt`: `screenWidth()` (WindowSizeClass Compact/Medium/Expanded, com fallback para `screenWidthDp` nos prints), `AdaptiveTokens` (FormMax 960, SettingsMax 880, Pill máx. 320, coluna lateral 240 dp) e `PillButton` (largura limitada) reaproveitado em Home, Criar projeto e seletor.
+- Home: Medium/Expanded = coluna lateral de bibliotecas + grade `GridCells.Adaptive(200.dp)`, cabeçalho compacto com pílula "+ Novo projeto". Celular = hero compacto, bibliotecas como chips no topo, grade de 2 colunas com cards menores (16:9).
+- Criar projeto: em tela larga, duas colunas (prévia do formato à esquerda, campos à direita) com largura máx. 960 dp; mostra "em <biblioteca>".
+- Seletor de mídia: `GridCells.Adaptive(180.dp)` em tela larga (3 colunas fixas no celular), abas com largura limitada e "Adicionar" em pílula à direita.
+- Configurações: conteúdo centralizado, largura máx. 880 dp.
+- Bibliotecas: `core/library/ProjectLibraries.kt` (regras puras + testes) e `LibraryStore` (filesDir/libraries.json v1, mesmo esquema JSON/AtomicFile dos projetos, sem Room). Migração: projetos sem biblioteca vão para "Padrão" (id `padrao`), criada sob demanda (inclusive ao criar o 1º projeto). Criar/renomear biblioteca; excluir vazia direto; com projetos pede confirmação e move para Padrão; Padrão não pode ser excluída (só renomeada). Card do projeto: "Mover para <biblioteca>". Duplicar mantém a biblioteca. Busca e Recentes/Favoritos filtram dentro da biblioteca selecionada. Novo projeto entra na biblioteca selecionada.
+- Diálogo de nome (`NameDialog`/`NameDialogBody`) compartilhado entre nova biblioteca, renomear biblioteca e renomear projeto.
+- Testes: core 218, app 111 (novos: ProjectLibrariesTest, 11). Prints em screenshots/0.22.1/ (Release0221PhoneShots / Release0221DexShots, DeX = 1024×576 dp).
+- Não verificado em aparelho: tudo acima (layout real no DeX, persistência de libraries.json, menus com mouse). A biblioteca selecionada não persiste entre aberturas do app (volta para a primeira).
