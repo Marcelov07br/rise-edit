@@ -96,6 +96,38 @@ class CutShots {
         }
     }
 
+    @Test fun curveBullet() = p.snapshot {
+        Screen("Corte · Curva (Bullet)") {
+            CutPanel(
+                br.com.riseedit.core.editing.SpeedCurve.apply(clip, br.com.riseedit.core.editing.SpeedCurve.Preset.BULLET.knots),
+                0, CutTab.CURVE, {}, CutActions()
+            )
+        }
+    }
+
+    @Test fun curveMontage() = p.snapshot {
+        Screen("Corte · Curva (Montagem)") {
+            CutPanel(
+                br.com.riseedit.core.editing.SpeedCurve.apply(clip, br.com.riseedit.core.editing.SpeedCurve.Preset.MONTAGE.knots),
+                0, CutTab.CURVE, {}, CutActions()
+            )
+        }
+    }
+
+    @Test fun trimLoupe() = p.snapshot {
+        Screen("Corte · lupa ao arrastar") {
+            CutPanel(
+                clip, 2000, CutTab.CUT, {}, CutActions(), cached = ::frame,
+                loupeInitially = br.com.riseedit.core.editing.TrimEdge.START
+            )
+        }
+    }
+
+    @Test fun newCutActionsInMenu() {
+        val names = cutActionList(clip, CutTab.CUT, true, true, CutActions()).map { it.name }
+        assert(names.containsAll(listOf("Congelar quadro no cursor", "Substituir mídia", "Inverter clipe")))
+    }
+
     @Test fun fadeTab() = p.snapshot {
         Screen("Corte · Fade") {
             CutPanel(clip.copy(fadeMs = 500), 0, CutTab.FADE, {}, CutActions())

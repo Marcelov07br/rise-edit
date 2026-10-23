@@ -53,6 +53,16 @@ internal class CutCommands(
         }
     }
 
+    /** 0.21: speed curve baked into step points (official SpeedProvider in Fiel/export). */
+    fun speedCurve(knots: List<br.com.riseedit.core.editing.SpeedCurve.Knot>) {
+        val state = document.current
+        val clip = state.project.clips.getOrNull(state.selected) ?: return
+        val next = br.com.riseedit.core.editing.SpeedCurve.apply(clip, knots)
+        if (next != clip) {
+            document.edit(SeparateAudio.sync(state.project.replace(state.selected, next), clip.id))
+        }
+    }
+
     /** 0.18.1: split at the playhead (see [br.com.riseedit.core.editing.SplitAtPlayhead]). */
     fun split() {
         val state = document.current

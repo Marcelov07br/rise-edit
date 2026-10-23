@@ -51,7 +51,7 @@ internal class EditorMedia(private val context: Context, private val document: E
 
     /** 0.19: photos (picker "Imagens") become still clips of Configurações › duração da imagem. */
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-    private suspend fun readAny(uri: Uri, kind: MediaKind): Clip {
+    internal suspend fun readAny(uri: Uri, kind: MediaKind): Clip {
         val mime = withContext(Dispatchers.IO) { context.contentResolver.getType(uri) }
         if (mime?.startsWith("image/") !=
             true

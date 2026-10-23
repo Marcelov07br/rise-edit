@@ -23,7 +23,7 @@ class MediaPreparation(private val context: Context) {
             throw when {
                 info.mime == "video/apv" -> MediaFault.UnsupportedApv
                 info.chroma == ChromaFormat.YUV422 || info.chroma == ChromaFormat.YUV444 ->
-                    MediaFault.UnsupportedChroma(info.chroma)
+                    MediaFault.UnsupportedChroma(info.chroma, info.bitDepth.bits, info.mime)
                 info.bitDepth.bits >= 10 -> MediaFault.Unsupported10Bit
                 else -> MediaFault.MissingDecoder(info.mime)
             }

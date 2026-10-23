@@ -45,6 +45,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private val media = EditorMedia(application, document)
     private val loader = ProjectLoader(application, document, operations, media)
     private val importer = ImportCoordinator(document, operations, media)
+    private val cutMedia = br.com.riseedit.editor.CutMediaCommands(application, document, operations, media)
     private val motion = MotionCoordinator(application, document, operations)
     private val exporter = ExportCoordinator(application, document, operations)
 
@@ -101,6 +102,15 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun cutToCursor(left: Boolean) = cuts.cutToCursor(left)
     fun nudge(edge: br.com.riseedit.core.editing.TrimEdge, frames: Int) = cuts.nudge(edge, frames)
     fun speed(value: Double, keepPitch: Boolean) = cuts.speed(value, keepPitch)
+
+    // 0.21 cut tools.
+    fun speedCurve(knots: List<br.com.riseedit.core.editing.SpeedCurve.Knot>) = cuts.speedCurve(knots)
+    fun freezeFrame(durationMs: Long) = cutMedia.freezeFrame(durationMs)
+    fun reverseClip() = cutMedia.reverse()
+    fun replaceMedia(uri: Uri?) = cutMedia.replace(uri)
+
+    /** Opens the app's own picker in "replace selected clip" mode (EditorDialogs). */
+    val replacePicker = androidx.compose.runtime.mutableStateOf(false)
 
     /** 0.18: "Excluir" closes the gap on every track (ripple) when on; kept for the session. */
     private val ripple = androidx.compose.runtime.mutableStateOf(

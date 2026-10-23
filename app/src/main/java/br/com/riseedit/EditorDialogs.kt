@@ -39,6 +39,12 @@ internal fun EditorDialogs(
         )
     }
     if (ui.recoveryDialog) RecoveryDialog(vm, state, ui)
+    if (vm.replacePicker.value) {
+        br.com.riseedit.picker.MediaPickerRoute(onPick = {
+            vm.replacePicker.value = false
+            vm.replaceMedia(it.firstOrNull())
+        }, onClose = { vm.replacePicker.value = false })
+    }
     if (ui.mediaPicker) {
         br.com.riseedit.picker.MediaPickerRoute(onPick = {
             ui.mediaPicker = false

@@ -25,8 +25,19 @@ object FrameCompat {
         private set
 
     fun load(context: Context) {
-        tolerant = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY, false)
+        tolerant = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY, false) ||
+            proactive(android.os.Build.VERSION.SDK_INT)
     }
+
+    /**
+     * 0.21: both field reports of 7001/NoSuchElement (S26 on Android 17, a Xiaomi custom ROM)
+     * failed on the very first Fiel attempt, so learning "after the 1st failure" always cost
+     * one broken preview. From SDK 37 (Android 17) the tolerant mode starts on. Media3 1.9.0
+     * ExternalTextureManager: with automaticReregistration every SurfaceTexture callback
+     * enqueues lastRegisteredFrame, so `pendingFrames.element()` can no longer run empty;
+     * the cost is reusing the previous FrameInfo (same stream → same format/offset).
+     */
+    fun proactive(sdk: Int): Boolean = sdk >= 37
 
     fun enable(context: Context) {
         tolerant = true

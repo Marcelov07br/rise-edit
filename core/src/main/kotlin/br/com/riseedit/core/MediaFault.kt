@@ -16,10 +16,35 @@ sealed class MediaFault(
         "Converta o arquivo para H.264, 8 bits e 4:2:0 e importe a cópia convertida."
     )
 
-    data class UnsupportedChroma(val chroma: ChromaFormat) : MediaFault(
-        "Este arquivo usa um formato de cor incompatível com a edição no aparelho.",
-        "Converta o vídeo para 4:2:0 e importe a cópia convertida."
-    )
+    /**
+     * 0.21: names the exact format (e.g. "H.264 High 4:2:2 · 10 bits") so camera files fail with
+     * a clear warning at import instead of a generic error later in preview/export.
+     */
+    data class UnsupportedChroma(
+        val chroma: ChromaFormat,
+        val bits: Int = 0,
+        val codec: String? = null
+    ) : MediaFault(
+        "Este aparelho não tem decodificador para ${formatLabel(chroma, bits, codec)}.",
+        "Converta para 4:2:0 (H.264 ou HEVC) em outro aparelho ou computador e importe a cópia."
+    ) {
+        companion object {
+            fun formatLabel(chroma: ChromaFormat, bits: Int, codec: String?): String {
+                val sub = when (chroma) {
+                    ChromaFormat.YUV422 -> "4:2:2"
+                    ChromaFormat.YUV444 -> "4:4:4"
+                    else -> "esta amostragem de cor"
+                }
+                val name = when (codec) {
+                    "video/avc" -> "H.264 "
+                    "video/hevc" -> "HEVC "
+                    null -> ""
+                    else -> "$codec "
+                }
+                return "vídeo $name$sub" + if (bits > 0) " · $bits bits" else ""
+            }
+        }
+    }
 
     object Unsupported10Bit : MediaFault(
         "Este aparelho não consegue editar este vídeo de 10 bits diretamente.",
