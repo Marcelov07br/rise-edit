@@ -186,7 +186,7 @@ private fun baseItems(
             val layer = state.project.texts.first { it.id == state.layerId }
             listOf(
                 ToolbarItem("Editar", Icons.Outlined.Edit, enabled) {
-                    ui.editText(layer, TextTab.STYLES)
+                    ui.editText(layer, TextTab.STYLE)
                 }
             ) + textTabItems(ui, enabled) { layer } +
                 listOf(ui.toolItem(EditorTool.TextTiming, enabled), delete)
@@ -232,7 +232,7 @@ private fun menuItems(
 ): List<ToolbarItem> = when (menu) {
     ToolMenu.TEXT -> listOf(
         ToolbarItem("Adicionar texto", Icons.Outlined.AddBox, enabled) {
-            ui.editText(newText(state), TextTab.STYLES)
+            ui.editText(newText(state), TextTab.STYLE)
         },
         ui.toolItem(EditorTool.Subtitles, enabled)
     ) + textTabItems(ui, enabled) {
@@ -271,11 +271,9 @@ private fun textTabItems(
     target: () -> TextLayer
 ): List<ToolbarItem> {
     val icons = mapOf(
-        TextTab.TEMPLATES to Icons.Outlined.SpaceDashboard,
-        TextTab.FONTS to Icons.Outlined.FontDownload,
-        TextTab.STYLES to Icons.Outlined.BorderColor,
-        TextTab.EFFECTS to Icons.Outlined.AutoAwesome,
-        TextTab.ANIMATIONS to Icons.Outlined.Animation
+        TextTab.TEXT to Icons.Outlined.FontDownload,
+        TextTab.STYLE to Icons.Outlined.BorderColor,
+        TextTab.ANIMATION to Icons.Outlined.Animation
     )
     return TextTab.entries.map { tab ->
         ToolbarItem(tab.label, icons.getValue(tab), enabled) { ui.editText(target(), tab) }

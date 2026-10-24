@@ -87,6 +87,7 @@ internal fun EditorWorkspaceExpanded(
                     onSelect = { main -> ui.contextual = main },
                     textDraft = ui.textDraft,
                     onDraftTransform = { ui.textDraft = it },
+            draftLookAll = ui.lookScope == br.com.riseedit.core.LookScope.ALL,
                     pickColor = ui.eyedropper ?: br.com.riseedit.tools.ColorTools.eyedropper
                 )
             }
@@ -158,7 +159,7 @@ private fun InspectorPanel(
             when {
                 editingText && ui.textDraft != null -> Column { TextEditorSheet(vm, ui, ui.textDraft!!) }
                 t != null -> ToolSheet(t.title, height * 0.5f, onClose = { ui.tool = null }) {
-                    ToolPanel(t, vm, state, addAudio = media.audioFile)
+                    ToolPanel(t, vm, state, addAudio = media.audioFile, editLook = { ui.editText(it, TextTab.STYLE) })
                 }
                 else -> EmptyInspector(state)
             }

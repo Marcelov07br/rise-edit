@@ -52,6 +52,7 @@ internal fun ColumnScope.EditorWorkspace(
             onSelect = { main -> ui.contextual = main },
             textDraft = draft,
             onDraftTransform = { ui.textDraft = it },
+            draftLookAll = ui.lookScope == br.com.riseedit.core.LookScope.ALL,
             pickColor = ui.eyedropper ?: br.com.riseedit.tools.ColorTools.eyedropper
         )
     }
@@ -140,7 +141,7 @@ private fun DockedToolPanel(
         ) { tool ->
             if (tool != null) {
                 ToolSheet(tool.title, sheetMax, onClose = { ui.tool = null }) {
-                    ToolPanel(tool, vm, state, addAudio = media.audioFile)
+                    ToolPanel(tool, vm, state, addAudio = media.audioFile, editLook = { ui.editText(it, TextTab.STYLE) })
                 }
             }
         }

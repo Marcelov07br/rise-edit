@@ -74,7 +74,9 @@ internal fun previewItems(
     mainIndex: Int?,
     mainSourceMs: Long,
     frameAspect: Float,
-    textDraft: TextLayer? = null
+    textDraft: TextLayer? = null,
+    /** 0.25.0: the draft's look previews on its whole caption track (scope "Todas"). */
+    draftLookAll: Boolean = false
 ): List<PreviewItem> = buildList {
     val project = state.project
     val position = state.positionMs
@@ -86,6 +88,13 @@ internal fun previewItems(
             add(PreviewItem.Overlay(it, position - it.offsetMs, aspectOf(it.clip), frameAspect))
         }
     project.texts.filter { position in it.startMs until it.endMs && it.id != textDraft?.id }
+        .map {
+            if (draftLookAll && textDraft != null && br.com.riseedit.core.CaptionScope.sameTrack(it, textDraft)) {
+                br.com.riseedit.core.CaptionScope.withLook(it, textDraft)
+            } else {
+                it
+            }
+        }
         .forEach { add(PreviewItem.Text(it, position - it.startMs, frameAspect)) }
     textDraft?.let {
         val local = (position - it.startMs).coerceIn(0, it.endMs - it.startMs - 1)

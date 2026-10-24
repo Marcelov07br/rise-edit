@@ -37,7 +37,10 @@ internal class EditorUiState(toolState: MutableState<EditorTool?>) {
 
     /** Text being created/edited in the text sheet; null when the sheet is closed. */
     var textDraft by mutableStateOf<TextLayer?>(null)
-    var textTab by mutableStateOf(TextTab.STYLES)
+
+    /** 0.25.0: caption look edits go to the whole track by default ("Só esta" = exception). */
+    var lookScope by mutableStateOf(br.com.riseedit.core.LookScope.ALL)
+    var textTab by mutableStateOf(TextTab.STYLE)
 
     /** Set while the eyedropper waits for a tap on the preview. */
     var eyedropper by mutableStateOf<((Int) -> Unit)?>(null)
@@ -59,9 +62,7 @@ internal fun rememberEditorUiState(): EditorUiState {
 internal enum class ToolMenu { TEXT, AUDIO, OVERLAY, COLOR, MARKERS }
 
 internal enum class TextTab(val label: String) {
-    TEMPLATES("Modelos"),
-    FONTS("Fontes"),
-    STYLES("Estilos"),
-    EFFECTS("Efeitos"),
-    ANIMATIONS("Animações")
+    TEXT("Texto"),
+    STYLE("Estilo"),
+    ANIMATION("Animação")
 }

@@ -270,7 +270,7 @@ private fun measure(
 
 /** Whisper on-device captions as text layers (0.24.0: design-system zone, word timings). */
 @Composable
-internal fun SubtitlesPanel(vm: EditorViewModel, state: EditorState) {
+internal fun SubtitlesPanel(vm: EditorViewModel, state: EditorState, editLook: (br.com.riseedit.core.TextLayer) -> Unit = {}) {
     val context = LocalContext.current
     val status by SubtitleJobs.status.collectAsStateWithLifecycle()
     var downloaded by remember(status.running) { mutableStateOf(SubtitleJobs.downloaded(context)) }
@@ -291,7 +291,11 @@ internal fun SubtitlesPanel(vm: EditorViewModel, state: EditorState) {
                 downloaded = SubtitleJobs.downloaded(context)
             },
             selected = selected,
-            editText = vm::text
+            editText = vm::text,
+            captions = state.project.texts.count { it.isCaption },
+            editLook = {
+                (selected?.takeIf { it.isCaption } ?: state.project.texts.firstOrNull { it.isCaption })?.let(editLook)
+            }
         )
     )
 }

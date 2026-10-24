@@ -72,7 +72,7 @@ internal fun TextEditorSheet(vm: EditorViewModel, ui: EditorUiState, draft: Text
         ui.eyedropper = null
         ui.textDraft = null
         if (draft.text.isBlank()) return
-        vm.text(draft)
+        vm.text(draft, ui.lookScope)
         vm.selectLayer(draft.id)
     }
     BackHandler { confirm() }
@@ -85,27 +85,22 @@ internal fun TextEditorSheet(vm: EditorViewModel, ui: EditorUiState, draft: Text
     ) {
         TextInputRow(draft, ::update, ::confirm)
         DragHandle(onDismiss = ::confirm)
-        TabsRow(ui.textTab) { ui.textTab = it }
         Column(
-            Modifier.fillMaxWidth().height(268.dp).verticalScroll(rememberScrollState())
+            Modifier.fillMaxWidth().height(320.dp).verticalScroll(rememberScrollState())
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            AnimatedContent(
-                ui.textTab,
-                transitionSpec = { fadeIn(tween(140)) togetherWith fadeOut(tween(90)) },
-                label = "textTab"
-            ) { tab ->
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    when (tab) {
-                        TextTab.TEMPLATES -> TemplatesTab(draft, ::update)
-                        TextTab.FONTS -> FontsTab(draft, ::update)
-                        TextTab.STYLES -> StylesTab(draft, ::update, ui)
-                        TextTab.EFFECTS -> EffectsTab(draft, ::update)
-                        TextTab.ANIMATIONS -> AnimationsTab(draft, ::update)
-                    }
-                }
-            }
+            TextStudio(
+                draft,
+                ::update,
+                ui,
+                StudioActions(
+                    userLooks = vm.userLooks,
+                    saveLook = vm::saveLook,
+                    deleteLook = vm::deleteLook,
+                    trackCount = vm.trackCount(draft)
+                )
+            )
         }
     }
 }
@@ -183,32 +178,4 @@ private fun DragHandle(onDismiss: () -> Unit) {
             ).height(4.dp).clip(RoundedCornerShape(2.dp)).background(RiseOutline)
         )
     }
-}
-
-@Composable
-private fun TabsRow(selected: TextTab, onSelect: (TextTab) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-        TextTab.entries.forEach { tab ->
-            val active = tab == selected
-            Column(
-                Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).clickable { onSelect(tab) }
-                    .padding(vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    tab.label,
-                    color = if (active) RiseWhite else RiseMuted,
-                    fontSize = 13.sp,
-                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-                    maxLines = 1
-                )
-                val width by animateDpAsState(if (active) 18.dp else 0.dp, label = "tab")
-                Box(
-                    Modifier.padding(top = 5.dp).width(width).height(3.dp)
-                        .clip(RoundedCornerShape(2.dp)).background(RiseWhite)
-                )
-            }
-        }
-    }
-    Box(Modifier.fillMaxWidth().height(1.dp).background(RiseOutline))
 }

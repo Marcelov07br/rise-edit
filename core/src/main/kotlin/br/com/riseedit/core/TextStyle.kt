@@ -229,7 +229,7 @@ object WordMotion {
             )
             WordAnimation.KEYWORD -> if (keyword) {
                 val inT = if (spoken) Easing.spring(t) else 0f
-                WordFrame(scale = 1f + 0.32f * inT, highlight = inT)
+                WordFrame(scale = 1f + 0.2f * inT, highlight = inT)
             } else {
                 WordFrame.STILL
             }

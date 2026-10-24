@@ -188,7 +188,28 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
 
     fun selectLayer(id: String) = layers.select(id)
     fun clearLayer() = layers.select(null)
-    fun text(layer: TextLayer) = layers.text(layer)
+    fun text(layer: TextLayer, scope: br.com.riseedit.core.LookScope = br.com.riseedit.core.LookScope.ONLY_THIS) =
+        layers.text(layer, scope)
+
+    /** 0.25.0: "Meus estilos" (saved looks), persisted in app storage. */
+    val userLooks = androidx.compose.runtime.mutableStateListOf<br.com.riseedit.core.TextLook>().also {
+        it.addAll(br.com.riseedit.text.UserStyles.load(application))
+    }
+
+    fun saveLook(layer: TextLayer) {
+        val name = br.com.riseedit.text.UserStyles.nextName(userLooks)
+        userLooks.add(br.com.riseedit.core.TextLook(name, layer.color, layer.highlightColor, layer.style))
+        br.com.riseedit.text.UserStyles.save(getApplication(), userLooks.toList())
+        message("Estilo salvo como \"$name\".")
+    }
+
+    fun deleteLook(look: br.com.riseedit.core.TextLook) {
+        userLooks.remove(look)
+        br.com.riseedit.text.UserStyles.save(getApplication(), userLooks.toList())
+    }
+
+    fun trackCount(layer: TextLayer): Int =
+        br.com.riseedit.core.CaptionScope.count(document.current.project.texts, layer)
     fun audio(layer: AudioClip) = layers.audio(layer)
     fun overlay(layer: VideoOverlay) = layers.overlay(layer)
     fun removeLayer() = layers.remove()

@@ -10,13 +10,10 @@ internal class LayerCommands(private val document: EditorDocument) {
         if (document.current.busy == null) document.update { it.copy(selectionId = id) }
     }
 
-    fun text(layer: TextLayer) {
+    /** 0.25.0: a caption look edit with [LookScope.ALL] restyles its whole track in ONE undo step. */
+    fun text(layer: TextLayer, scope: br.com.riseedit.core.LookScope = br.com.riseedit.core.LookScope.ONLY_THIS) {
         val project = document.current.project
-        val texts = if (project.texts.any { it.id == layer.id }) {
-            project.texts.map { if (it.id == layer.id) layer else it }
-        } else {
-            project.texts + layer
-        }
+        val texts = br.com.riseedit.core.CaptionScope.apply(project.texts, layer, scope)
         if (document.edit(project.copy(texts = texts))) select(layer.id)
     }
 

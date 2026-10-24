@@ -19,8 +19,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -69,7 +71,10 @@ internal class CaptionsActions(
     val delete: (WhisperModel) -> Unit = {},
     /** Selected caption layer (word editor), null = none selected. */
     val selected: TextLayer? = null,
-    val editText: (TextLayer) -> Unit = {}
+    val editText: (TextLayer) -> Unit = {},
+    /** 0.25.0: captions in the project and the "Estilo e animação" entry (whole track). */
+    val captions: Int = 0,
+    val editLook: () -> Unit = {}
 )
 
 @Composable
@@ -133,6 +138,16 @@ internal fun CaptionsContent(
             enabled = !running && a.hasClips,
             modifier = Modifier.fillMaxWidth().height(52.dp)
         ) { Text(if (have) "Gerar legendas" else "Baixar ${model.approxMb} MB e gerar") }
+        if (a.captions > 0) {
+            OutlinedButton(
+                onClick = a.editLook,
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                Icon(Icons.Rounded.Palette, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Estilo e animação · ${a.captions} legendas")
+            }
+        }
         a.selected?.takeIf { it.words.isNotEmpty() }?.let { WordEditor(it, a.editText, initialWord) }
     }
 }

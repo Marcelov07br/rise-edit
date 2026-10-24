@@ -57,48 +57,6 @@ internal fun TileRow(content: @Composable () -> Unit) {
     ) { content() }
 }
 
-/** A tile that previews [sample] with the real export renderer. */
-@Composable
-internal fun RenderedTile(
-    label: String,
-    sample: TextLayer,
-    selected: Boolean,
-    size: Dp = 60.dp,
-    onClick: () -> Unit
-) {
-    val still = sample.copy(
-        style = sample.style.copy(
-            animationIn = TextAnimation.NONE,
-            animationOut = TextAnimation.NONE
-        )
-    )
-    val bitmap = remember(still) { TextRenderer.render(still, 220, 220).asImageBitmap() }
-    Column(
-        Modifier.width(size + 4.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick)
-            .semantics { contentDescription = label },
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            Modifier.size(size).clip(RoundedCornerShape(14.dp)).background(Color(0xFF2A2A2A))
-                .border(
-                    if (selected) 2.dp else 0.dp,
-                    if (selected) RiseWhite else Color.Transparent,
-                    RoundedCornerShape(14.dp)
-                )
-                .padding(6.dp),
-            contentAlignment = Alignment.Center
-        ) { Image(bitmap, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
-        Text(
-            label,
-            color = if (selected) RiseWhite else RiseMuted,
-            fontSize = 10.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 4.dp)
-        )
-    }
-}
-
 /** Pill chips used for sub-tabs. */
 @Composable
 internal fun <T> PillRow(items: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {

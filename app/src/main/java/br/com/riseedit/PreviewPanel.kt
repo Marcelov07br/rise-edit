@@ -79,7 +79,8 @@ fun PreviewPanel(
     onSelect: (Boolean) -> Unit = {},
     textDraft: TextLayer? = null,
     onDraftTransform: (TextLayer) -> Unit = {},
-    pickColor: ((Int) -> Unit)? = null
+    pickColor: ((Int) -> Unit)? = null,
+    draftLookAll: Boolean = false
 ) {
     val previewPlayer = vm.player
     val fast = previewPlayer is ExoPlayer
@@ -361,7 +362,8 @@ fun PreviewPanel(
                             },
                             vm.previewSourceMs,
                             outputRatio,
-                            textDraft
+                            textDraft,
+                            draftLookAll
                         )
                     val selectedId =
                         textDraft?.id ?: state.layerId ?: clip?.id?.takeIf { mainSelected }
