@@ -314,8 +314,12 @@ data class ExportSettings(
 data class Marker(
     val id: String = UUID.randomUUID().toString(),
     val timeMs: Long,
-    val label: String = ""
+    val label: String = "",
+    /** 0.24.0: ARGB marker color (timeline flag + list). */
+    val color: Int = MARKER_DEFAULT_COLOR
 )
+
+const val MARKER_DEFAULT_COLOR = 0xFF4FC3F7.toInt()
 data class Project(
     val clips: List<Clip> = emptyList(),
     val id: String = UUID.randomUUID().toString(),
@@ -329,7 +333,9 @@ data class Project(
     val export: ExportSettings = ExportSettings(),
     val markers: List<Marker> = emptyList(),
     /** Camadas de ajuste (0.16), applied after composition; see [AdjustmentStack]. */
-    val adjustmentLayers: List<AdjustmentLayer> = emptyList()
+    val adjustmentLayers: List<AdjustmentLayer> = emptyList(),
+    /** 0.24.0: what fills the bars when clips are fitted (Formato → Fundo). */
+    val background: FrameBackground = FrameBackground()
 ) {
     /** Cached per instance (Project is immutable; every edit is a copy). Perf 0.22.2. */
     val durationMs: Long by lazy(LazyThreadSafetyMode.PUBLICATION) { clips.sumOf { it.durationMs } }

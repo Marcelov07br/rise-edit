@@ -280,6 +280,10 @@ class ProjectStore(private val context: Context) {
             "ratio",
             p.aspectRatio
         ).put(
+            "bg",
+            JSONObject().put("kind", p.background.kind.name).put("color", p.background.color)
+                .put("blur", p.background.blur.toDouble()).put("dim", p.background.dim.toDouble())
+        ).put(
             "export",
             JSONArray(
                 listOf(
@@ -300,6 +304,7 @@ class ProjectStore(private val context: Context) {
             JSONArray(
                 p.markers.map {
                     JSONObject().put("id", it.id).put("t", it.timeMs).put("label", it.label)
+                        .put("color", it.color)
                 }
             )
         )
@@ -409,6 +414,15 @@ class ProjectStore(private val context: Context) {
                 "favorite"
             ),
             aspectRatio = j.optDouble("ratio", 0.0).toFloat(),
+            background = j.optJSONObject("bg")?.let { b ->
+                br.com.riseedit.core.FrameBackground(
+                    runCatching { br.com.riseedit.core.BackgroundKind.valueOf(b.optString("kind")) }
+                        .getOrDefault(br.com.riseedit.core.BackgroundKind.BLACK),
+                    b.optInt("color", 0xFF000000.toInt()),
+                    b.optDouble("blur", 0.6).toFloat().coerceIn(0f, 1f),
+                    b.optDouble("dim", 0.25).toFloat().coerceIn(0f, 1f)
+                )
+            } ?: br.com.riseedit.core.FrameBackground(),
             export = if (e ==
                 null
             ) {
@@ -434,7 +448,12 @@ class ProjectStore(private val context: Context) {
                 )
             },
             markers = objects(j.optJSONArray("markers")).map {
-                Marker(it.getString("id"), it.getLong("t"), it.optString("label"))
+                Marker(
+                    it.getString("id"),
+                    it.getLong("t"),
+                    it.optString("label"),
+                    it.optInt("color", br.com.riseedit.core.MARKER_DEFAULT_COLOR)
+                )
             },
             adjustmentLayers = objects(j.optJSONArray("adjustmentLayers")).mapNotNull {
                 runCatching {

@@ -13,7 +13,9 @@ internal fun buildOutputEffects(project: Project, preview: Boolean): List<Effect
     if (project.aspectRatio > 0) {
         val fill = project.clips.firstOrNull()?.orientation?.scaleMode !=
             br.com.riseedit.core.ScaleMode.FIT
-        add(
+        if (!fill && !project.background.isBlack) {
+            add(BackgroundFitEffect(project.aspectRatio, project.background))
+        } else add(
             Presentation.createForAspectRatio(
                 project.aspectRatio,
                 if (fill) {

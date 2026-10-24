@@ -300,6 +300,22 @@ internal class ProjectCommands(private val document: EditorDocument) {
         document.edit(br.com.riseedit.core.editing.RippleDelete.clip(state.project, state.selected))
     }
 
+    /** Formato → Enquadrar: static transform, or a key at the playhead when already keyed. */
+    fun transformSelected(sourceMs: Long, t: br.com.riseedit.core.TransformKeyframe) {
+        val state = document.current
+        val clip = state.project.clips.getOrNull(state.selected) ?: return
+        document.edit(
+            state.project.replace(
+                state.selected,
+                br.com.riseedit.core.TransformEdits.clip(clip, sourceMs, t)
+            )
+        )
+    }
+
+    fun background(bg: br.com.riseedit.core.FrameBackground) {
+        document.edit(document.current.project.copy(background = bg))
+    }
+
     fun toggleMarker() {
         val state = document.current
         document.edit(br.com.riseedit.core.editing.Markers.toggle(state.project, state.positionMs))

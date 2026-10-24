@@ -86,6 +86,9 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun projectSettings(ratio: Float, export: ExportSettings) =
         commands.projectSettings(ratio, export)
     fun clipSettings(clip: Clip) = commands.clipSettings(clip)
+    fun background(bg: br.com.riseedit.core.FrameBackground) = commands.background(bg)
+    fun transformSelected(t: br.com.riseedit.core.TransformKeyframe) =
+        commands.transformSelected(previewSourceMs, t)
     fun trim(start: Long, end: Long) = commands.trim(start, end)
     fun trimClip(original: Clip, trimmed: Clip): Boolean {
         if (!commands.trimClip(original, trimmed)) return false
