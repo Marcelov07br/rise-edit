@@ -163,6 +163,16 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     val hasClipboard get() = commands.hasClipboard
     fun rippleDelete() = commands.rippleDelete()
     fun toggleMarker() = commands.toggleMarker()
+    fun addMarker(): String {
+        val id = commands.addMarker()
+        state.value.project.markers.firstOrNull { it.id == id }?.let {
+            document.message("Marcador \"${it.label}\" em ${br.com.riseedit.core.editing.YouTubeChapters.stamp(it.timeMs, false)}")
+        }
+        return id
+    }
+    fun updateMarker(m: br.com.riseedit.core.Marker) = commands.updateMarker(m)
+    fun removeMarker(id: String) = commands.removeMarker(id)
+    fun seekMarker(m: br.com.riseedit.core.Marker) = seek(m.timeMs)
     fun jumpMarker(forward: Boolean) {
         val s = state.value
         val target = if (forward) {

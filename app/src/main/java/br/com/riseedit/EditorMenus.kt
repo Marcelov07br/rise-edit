@@ -64,7 +64,7 @@ internal fun toolbarLevel(
             ui,
             media,
             enabled,
-            MarkerActions(vm::toggleMarker, vm::jumpMarker)
+            MarkerActions({ vm.addMarker() }, vm::jumpMarker)
         )
     } else {
         baseItems(base, vm, state, ui, media, enabled)
@@ -256,18 +256,14 @@ private fun menuItems(
         ToolbarItem("Camada de ajuste", Icons.Outlined.Layers, enabled) { vm.addAdjustmentLayer() }
     )
     ToolMenu.MARKERS -> listOf(
-        ToolbarItem(
-            "Marcar / desmarcar",
-            Icons.Outlined.BookmarkAdd,
-            enabled,
-            onClick = markers.toggle
-        ),
+        ToolbarItem("Adicionar (M)", Icons.Outlined.BookmarkAdd, enabled, onClick = markers.add),
+        ui.toolItem(EditorTool.Markers, enabled, "Editar / capítulos"),
         ToolbarItem("Anterior", Icons.Outlined.SkipPrevious, enabled) { markers.jump(false) },
         ToolbarItem("Próximo", Icons.Outlined.SkipNext, enabled) { markers.jump(true) }
     )
 }
 
-private class MarkerActions(val toggle: () -> Unit, val jump: (Boolean) -> Unit)
+private class MarkerActions(val add: () -> Unit, val jump: (Boolean) -> Unit)
 
 private fun textTabItems(
     ui: EditorUiState,

@@ -97,7 +97,7 @@ internal fun perform(
         RiseAction.SPEED -> openTool(ui, EditorTool.Speed)
         RiseAction.ADD_TEXT -> ui.menu = listOf(ToolMenu.TEXT)
         RiseAction.ADD_ADJUSTMENT -> vm.addAdjustmentLayer()
-        RiseAction.MARKER -> vm.toggleMarker()
+        RiseAction.MARKER -> vm.addMarker()
         RiseAction.MARKER_NEXT -> vm.jumpMarker(true)
         RiseAction.MARKER_PREV -> vm.jumpMarker(false)
         RiseAction.ZOOM_IN -> ui.timeline.zoom(1.4)

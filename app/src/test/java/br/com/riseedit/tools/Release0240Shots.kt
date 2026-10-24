@@ -116,6 +116,17 @@ internal object Shots0240 {
         )
     }
 
+    val markers = listOf(
+        br.com.riseedit.core.Marker("m0", 0, "Gancho", 0xFFFF3B30.toInt()),
+        br.com.riseedit.core.Marker("m1", 18_000, "Setup do tablet", br.com.riseedit.core.MARKER_DEFAULT_COLOR),
+        br.com.riseedit.core.Marker("m2", 41_000, "Edição no DeX", 0xFF34C759.toInt()),
+        br.com.riseedit.core.Marker("m3", 52_000, "Final", 0xFFFFCC00.toInt())
+    )
+    val badMarkers = listOf(
+        br.com.riseedit.core.Marker("b1", 12_000, "Setup"),
+        br.com.riseedit.core.Marker("b2", 16_000, "Corte rápido", 0xFFFF9500.toInt())
+    )
+
     val blur = FrameBackground(BackgroundKind.BLUR, blur = 0.7f, dim = 0.3f)
     val color = FrameBackground(BackgroundKind.COLOR, color = 0xFF0A84FF.toInt())
 }
@@ -216,6 +227,26 @@ abstract class Release0240Base(private val dex: Boolean) {
                     br.com.riseedit.settings.SettingsInfo("0.24.0", 41, 812_000_000, proxyBytes = 640_000_000)
                 )
             }
+        }
+    }
+
+    @Test fun marcadoresLista() = p.snapshot {
+        Shots0240.Frame(dex) {
+            br.com.riseedit.markers.MarkersContent(Shots0240.markers, 64_000, 41_000, br.com.riseedit.markers.MarkersActions(), "m2")
+        }
+    }
+    @Test fun capitulosOk() = p.snapshot {
+        Shots0240.Frame(dex) {
+            br.com.riseedit.markers.MarkersContent(
+                Shots0240.markers, 64_000, 0, br.com.riseedit.markers.MarkersActions(), "none", chaptersOpenInitially = true
+            )
+        }
+    }
+    @Test fun capitulosAvisos() = p.snapshot {
+        Shots0240.Frame(dex) {
+            br.com.riseedit.markers.MarkersContent(
+                Shots0240.badMarkers, 64_000, 0, br.com.riseedit.markers.MarkersActions(), "none", chaptersOpenInitially = true
+            )
         }
     }
 }

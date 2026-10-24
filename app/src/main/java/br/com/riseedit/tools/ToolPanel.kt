@@ -33,5 +33,6 @@ fun ToolPanel(
         EditorTool.Meters -> MetersPanel(vm, state)
         EditorTool.Subtitles -> SubtitlesPanel(vm, state)
         EditorTool.Masks -> MaskPanel(vm, state)
+        EditorTool.Markers -> br.com.riseedit.markers.MarkersPanel(vm, state)
     }
 }

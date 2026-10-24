@@ -102,7 +102,8 @@ internal fun TimelineStage(
                     ui.viewport,
                     duration,
                     state.value.project.markers.map { it.timeMs },
-                    state.value.project.export.fps
+                    state.value.project.export.fps,
+                    state.value.project.markers.map { it.color }
                 )
                 TimelineTrackList(lanes, laneIndex, ui, actions, scroll)
             }

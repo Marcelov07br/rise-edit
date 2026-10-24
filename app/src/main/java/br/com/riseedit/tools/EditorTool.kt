@@ -3,6 +3,7 @@ package br.com.riseedit.tools
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Animation
+import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ContentCut
@@ -75,13 +76,16 @@ sealed class EditorTool(
     data object Subtitles :
         EditorTool("Legendas", "Legendas", Icons.Outlined.Timer, "Legendas automáticas (Whisper)")
 
+    data object Markers :
+        EditorTool("Marcadores", "Editar", Icons.Outlined.Bookmark, "Marcadores e capítulos")
+
     val title: String get() = panelTitle
 
     companion object {
         private val all = listOf(
             Trim, Stabilize, Format, Speed, Volume, Adjust, Filters, ClipAnimation, AudioLayer,
             Record, OverlayOpacity, OverlayBlend, OverlayMask, OverlayTrim, TextTiming,
-            Orientation, Keyframe, Grade, Meters, Subtitles, Masks
+            Orientation, Keyframe, Grade, Meters, Subtitles, Masks, Markers
         )
         val saver =
             Saver<EditorTool?, String>(

@@ -20,7 +20,9 @@ internal fun TimelineRuler(
     viewport: TimelineViewport,
     durationUs: Long,
     markersMs: List<Long> = emptyList(),
-    fps: Int = 30
+    fps: Int = 30,
+    /** 0.24.0: ARGB per marker (same order as [markersMs]). */
+    markerColors: List<Int> = emptyList()
 ) {
     val density = LocalDensity.current.density
     Canvas(Modifier.fillMaxWidth().height(28.dp)) {
@@ -46,10 +48,11 @@ internal fun TimelineRuler(
                 drawContext.canvas.nativeCanvas.drawText(text, x + 3 * density, 12 * density, paint)
             }
         }
-        markersMs.forEach { ms ->
+        markersMs.forEachIndexed { i, ms ->
             val x = viewport.pxAtTime(ms * 1000.0).toFloat()
-            drawLine(Color.White, Offset(x, 0f), Offset(x, size.height), 2 * density)
-            drawCircle(Color.White, 3 * density, Offset(x, 3 * density))
+            val c = markerColors.getOrNull(i)?.let { Color(it) } ?: Color.White
+            drawLine(c, Offset(x, 0f), Offset(x, size.height), 2 * density)
+            drawCircle(c, 4 * density, Offset(x, 4 * density))
         }
     }
 }

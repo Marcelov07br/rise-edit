@@ -321,6 +321,20 @@ internal class ProjectCommands(private val document: EditorDocument) {
         document.edit(br.com.riseedit.core.editing.Markers.toggle(state.project, state.positionMs))
     }
 
+    /** 0.24.0: M = add at the playhead (Premiere cmd.set.marker); returns the marker id. */
+    fun addMarker(): String {
+        val state = document.current
+        val (p, m) = br.com.riseedit.core.editing.MarkerEdits.add(state.project, state.positionMs)
+        document.edit(p)
+        return m.id
+    }
+
+    fun updateMarker(marker: br.com.riseedit.core.Marker) =
+        document.edit(br.com.riseedit.core.editing.MarkerEdits.update(document.current.project, marker))
+
+    fun removeMarker(id: String) =
+        document.edit(br.com.riseedit.core.editing.MarkerEdits.remove(document.current.project, id))
+
     fun jlCut(audioId: String, leadMs: Long, tailMs: Long) {
         document.edit(
             br.com.riseedit.core.editing.JLCut.set(
