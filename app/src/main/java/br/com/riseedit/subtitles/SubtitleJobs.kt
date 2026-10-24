@@ -2,6 +2,7 @@ package br.com.riseedit.subtitles
 
 import android.content.Context
 import br.com.riseedit.core.Project
+import br.com.riseedit.core.SpeechChunks
 import br.com.riseedit.core.SpeechSegment
 import br.com.riseedit.core.Subtitles
 import br.com.riseedit.core.TextLayer
@@ -67,7 +68,7 @@ internal object SubtitleJobs {
     fun cancel() {
         WhisperNative.abort()
         job?.cancel()
-        mutable.value = SubtitleStatus(text = "Cancelado.")
+        mutable.value = SubtitleStatus(text = "Cancelado — legendas já transcritas foram mantidas.")
     }
 
     fun delete(context: Context, model: WhisperModel) {
@@ -76,21 +77,35 @@ internal object SubtitleJobs {
         mutable.value = SubtitleStatus(text = "Modelo ${model.label} removido.")
     }
 
-    @Suppress("LongMethod")
+    /**
+     * 0.25.0: progressive. Each clip's audio goes through the energy VAD; silence is cut and
+     * the speech is transcribed in ≤28 s glued chunks, in order. After every chunk [partial]
+     * gets all captions so far (shown at once, no undo step); [done] commits them once (one
+     * undo step) — also after a cancel or a failure, keeping what was already transcribed.
+     */
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
     fun start(
         context: Context,
         project: Project,
         model: WhisperModel,
         language: String,
+        partial: (List<TextLayer>) -> Unit = {},
         done: (List<TextLayer>) -> Unit
     ) {
         if (job?.isActive == true) return
         val app = context.applicationContext
+        val group = java.util.UUID.randomUUID().toString()
         job = scope.launch {
+            val segments = mutableListOf<SpeechSegment>()
+            var finished = false
+            fun captions() = Subtitles.layers(segments, project.durationMs, group)
             try {
                 val file = modelFile(app, model)
                 if (!file.exists()) download(model, file)
                 verify(model, file)
+                if (!WhisperNative.cpuSupported) {
+                    error("Este processador não tem ARMv8.2 (dotprod/fp16) exigido pelo Whisper.")
+                }
                 if (!WhisperNative.available) {
                     error(
                         "Biblioteca Whisper indisponível neste aparelho."
@@ -99,33 +114,40 @@ internal object SubtitleJobs {
                 mutable.value = SubtitleStatus(true, "Carregando ${model.label}…")
                 val handle = WhisperNative.init(file.absolutePath)
                 if (handle == 0L) error("Modelo inválido. Apague e baixe de novo.")
-                val segments = mutableListOf<SpeechSegment>()
+                val started = System.nanoTime()
+                val threads = WhisperNative.threads
                 try {
                     var offset = 0L
                     project.clips.forEachIndexed { i, clip ->
                         ensureActive()
                         val label = "Clipe ${i + 1}/${project.clips.size}"
+                        val clipShare = 1f / project.clips.size
                         mutable.value =
-                            SubtitleStatus(
-                                true,
-                                "$label: lendo áudio…",
-                                i.toFloat() / project.clips.size
-                            )
+                            SubtitleStatus(true, "$label: lendo áudio…", i * clipShare)
                         val pcm = runCatching {
                             AudioDecoder.decode(app, clip.uri, clip.startMs, clip.endMs)
                         }.onFailure { Diagnostics.log("legendas", "decodificação falhou", it) }
                             .getOrDefault(FloatArray(0))
-                        if (pcm.size > 16_000 / 2) {
-                            mutable.value =
-                                SubtitleStatus(
-                                    true,
-                                    "$label: transcrevendo…",
-                                    i.toFloat() / project.clips.size
-                                )
-                            val threads = Runtime.getRuntime().availableProcessors().coerceIn(2, 8)
-                            val raw = WhisperNative.transcribe(handle, pcm, language, threads)
+                        val chunks = if (pcm.size > 16_000 / 2) {
+                            SpeechChunks.plan(SpeechChunks.voiced(pcm))
+                        } else {
+                            emptyList()
+                        }
+                        chunks.forEachIndexed { c, chunk ->
+                            ensureActive()
+                            mutable.value = SubtitleStatus(
+                                true,
+                                "$label: transcrevendo trecho ${c + 1}/${chunks.size} · ${segments.size} legendas",
+                                (i + c.toFloat() / chunks.size) * clipShare
+                            )
+                            val audio = SpeechChunks.glued(pcm, chunk)
+                            val raw = WhisperNative.transcribe(handle, audio, language, threads)
                                 ?.decodeToString() ?: ""
-                            segments += Subtitles.mapClip(Subtitles.parse(raw), clip, offset)
+                            ensureActive()
+                            val local = SpeechChunks.remap(Subtitles.parse(raw), chunk)
+                            segments += Subtitles.mapClip(local, clip, offset)
+                            val sofar = captions()
+                            withContext(Dispatchers.Main) { partial(sofar) }
                         }
                         offset += clip.durationMs
                     }
@@ -133,15 +155,25 @@ internal object SubtitleJobs {
                     WhisperNative.free(handle)
                 }
                 ensureActive()
-                val layers = Subtitles.layers(segments, project.durationMs)
+                val layers = captions()
+                finished = true
                 withContext(Dispatchers.Main) { done(layers) }
-                mutable.value = SubtitleStatus(text = "Pronto: ${layers.size} legendas · modelo SHA-256 verificado.")
+                val seconds = (System.nanoTime() - started) / 1e9
+                Diagnostics.log("legendas", "%s: %d legendas em %.1f s, %d threads".format(model.file, layers.size, seconds, threads))
+                mutable.value = SubtitleStatus(
+                    text = "Pronto: ${layers.size} legendas em %.0f s · modelo SHA-256 verificado.".format(seconds)
+                )
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Exception) {
                 Diagnostics.log("legendas", "falha", error)
                 mutable.value =
                     SubtitleStatus(text = "Falhou: ${error.message ?: error.javaClass.simpleName}")
+            } finally {
+                if (!finished) {
+                    val kept = captions()
+                    withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main) { done(kept) }
+                }
             }
         }
     }

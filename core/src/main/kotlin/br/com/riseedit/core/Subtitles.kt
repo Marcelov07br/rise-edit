@@ -13,6 +13,8 @@ enum class WhisperModel(
     val sha256: String
 ) {
     BASE_Q5("Base q5", "ggml-base-q5_1.bin", 60, 59_707_625, "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898"),
+    /** 0.25.0: "Rápido" — tiny q5_1 (32 MB), ~2× faster than base, a bit less accurate. */
+    TINY_Q5("Rápido (Tiny q5)", "ggml-tiny-q5_1.bin", 32, 32_152_673, "818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7"),
     SMALL_Q5("Small q5", "ggml-small-q5_1.bin", 190, 190_085_487, "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb"),
     TINY("Tiny", "ggml-tiny.bin", 78, 77_691_713, "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21"),
     BASE("Base", "ggml-base.bin", 148, 147_951_465, "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe"),
@@ -103,7 +105,7 @@ object Subtitles {
     }
 
     /** Shorts-style captions: centered, low, one segment per layer, no overlaps. */
-    fun layers(segments: List<SpeechSegment>, durationMs: Long): List<TextLayer> {
+    fun layers(segments: List<SpeechSegment>, durationMs: Long, group: String? = null): List<TextLayer> {
         val sorted = segments.sortedBy { it.startMs }
         return sorted.mapIndexedNotNull { i, s ->
             val next = sorted.getOrNull(i + 1)?.startMs ?: durationMs
@@ -120,7 +122,8 @@ object Subtitles {
                     size = 0.8f,
                     animated = false,
                     words = CaptionWords.fromSpeech(s.words, start, end),
-                    highlightColor = if (s.words.isEmpty()) 0 else CaptionWords.HIGHLIGHT
+                    highlightColor = if (s.words.isEmpty()) 0 else CaptionWords.HIGHLIGHT,
+                    captionGroup = group
                 )
             }
         }

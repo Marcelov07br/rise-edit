@@ -58,6 +58,16 @@ internal class EditorDocument(val store: ProjectStore) {
         return true
     }
 
+    /** 0.25.0: commit whose undo point is [before] (progressive captions shown via [attach]). */
+    fun commitOver(before: Project, candidate: Project): Boolean {
+        if (current.busy != null || candidate == before) return false
+        val project = candidate.copy(modifiedAt = System.currentTimeMillis())
+        if (!save(project)) return false
+        history.record(before)
+        publish(project, current.selected)
+        return true
+    }
+
     /** 0.24.0: saves a non-edit change (proxy attached, "Usar proxies") without an undo step. */
     fun attach(candidate: Project) {
         if (candidate == current.project) return

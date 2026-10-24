@@ -346,10 +346,28 @@ internal class ProjectCommands(private val document: EditorDocument) {
         )
     }
 
-    fun addTexts(layers: List<br.com.riseedit.core.TextLayer>) {
-        if (layers.isEmpty()) return document.message("Nenhuma fala reconhecida.")
+    /** 0.25.0: ids of captions shown while transcribing (not in history yet). */
+    private var partialIds = emptySet<String>()
+
+    fun partialTexts(layers: List<br.com.riseedit.core.TextLayer>) {
         val project = document.current.project
-        document.edit(project.copy(texts = project.texts + layers))
+        val kept = project.texts.filter { it.id !in partialIds }
+        partialIds = layers.mapTo(HashSet()) { it.id }
+        document.attach(project.copy(texts = kept + layers))
+    }
+
+    /** Final captions: one undo step back to the project without any of them. */
+    fun addTexts(layers: List<br.com.riseedit.core.TextLayer>) {
+        val project = document.current.project
+        val before = project.copy(texts = project.texts.filter { it.id !in partialIds })
+        partialIds = emptySet()
+        if (layers.isEmpty()) {
+            document.attach(before)
+            return document.message("Nenhuma fala reconhecida.")
+        }
+        if (!document.commitOver(before, before.copy(texts = before.texts + layers))) {
+            document.attach(before.copy(texts = before.texts + layers))
+        }
         document.message("${layers.size} legendas adicionadas.")
     }
 }

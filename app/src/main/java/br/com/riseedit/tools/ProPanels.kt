@@ -283,7 +283,7 @@ internal fun SubtitlesPanel(vm: EditorViewModel, state: EditorState) {
             downloaded = downloaded,
             hasClips = state.project.clips.isNotEmpty(),
             start = { model, language ->
-                SubtitleJobs.start(context, state.project, model, language, vm::addSubtitles)
+                SubtitleJobs.start(context, state.project, model, language, vm::partialSubtitles, vm::addSubtitles)
             },
             cancel = SubtitleJobs::cancel,
             delete = {

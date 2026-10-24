@@ -184,6 +184,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     }
     fun jlCut(audioId: String, leadMs: Long, tailMs: Long) = commands.jlCut(audioId, leadMs, tailMs)
     fun addSubtitles(layers: List<TextLayer>) = commands.addTexts(layers)
+    fun partialSubtitles(layers: List<TextLayer>) = commands.partialTexts(layers)
 
     fun selectLayer(id: String) = layers.select(id)
     fun clearLayer() = layers.select(null)

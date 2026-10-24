@@ -242,11 +242,16 @@ data class TextLayer(
     /** 0.24.0: word timings (local ms) from automatic captions; empty = plain text. */
     val words: List<CaptionWord> = emptyList(),
     /** ARGB of the spoken word (0 = no highlight). */
-    val highlightColor: Int = 0
+    val highlightColor: Int = 0,
+    /** 0.25.0: captions generated together share a group (look edits apply to the group). */
+    val captionGroup: String? = null
 ) {
     init {
         require(endMs > startMs && startMs >= 0)
     }
+
+    /** Automatic caption (0.24.0 captions have words but no group). */
+    val isCaption: Boolean get() = captionGroup != null || words.isNotEmpty()
 
     /** Transform at [localMs] since the text starts; scale multiplies [size]. */
     fun transformAt(localMs: Long) = TransformPath.at(
