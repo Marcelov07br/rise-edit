@@ -72,6 +72,8 @@ class SettingsActions(
     val back: () -> Unit = {},
     val pickFolder: () -> Unit = {},
     val clearCache: () -> Unit = {},
+    /** 0.24.0: deletes proxies no saved project references. */
+    val clearProxies: () -> Unit = {},
     val shareLogs: () -> Unit = {}
 )
 
@@ -82,7 +84,9 @@ class SettingsInfo(
     val cacheBytes: Long = 0,
     val folderLabel: String? = null,
     /** 0.22: keymap shown in Atalhos (null → the app keymap). */
-    val keymap: br.com.riseedit.core.shortcuts.Keymap? = null
+    val keymap: br.com.riseedit.core.shortcuts.Keymap? = null,
+    /** 0.24.0: bytes in the proxy cache. */
+    val proxyBytes: Long = 0
 )
 
 internal val LICENSES = listOf(
@@ -220,6 +224,8 @@ private fun label(v: Any?): String = when (v) {
     is Quality -> v.label
     is PreviewQuality -> v.label
     is ThumbDensity -> v.label
+    is br.com.riseedit.core.ProxyResolution -> v.label
+    is br.com.riseedit.core.ProxyCodec -> v.label
     is Long -> "${v / 1000} s"
     else -> v.toString()
 }
@@ -377,11 +383,30 @@ private fun Preview(
                 },
             text = ::label
         )
+    }
+    Group("Proxies") {
         Toggle(
-            "Proxy automático acima de 1080p",
-            "Gera uma cópia leve para a prévia de vídeos 4K/1440p (o export usa o original)",
+            "Proxies automáticos para mídia pesada",
+            "4K, 10 bits, 4:2:2 ou bitrate alto · gerados em segundo plano, só para a prévia; a exportação usa o original",
             s.autoProxy4k
         ) { v -> onChange { it.copy(autoProxy4k = v) } }
+        Pair2(
+            "Resolução" to
+                Triple(br.com.riseedit.core.ProxyResolution.entries.toList(), s.proxyResolution) { v: br.com.riseedit.core.ProxyResolution ->
+                    onChange { it.copy(proxyResolution = v) }
+                },
+            "Codec" to
+                Triple(br.com.riseedit.core.ProxyCodec.entries.toList(), s.proxyCodec) { v: Any? ->
+                    onChange { it.copy(proxyCodec = v as br.com.riseedit.core.ProxyCodec) }
+                },
+            text = ::label
+        )
+        Action(
+            Icons.Rounded.DeleteSweep,
+            "Apagar proxies não usados",
+            "%.1f MB em proxies · os dos projetos salvos são mantidos".format(info.proxyBytes / 1_048_576.0),
+            actions.clearProxies
+        )
     }
     Group("Armazenamento") {
         Action(

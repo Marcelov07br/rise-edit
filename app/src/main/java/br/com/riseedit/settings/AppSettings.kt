@@ -36,6 +36,9 @@ data class AppSettings(
     val exportFolder: String? = null,
     val previewQuality: PreviewQuality = PreviewQuality.Faithful,
     val autoProxy4k: Boolean = true,
+    /** 0.24.0: preview proxies for heavy media. */
+    val proxyResolution: br.com.riseedit.core.ProxyResolution = br.com.riseedit.core.ProxyResolution.P720,
+    val proxyCodec: br.com.riseedit.core.ProxyCodec = br.com.riseedit.core.ProxyCodec.H264,
     val snap: Boolean = true,
     val ripple: Boolean = false,
     val thumbs: ThumbDensity = ThumbDensity.NORMAL,
@@ -64,6 +67,8 @@ data class AppSettings(
         exportFolder?.let { put("exportFolder", it) }
         put("preview", previewQuality.name)
         put("autoProxy4k", autoProxy4k.toString())
+        put("proxyRes", proxyResolution.name)
+        put("proxyCodec", proxyCodec.name)
         put("snap", snap.toString())
         put("ripple", ripple.toString())
         put("thumbs", thumbs.name)
@@ -98,6 +103,8 @@ data class AppSettings(
                 exportFolder = m["exportFolder"]?.takeIf { it.isNotBlank() },
                 previewQuality = m.enum("preview", d.previewQuality),
                 autoProxy4k = m.bool("autoProxy4k", d.autoProxy4k),
+                proxyResolution = m.enum("proxyRes", d.proxyResolution),
+                proxyCodec = m.enum("proxyCodec", d.proxyCodec),
                 snap = m.bool("snap", d.snap),
                 ripple = m.bool("ripple", d.ripple),
                 thumbs = m.enum("thumbs", d.thumbs),

@@ -104,6 +104,8 @@ data class Clip(
         require(speedPoints.zipWithNext().all { (a, b) -> a.sourceMs < b.sourceMs })
     }
     val sourceLengthMs get() = endMs - startMs
+    /** True when an optional (preview-only) proxy exists. */
+    val hasPreviewProxy get() = !proxyRequired && !proxyUri.isNullOrBlank()
     fun effectiveUri(preferProxy: Boolean = false): String =
         proxyUri?.takeIf { (preferProxy || proxyRequired) && it.isNotBlank() } ?: uri
     fun speedAt(sourceMs: Long) = speedPoints.lastOrNull { it.sourceMs <= sourceMs }?.speed ?: 1.0
@@ -339,8 +341,12 @@ data class Project(
     /** Camadas de ajuste (0.16), applied after composition; see [AdjustmentStack]. */
     val adjustmentLayers: List<AdjustmentLayer> = emptyList(),
     /** 0.24.0: what fills the bars when clips are fitted (Formato → Fundo). */
-    val background: FrameBackground = FrameBackground()
+    val background: FrameBackground = FrameBackground(),
+    /** 0.24.0: preview reads optional proxies ("Usar proxies"); export always reads the original. */
+    val useProxies: Boolean = true
 ) {
+    /** URI the preview decodes for [clip] (required compatibility copies are always used). */
+    fun previewUri(clip: Clip) = clip.effectiveUri(useProxies)
     /** Cached per instance (Project is immutable; every edit is a copy). Perf 0.22.2. */
     val durationMs: Long by lazy(LazyThreadSafetyMode.PUBLICATION) { clips.sumOf { it.durationMs } }
     fun replace(index: Int, clip: Clip) =

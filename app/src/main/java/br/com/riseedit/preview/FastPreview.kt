@@ -72,7 +72,7 @@ internal class FastPreview(context: Context, liveEffects: Boolean = true) {
         val newSlots = project.clips.map { clip ->
             PreviewSlot(
                 clip.id,
-                clip.effectiveUri(true),
+                project.previewUri(clip),
                 clip.startMs,
                 clip.endMs,
                 clip.durationMs,

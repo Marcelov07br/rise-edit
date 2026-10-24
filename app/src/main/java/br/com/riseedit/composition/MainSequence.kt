@@ -32,7 +32,7 @@ internal fun buildMainSequence(
         val effects = buildClipEffects(clip, analyses, offsetMs, preview)
         offsetMs += clip.durationMs
         val media = MediaItem.Builder()
-            .setUri(clip.effectiveUri(preview))
+            .setUri(clip.effectiveUri(preview && project.useProxies))
             .setClippingConfiguration(
                 MediaItem.ClippingConfiguration.Builder()
                     .setStartPositionMs(clip.startMs)

@@ -133,6 +133,7 @@ class MainActivity : ComponentActivity() {
                     }
                     // 0.21: render tab / floating bubble above every screen.
                     br.com.riseedit.export.RenderHost()
+                    br.com.riseedit.proxy.ProxyHost()
                   }
                 }
             }

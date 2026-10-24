@@ -25,7 +25,7 @@ internal fun buildOverlaySequences(
     val durationMs = min(clip.durationMs, availableMs)
     val endMs = clip.sourceAt(durationMs)
     val media = MediaItem.Builder()
-        .setUri(clip.effectiveUri(preview))
+        .setUri(clip.effectiveUri(preview && project.useProxies))
         .setClippingConfiguration(
             MediaItem.ClippingConfiguration.Builder()
                 .setStartPositionMs(clip.startMs)

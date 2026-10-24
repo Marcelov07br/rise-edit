@@ -416,6 +416,18 @@ fun PreviewPanel(
                 }) { Text(if (fast) "Fiel" else "• Fiel") }
             }
         }
+        run {
+            val p = state.project
+            val available = (p.clips + p.overlays.map { it.clip }).any { it.hasPreviewProxy }
+            val generating = br.com.riseedit.editor.ProxyBus.state.collectAsState().value.active
+            if (available || generating) {
+                br.com.riseedit.proxy.ProxyToggle(
+                    available, p.useProxies, generating,
+                    Modifier.align(Alignment.BottomStart).padding(8.dp),
+                    vm::useProxies
+                )
+            }
+        }
         if (clip != null) {
             br.com.riseedit.color.ScopesOverlay(
                 clip,

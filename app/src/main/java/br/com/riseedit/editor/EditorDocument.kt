@@ -58,6 +58,12 @@ internal class EditorDocument(val store: ProjectStore) {
         return true
     }
 
+    /** 0.24.0: saves a non-edit change (proxy attached, "Usar proxies") without an undo step. */
+    fun attach(candidate: Project) {
+        if (candidate == current.project) return
+        if (save(candidate)) publish(candidate, current.selected)
+    }
+
     fun undo() = restore(undo = true)
     fun redo() = restore(undo = false)
 

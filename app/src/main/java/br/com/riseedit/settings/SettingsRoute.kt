@@ -58,7 +58,27 @@ fun SettingsRoute(initial: SettingsSection = SettingsSection.UPDATES, onBack: ()
     var section by rememberSaveable { mutableStateOf(initial) }
     var cache by remember { mutableLongStateOf(0L) }
     var refresh by remember { mutableStateOf(0) }
-    LaunchedEffect(refresh) { cache = withContext(Dispatchers.IO) { CacheCleaner.size(context) } }
+    var proxyBytes by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(refresh) {
+        cache = withContext(Dispatchers.IO) { CacheCleaner.size(context) }
+        proxyBytes = br.com.riseedit.media.ProxyTranscoder(context).cacheBytes()
+    }
+    var clearingProxies by remember { mutableStateOf(false) }
+    LaunchedEffect(clearingProxies) {
+        if (clearingProxies) {
+            val keep = withContext(Dispatchers.IO) {
+                runCatching {
+                    br.com.riseedit.ProjectStore(context).list().flatMap { p ->
+                        (p.clips + p.overlays.map { it.clip }).mapNotNull { it.proxyUri }
+                    }.toSet()
+                }.getOrDefault(emptySet())
+            }
+            val t = br.com.riseedit.media.ProxyTranscoder(context)
+            t.cleanupUnused(keep)
+            proxyBytes = t.cacheBytes()
+            clearingProxies = false
+        }
+    }
     val folder =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
             uri ?: return@rememberLauncherForActivityResult
@@ -83,10 +103,11 @@ fun SettingsRoute(initial: SettingsSection = SettingsSection.UPDATES, onBack: ()
         section,
         { section = it },
         SettingsStore::update,
-        SettingsInfo(name, code, cache, settings.exportFolder?.let { folderLabel(it) }),
+        SettingsInfo(name, code, cache, settings.exportFolder?.let { folderLabel(it) }, proxyBytes = proxyBytes),
         SettingsActions(
             back = onBack,
             pickFolder = { folder.launch(null) },
+            clearProxies = { clearingProxies = true },
             clearCache = {
                 clearing = true
                 refresh++

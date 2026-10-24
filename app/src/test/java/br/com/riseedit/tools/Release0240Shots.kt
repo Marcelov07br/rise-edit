@@ -178,6 +178,46 @@ abstract class Release0240Base(private val dex: Boolean) {
             )
         }
     }
+
+    @Test fun proxyUsar() = p.snapshot {
+        Shots0240.Frame(dex, over = {
+            br.com.riseedit.proxy.ProxyToggle(true, true, false, Modifier.align(Alignment.BottomStart).padding(8.dp)) {}
+        }) {
+            androidx.compose.material3.Text("Prévia lendo o proxy 720p · exportação usa o original", color = Color.White)
+        }
+    }
+    @Test fun proxyOriginal() = p.snapshot {
+        Shots0240.Frame(dex, over = {
+            br.com.riseedit.proxy.ProxyToggle(true, false, false, Modifier.align(Alignment.BottomStart).padding(8.dp)) {}
+        }) {
+            androidx.compose.material3.Text("Prévia lendo o arquivo original (4K 10 bits)", color = Color.White)
+        }
+    }
+    @Test fun proxyGerando() = p.snapshot {
+        val st = br.com.riseedit.editor.ExportBus.State(active = true, progress = 0.37f, phase = "Proxy 1/2 · Entrevista", minimized = true)
+        Shots0240.Frame(dex, over = {
+            br.com.riseedit.proxy.ProxyToggle(false, true, true, Modifier.align(Alignment.BottomStart).padding(8.dp)) {}
+        }) {
+            Box(Modifier.fillMaxWidth().height(420.dp)) {
+                br.com.riseedit.export.RenderBubble(st, initialFromTop = 0.05f) {}
+                br.com.riseedit.proxy.ProxyCard(st, {}, {}, Modifier.align(Alignment.BottomCenter))
+            }
+        }
+    }
+    @Test fun proxyConfiguracoes() = p.snapshot {
+        RiseTheme {
+            RiseScreenFrame {
+                br.com.riseedit.settings.SettingsScreen(
+                    br.com.riseedit.settings.AppSettings(
+                        proxyResolution = br.com.riseedit.core.ProxyResolution.P1080,
+                        proxyCodec = br.com.riseedit.core.ProxyCodec.HEVC
+                    ),
+                    br.com.riseedit.settings.SettingsSection.PREVIEW, {}, {},
+                    br.com.riseedit.settings.SettingsInfo("0.24.0", 41, 812_000_000, proxyBytes = 640_000_000)
+                )
+            }
+        }
+    }
 }
 
 class Release0240PhoneShots : Release0240Base(false)

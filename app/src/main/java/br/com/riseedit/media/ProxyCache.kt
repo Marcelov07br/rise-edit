@@ -33,6 +33,8 @@ internal class ProxyCache(private val context: Context, private val limitBytes: 
         return File(root, "$key.mp4")
     }
 
+    fun bytes() = root.listFiles().orEmpty().filter { it.extension == "mp4" }.sumOf { it.length() }
+
     fun trim(keep: Set<String>) {
         val files = root.listFiles().orEmpty().filter { it.extension == "mp4" && !it.name.contains("partial") }
         var size = files.sumOf { it.length() }

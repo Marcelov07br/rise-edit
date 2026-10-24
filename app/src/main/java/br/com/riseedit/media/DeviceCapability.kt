@@ -114,6 +114,19 @@ object DeviceCapability {
     /** The complete extracted format is queried, including dimensions, rate, profile and audio layout. */
     internal fun findDecoderForFormat(format: MediaFormat): String? = findCodecForFormat(format, encoder = false)
 
+    /** 0.24.0: generic surface encoder query (HEVC proxies). */
+    suspend fun canEncode(mime: String, width: Int, height: Int, frameRate: Int, bitrate: Int): Boolean =
+        withContext(Dispatchers.IO) {
+            if (width <= 0 || height <= 0 || frameRate <= 0 || bitrate <= 0) return@withContext false
+            val format = MediaFormat.createVideoFormat(mime, width, height).apply {
+                setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
+                setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
+                setInteger(MediaFormat.KEY_COLOR_FORMAT, CodecCapabilities.COLOR_FormatSurface)
+                setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
+            }
+            findCodecForFormat(format, encoder = true) != null
+        }
+
     suspend fun canEncodeAvc(width: Int, height: Int, frameRate: Int = 30, bitrate: Int = 8_000_000): Boolean =
         withContext(Dispatchers.IO) {
             currentCoroutineContext().ensureActive()

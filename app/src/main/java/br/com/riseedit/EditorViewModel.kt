@@ -50,6 +50,12 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private val motion = MotionCoordinator(application, document, operations)
     private val reframer = br.com.riseedit.editor.ReframeCoordinator(application, document, operations)
     private val exporter = ExportCoordinator(application, document, operations)
+    private val proxies = br.com.riseedit.editor.ProxyCoordinator(application, viewModelScope, document)
+        .also { it.watch() }
+
+    /** 0.24.0: "Usar proxies" in the preview (export always reads originals). */
+    fun useProxies(on: Boolean) = document.attach(document.current.project.copy(useProxies = on))
+    fun generateProxies() = proxies.scan(force = true)
 
     val player: Player get() = preview.engine.player
     val previewClip get() = preview.engine.activeClip

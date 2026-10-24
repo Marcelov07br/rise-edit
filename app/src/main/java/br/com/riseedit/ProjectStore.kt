@@ -279,7 +279,7 @@ class ProjectStore(private val context: Context) {
         ).put(
             "ratio",
             p.aspectRatio
-        ).put(
+        ).put("useProxies", p.useProxies).put(
             "bg",
             JSONObject().put("kind", p.background.kind.name).put("color", p.background.color)
                 .put("blur", p.background.blur.toDouble()).put("dim", p.background.dim.toDouble())
@@ -428,6 +428,7 @@ class ProjectStore(private val context: Context) {
                     b.optDouble("dim", 0.25).toFloat().coerceIn(0f, 1f)
                 )
             } ?: br.com.riseedit.core.FrameBackground(),
+            useProxies = j.optBoolean("useProxies", true),
             export = if (e ==
                 null
             ) {

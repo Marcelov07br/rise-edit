@@ -10,7 +10,14 @@ data class DeviceProfile(
     val supports422: Boolean = false
 )
 
-data class ProxySpec(val width: Int, val height: Int, val bitrate: Int, val fps: Int)
+data class ProxySpec(
+    val width: Int,
+    val height: Int,
+    val bitrate: Int,
+    val fps: Int,
+    /** 0.24.0: "video/avc" or "video/hevc" (8-bit Main). */
+    val mime: String = "video/avc"
+)
 
 sealed class SourcePlan {
     object Direct : SourcePlan()

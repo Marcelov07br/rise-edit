@@ -43,18 +43,9 @@ class MediaPreparation(private val context: Context) {
                 // Optional lighter preview proxy: export still uses the original
                 // (proxyRequired = false), while Fast/Faithful preferProxy paths use it.
                 // 0.19: Configurações › "Proxy automático 4K" off → original only.
-                if (!br.com.riseedit.settings.SettingsStore.current.autoProxy4k) return source
-                val preview = Compatibility.previewProxy(info) ?: return source
-                progress(0f, "Preparando prévia leve…")
-                source.copy(
-                    proxyUri = transcoder.prepare(
-                        Uri.parse(clip.uri),
-                        info,
-                        preview,
-                        progress
-                    ).toString(),
-                    proxyRequired = false
-                )
+                // 0.24.0: optional proxies no longer block the import; ProxyCoordinator
+                // builds them in the background (render bubble) for heavy media.
+                source
             }
         }
     }

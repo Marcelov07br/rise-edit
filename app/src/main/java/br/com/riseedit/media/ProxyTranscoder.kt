@@ -35,14 +35,16 @@ class ProxyTranscoder(context: Context, cacheLimitBytes: Long = 512L * 1024 * 10
         val probe = MediaProbe.probe(context, uri)
         if (!probe.decoderFound) throw if (info.mime == "video/apv") MediaFault.UnsupportedApv else MediaFault.MissingDecoder(info.mime)
         if (info.audioMime != null && !probe.audioDecoderFound) throw MediaFault.MissingDecoder(info.audioMime)
-        if (!DeviceCapability.canEncodeAvc(target.width, target.height, target.fps, target.bitrate)) {
+        val hevc = target.mime == MimeTypes.VIDEO_H265 &&
+            DeviceCapability.canEncode(MimeTypes.VIDEO_H265, target.width, target.height, target.fps, target.bitrate)
+        if (!hevc && !DeviceCapability.canEncodeAvc(target.width, target.height, target.fps, target.bitrate)) {
             throw MediaFault.ProxyFailed("Este aparelho não oferece um codificador H.264.")
         }
         if (info.audioMime != null && !DeviceCapability.canEncodeAac()) throw MediaFault.ProxyFailed("Este aparelho não oferece um codificador AAC compatível.")
         val partial = File(file.parentFile, "${file.nameWithoutExtension}.partial.mp4")
         try {
             withContext(Dispatchers.IO) { partial.delete() }
-            convert(uri, info, target, partial, onProgress)
+            convert(uri, info, target, partial, onProgress, hevc)
             onProgress(1f, "Finalizando vídeo compatível…")
             withContext(Dispatchers.IO) {
                 check(partial.length() > 0 && partial.renameTo(file)) { "Não foi possível guardar o vídeo convertido." }
@@ -54,15 +56,19 @@ class ProxyTranscoder(context: Context, cacheLimitBytes: Long = 512L * 1024 * 10
         finally { withContext(NonCancellable + Dispatchers.IO) { partial.delete() } }
     }
 
-    private suspend fun convert(uri: Uri, info: SourceInfo, target: ProxySpec, output: File, progress: (Float, String) -> Unit) = withContext(Dispatchers.Main.immediate) {
+    private suspend fun convert(uri: Uri, info: SourceInfo, target: ProxySpec, output: File, progress: (Float, String) -> Unit, hevc: Boolean = false) = withContext(Dispatchers.Main.immediate) {
         val completion = CompletableDeferred<Unit>()
         val encoder = DefaultEncoderFactory.Builder(context).setRequestedVideoEncoderSettings(
             VideoEncoderSettings.Builder().setBitrate(target.bitrate)
-                .setEncodingProfileLevel(CodecProfileLevel.AVCProfileBaseline, CodecProfileLevel.AVCLevel41).build()
+                .apply {
+                    // HEVC Main = 8-bit 4:2:0 (0.24.0 proxies); H.264 Baseline as before.
+                    if (hevc) setEncodingProfileLevel(CodecProfileLevel.HEVCProfileMain, CodecProfileLevel.HEVCMainTierLevel41)
+                    else setEncodingProfileLevel(CodecProfileLevel.AVCProfileBaseline, CodecProfileLevel.AVCLevel41)
+                }.build()
         ).build()
         val engine = Transformer.Builder(context).setEncoderFactory(encoder)
             .apply { FrameCompat.factory()?.let { setVideoFrameProcessorFactory(it) } }
-            .setVideoMimeType(MimeTypes.VIDEO_H264).setAudioMimeType(MimeTypes.AUDIO_AAC)
+            .setVideoMimeType(if (hevc) MimeTypes.VIDEO_H265 else MimeTypes.VIDEO_H264).setAudioMimeType(MimeTypes.AUDIO_AAC)
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) { completion.complete(Unit) }
                 override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) { completion.completeExceptionally(exportException) }
@@ -87,6 +93,9 @@ class ProxyTranscoder(context: Context, cacheLimitBytes: Long = 512L * 1024 * 10
             completion.await()
         } finally { engine.cancel() }
     }
+
+    /** Bytes in the proxy cache (Configurações › Proxies). */
+    suspend fun cacheBytes() = withContext(Dispatchers.IO) { cache.bytes() }
 
     suspend fun cleanupUnused(keep: Set<String>) = serial.withLock { withContext(Dispatchers.IO) { cache.deleteUnused(keep) } }
     suspend fun trimCache(keep: Set<String>) = serial.withLock { withContext(Dispatchers.IO) { cache.trim(keep) } }
