@@ -276,6 +276,60 @@ Real frame time/jank on the Tab (Choreographer/Macrobenchmark), thumbnail decode
 - Testes: core 231, app 238 (0 falhas). Prints: screenshots/0.23.0/. Medições no box (JVM), não no tablet.
 - Não verificado em aparelho: reverse com áudio (decoders reais, AAC/Opus, sincronismo audível), detecção de rotação em ROMs que já giram o quadro, tempo real do flush no onStop, persistência da biblioteca.
 
+## 0.26.0 (versionCode 43) — legendas com fluxo
+
+**Motor (core/CaptionFlow.kt + text/FlowRenderer.kt):** um único renderer Canvas, usado pela prévia
+(PreviewEditLayer) e pelo overlay de exportação Media3 (StyledTextOverlay via TextRenderer.render, quando
+`style.flow != NONE`).
+- Motion blur direcional no eixo X ou Y: 9 amostras ao longo do eixo, com peso maior no centro; quantidade
+  animada em px (referência de 1080 px de altura).
+  Blur gaussiano com BlurMaskFilter.
+- Várias fontes por legenda: as palavras de destaque usam `secondaryFont`/`secondaryWeight`.
+  Regra automática em `WordRoles`: listas curtas de palavras PT/EN (emotivas, ênfase, temáticas) mais
+  heurísticas (CAIXA ALTA, "!", números, palavras com 9 letras ou mais; palavras de função contam como filler).
+  Override manual por palavra em `TextLayer.fontOverrides` (índice do token → destaque), salvo em ProjectStore
+  como "fo". Não é copiado pelo aplicar-a-todas.
+- Escala por palavra (`FlowMotion.sizeFactor` / `hyperWidth`), tracking animado (`FlowFrame.tracking`, em em)
+  e layout cluster levemente fora do eixo (`clusterOffset` por linha).
+- Agrupamento das frases (`FlowGroups`): corta na pontuação, em pausas acima de 350 ms ou em `maxWords`.
+  Só o grupo atual é desenhado; o grupo anterior continua visível durante o rabo da saída (crossfade ou slide).
+  O tamanho do bitmap é fixo pela legenda inteira (grupo mais alto), para a escala ficar estável.
+- Novos campos do TextStyle (StyleJson): `flow`, `font2`, `wght`, `wght2`, `caps`, `maxWords`, `blurScale`.
+
+**Presets (TextLooks, seção "Estilos com fluxo" na grade):**
+- Cluster: Montserrat 900 em minúsculas, Caveat nas palavras emotivas/ênfase (pop em ciano), tracking −4%.
+  Entrada por palavra: escala 0.6→1.15→1, sobe de +15% e blur Y de 15 px→0 em 140 ms. Corte seco no fim da frase.
+- Hiper-escala: Montserrat 800, até 3 palavras empilhadas; a largura alvo vai de 20% (filler) a 85% (ênfase).
+  Escala 0.7→1.1→1 em 90 ms, opacidade instantânea; palavra ativa em #FFD700.
+- Serifa cinema: Poppins Medium, com Playfair 700 nas palavras temáticas; glow branco de 15% e tracking +3%.
+  Fade de 280 ms (out-cubic) subindo de +20%, com blur gaussiano de 10 px→0. Crossfade de 150 ms.
+- Velocidade: Oswald 700, com as palavras de ênfase em CAIXA ALTA; palavra ativa em #F4D03F, escala 1.05.
+  Desliza de ±50% da largura (o lado segue a posição final) com blur X de ~36 px, expo-out em 200 ms.
+  Nas palavras de ênfase, o tracking vai de 0.6 em→0 com mola (overshoot leve) em 250 ms. Sai deslizando com blur.
+
+**UI:**
+- Texto: GraphicSurface "Fonte por palavra" com chips de cada palavra na fonte resolvida
+  (toque: auto → base → destaque).
+- Animação: RiseDropdown Fluxo/Caixa e TileSlider "Desfoque de movimento"/"Palavras por grupo".
+  Os cards por palavra ficam ocultos quando há fluxo.
+
+**Fontes (OFL, verificadas no METADATA.pb do google/fonts @e7db6ca):** Caveat (variável), Oswald (variável) e
+Poppins Medium, em subset latino com fontTools. Montserrat Black e Playfair Bold vêm das fontes variáveis que já
+estavam no app, pelo eixo wght: `TextFonts.typeface(..., weight)`.
+
+**Testes:** core 275 (CaptionFlowTest +11), app 190 (Release0260 phone/DeX +12). Os baselines do Release0250
+foram regravados (grade e aba Animação mudaram de propósito).
+Prints em screenshots/0.26.0/.
+
+**APK:** rise-edit-0.26.0-arm64-debug.apk, 63,306,033 B, só arm64, chave de debug. Medido no box, não no aparelho.
+
+**Limitações:**
+- Os overrides são por índice de token: editar o texto pode deslocá-los.
+- O motion blur é feito por amostras: pode haver leve "ghosting" com blur grande.
+- A rotação/posição do cluster é determinística, não aleatória.
+- O terço inferior do Serifa cinema depende da posição do layer (o preset não muda a posição).
+- O custo por frame no export é maior: até 9 desenhos por palavra durante o blur, mas só nos ~100–200 ms de entrada.
+
 ## 0.25.0 (versionCode 42, branch v0.25.0, local — sem push/release)
 
 Feedback 0.24.0: legendas demoravam; miniaturas de estilo em baixa resolução.
