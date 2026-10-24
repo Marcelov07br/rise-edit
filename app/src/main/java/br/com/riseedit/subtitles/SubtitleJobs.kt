@@ -135,7 +135,7 @@ internal object SubtitleJobs {
                 ensureActive()
                 val layers = Subtitles.layers(segments, project.durationMs)
                 withContext(Dispatchers.Main) { done(layers) }
-                mutable.value = SubtitleStatus(text = "Pronto: ${layers.size} legendas.")
+                mutable.value = SubtitleStatus(text = "Pronto: ${layers.size} legendas · modelo SHA-256 verificado.")
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Exception) {

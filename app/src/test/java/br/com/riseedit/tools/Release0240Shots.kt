@@ -174,7 +174,7 @@ abstract class Release0240Base(private val dex: Boolean) {
         Shots0240.Frame(dex) {
             CaptionsContent(
                 CaptionsActions(
-                    status = SubtitleStatus(false, "14 legendas · SHA-256 verificado"),
+                    status = SubtitleStatus(false, "Pronto: 14 legendas · modelo SHA-256 verificado."),
                     downloaded = listOf(WhisperModel.BASE_Q5)
                 ),
                 infoOpenInitially = true
