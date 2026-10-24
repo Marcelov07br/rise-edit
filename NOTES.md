@@ -242,6 +242,9 @@
 | toComposition (core, not Media3) | 2.96 ms | 3.36 ms (noise) |
 | ProjectStore.save | 61.9 ms / 68 MB | 58.1 ms / 59 MB |
 | ProjectStore.load | 44.4 ms / 68 MB | 41.3 ms / 68 MB |
+| **0.23.0** commit on main thread (was sync `store.save`) | 58.1 ms | 0.002 ms (`SaveQueue.submit`) |
+| **0.23.0** flush on onStop/leave (pending edit) | — | 43 ms (blocking, once) |
+| **0.23.0** waveform per draw (walk all 4096 samples) | 0.040 ms | 0.008 ms (cached peaks; rebuild 0.061 ms per zoom level/trim) |
 
 ### Timeline UI (DeX 1920×1080, real TimelineStage)
 
@@ -262,3 +265,13 @@
 
 ### Device-only (not measurable here)
 Real frame time/jank on the Tab (Choreographer/Macrobenchmark), thumbnail decode and the 96-entry LruCache hit rate, waveform Canvas draw (walks all samples), ExoPlayer/Media3 composition and seeking, and the **synchronous save on commit** (~60 ms on JVM for 2000 clips, likely several × on device — the next candidate is moving save off the main thread).
+
+## 0.23.0 (versionCode 40, branch v0.23.0, local — sem push/release)
+- **Salvamento em background** (`editor/SaveQueue.kt`): `EditorDocument.commit`/undo/redo publicam na hora e enfileiram; uma thread única "rise-save" grava (serializado, debounce 400 ms, o mais novo vence), escrita atômica continua em `ProjectStore` (AtomicFile + snapshot). `flush()` bloqueia até gravar: `MainActivity.onStop`, voltar para a Home (`home()`), `reset` para outro projeto e `onCleared` (close). Falha de escrita mantém o projeto pendente (retry no próximo submit/flush) + mensagem "Não foi possível salvar". Testes: SaveQueueTest (debounce, flush espera, sem sobreposição, retry). Mudança de contrato: antes "salvo antes de publicar"; agora uma edição pode ficar até ~400 ms só em memória — processo morto à força nesse intervalo (sem onStop) perde essa última edição.
+- **Waveform**: `core/audio/WavePeaks` — picos por bucket calculados 1x por (amostras, trim, nível de zoom potência de 2, máx. 4096) e reutilizados em cada draw. Observação: o `MediaAssets.waveform` atual só extrai 64 bins por arquivo, então o ganho real hoje é pequeno; a estrutura já suporta formas de onda densas.
+- **Estabilizador**: ícone liga/desliga com estados visuais distintos (`PanelIconButton(checked=)`/`PanelAction(checked=)`: ligado = círculo preenchido na cor primária com ícone escuro; desligado = contorno + ícone apagado), `contentDescription` "Estabilização ligada — desligar"/"…desligada — ligar" + `stateDescription` Ligado/Desligado, `Role.Switch`. "Força do Warp" virou `Stabilization.warpStrength` (independente de `strength` = Intensidade); `warpAmount = rollingShutter × warpStrength`. JSON `stabilization.warp`; projetos antigos herdam o valor de `strength` (era o mesmo slider). Teste: Release0230Shots.warpMigration. Efeito: projetos antigos com Warp e Intensidade < 100% passam a ter o warp multiplicado por esse valor (antes a força do warp não chegava ao shader).
+- **Reverse com áudio**: `media/ReverseAudio` decodifica (MediaExtractor/MediaCodec → PCM 16-bit, float convertido) a mesma janela de fonte dos quadros (`ReverseMedia.window`, alinhada ao fim), inverte por quadro de amostra (`reverseFrames`), grava WAV e entra como sequência de áudio separada na Composition (vídeo = sequência de imagens). Sem faixa de áudio → trilha silenciosa como antes. Cache de reverse ganhou sufixo `-av` (reversos antigos são refeitos).
+- **Rotação** (freeze e reverse): `media/UprightFrames` + `core/media/FrameRotation.pending` — gira o quadro do MediaMetadataRetriever pelo `METADATA_KEY_VIDEO_ROTATION` quando ele volta "deitado" (aspecto igual ao armazenado em 90/270). 180° não é detectável pelo tamanho e fica a cargo do retriever. Cache do freeze ganhou sufixo `-r`. Testes: ReverseMediaTest (90/270, janela, WAV) e Release0230Shots.uprightRotation90And270 (Bitmap real no layoutlib).
+- **Biblioteca lembrada**: `ProjectLibrary` grava a selecionada em SharedPreferences `rise_home/selectedLibrary`; na abertura usa `ProjectLibraries.resolveSelected` (lembrada → Padrão → primeira → padrao). Testado em ProjectLibrariesTest.
+- Testes: core 231, app 238 (0 falhas). Prints: screenshots/0.23.0/. Medições no box (JVM), não no tablet.
+- Não verificado em aparelho: reverse com áudio (decoders reais, AAC/Opus, sincronismo audível), detecção de rotação em ROMs que já giram o quadro, tempo real do flush no onStop, persistência da biblioteca.

@@ -84,4 +84,13 @@ class ProjectLibrariesTest {
         assertEquals(l, ProjectLibraries.decode(ProjectLibraries.encode(l)))
         assertEquals(ProjectLibraries(), ProjectLibraries.decode(null))
     }
+
+    @org.junit.Test fun rememberedLibraryWithFallback() {
+        val l = ProjectLibraries(listOf(LibraryFolder("padrao", "Padrão"), LibraryFolder("b", "Clientes")))
+        org.junit.Assert.assertEquals("b", l.resolveSelected("b"))
+        org.junit.Assert.assertEquals("padrao", l.resolveSelected("apagada"))
+        org.junit.Assert.assertEquals("padrao", l.resolveSelected(null))
+        org.junit.Assert.assertEquals("b", ProjectLibraries(listOf(LibraryFolder("b", "Clientes"))).resolveSelected("x"))
+        org.junit.Assert.assertEquals(ProjectLibraries.DEFAULT_ID, ProjectLibraries().resolveSelected("x"))
+    }
 }

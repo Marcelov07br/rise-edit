@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -165,21 +166,40 @@ fun PanelIconButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     tint: Color = RiseWhite,
+    /** 0.23.0: non-null = on/off toggle; on = filled accent, off = outlined + muted icon. */
+    checked: Boolean? = null,
     onClick: () -> Unit
 ) {
     val t = HierarchyTokens
+    val accent = androidx.compose.material3.MaterialTheme.colorScheme.primary
+    val bg = when (checked) { true -> accent; else -> t.ActionBg }
+    val iconTint = when (checked) {
+        true -> androidx.compose.material3.MaterialTheme.colorScheme.onPrimary
+        false -> tint.copy(alpha = 0.55f)
+        null -> tint
+    }
+    val border = if (checked == false) Modifier.border(1.5.dp, tint.copy(alpha = 0.35f), CircleShape) else Modifier
     TooltipBox(
         positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
         tooltip = { PlainTooltip { Text(name) } },
         state = rememberTooltipState()
     ) {
         Box(
-            modifier.size(t.ActionSize).clip(CircleShape).background(t.ActionBg)
-                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-                .semantics { contentDescription = name }
+            modifier.size(t.ActionSize).clip(CircleShape).background(bg).then(border)
+                .clickable(
+                    enabled = enabled,
+                    role = if (checked != null) Role.Switch else Role.Button,
+                    onClick = onClick
+                )
+                .semantics {
+                    contentDescription = name
+                    if (checked != null) {
+                        stateDescription = if (checked) "Ligado" else "Desligado"
+                    }
+                }
                 .alpha(if (enabled) 1f else 0.35f),
             contentAlignment = Alignment.Center
-        ) { Icon(icon, null, Modifier.size(t.ActionIcon), tint = tint) }
+        ) { Icon(icon, null, Modifier.size(t.ActionIcon), tint = iconTint) }
     }
 }
 
@@ -254,6 +274,8 @@ class PanelAction(
     val enabled: Boolean = true,
     val danger: Boolean = false,
     val primary: Boolean = false,
+    /** Non-null = toggle action shown with distinct on/off visuals (see [PanelIconButton]). */
+    val checked: Boolean? = null,
     val onClick: () -> Unit
 )
 
@@ -302,7 +324,7 @@ fun ActionBar(
             inline.filterNot {
                 it.danger
             }.forEach {
-                PanelIconButton(it.icon, it.name, enabled = it.enabled, onClick = it.onClick)
+                PanelIconButton(it.icon, it.name, enabled = it.enabled, checked = it.checked, onClick = it.onClick)
             }
             val danger = inline.filter { it.danger }
             if (danger.isNotEmpty()) {

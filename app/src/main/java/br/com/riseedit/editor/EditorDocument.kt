@@ -10,8 +10,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-/** Owns the document and history. Disk save succeeds before a new revision is published. */
+/**
+ * Owns the document and history. 0.23.0: a revision is published at once and saved in the
+ * background by [saves] (serialized, debounced, atomic); [flush] forces it to disk.
+ */
 internal class EditorDocument(val store: ProjectStore) {
+    val saves = SaveQueue(
+        write = { store.save(it) },
+        onError = { error -> message("Não foi possível salvar: ${error.localizedMessage}") }
+    )
+
+    /** Blocks until every published revision is on disk. Call on onStop/leaving/before reloads. */
+    fun flush(): Boolean = saves.flush()
+
     private val mutable = MutableStateFlow(EditorState())
     val state = mutable.asStateFlow()
     val current: EditorState get() = state.value
@@ -25,6 +36,7 @@ internal class EditorDocument(val store: ProjectStore) {
     fun progress(value: Float, phase: String) = update { it.copy(progress = value, busy = phase) }
 
     fun reset(project: Project) {
+        if (project.id != current.project.id) flush()
         history.clear()
         analyses.clear()
         faults.clear()
@@ -66,12 +78,9 @@ internal class EditorDocument(val store: ProjectStore) {
         publish(project, selected = 0)
     }
 
-    private fun save(project: Project): Boolean = try {
-        store.save(project)
-        true
-    } catch (error: Exception) {
-        message("Não foi possível salvar: ${error.localizedMessage}")
-        false
+    private fun save(project: Project): Boolean {
+        saves.submit(project)
+        return true
     }
 
     private fun publish(project: Project, selected: Int) {

@@ -31,7 +31,9 @@ import kotlin.coroutines.coroutineContext
  * transformer/effect sources), so the clip's trimmed range is sampled backwards with
  * MediaMetadataRetriever (OPTION_CLOSEST, [REVERSE_FPS]) into JPEG frames, and those frames are
  * encoded as a Transformer image sequence (one [REVERSE_FPS] frame per image) with a silent AAC
- * track — the same path as photos ([StillClip]). Video only; limited to [MAX_REVERSE_MS].
+ * track — the same path as photos ([StillClip]). Limited to [MAX_REVERSE_MS].
+ * 0.23.0: audio is decoded to PCM, reversed and muxed as a separate sequence over the exact
+ * same source window ([ReverseMedia.window]); frames honor rotation metadata ([UprightFrames]).
  */
 @UnstableApi
 object CutMedia {
@@ -46,12 +48,12 @@ object CutMedia {
     /** Freeze-frame: the source frame at [sourceMs] as a PNG (then rendered by [StillClip]). */
     suspend fun frameAt(context: Context, clip: Clip, sourceMs: Long): Uri = withContext(Dispatchers.IO) {
         val dir = File(context.filesDir, "freeze").apply { mkdirs() }
-        val out = File(dir, "${(clip.uri + sourceMs).hashCode().toUInt()}.png")
+        val out = File(dir, "${(clip.uri + sourceMs).hashCode().toUInt()}-r.png")
         if (out.length() == 0L) {
             val r = retriever(context, clip)
             try {
                 val bmp = r.getFrameAtTime(sourceMs * 1000, MediaMetadataRetriever.OPTION_CLOSEST)
-                    ?: throw MediaFault.AssetDecodeFailed()
+                    ?.let(UprightFrames(r)::fix) ?: throw MediaFault.AssetDecodeFailed()
                 out.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
                 bmp.recycle()
             } finally {
@@ -67,7 +69,7 @@ object CutMedia {
             throw MediaFault.ImportFailed("Inverter funciona em trechos de até 20 s. Divida o clipe antes.")
         }
         val dir = File(context.filesDir, "reversed").apply { mkdirs() }
-        val key = "${(clip.uri + clip.startMs + clip.endMs).hashCode().toUInt()}"
+        val key = "${(clip.uri + clip.startMs + clip.endMs).hashCode().toUInt()}-av"
         val out = File(dir, "$key.mp4")
         if (out.length() > 0) return Uri.fromFile(out)
         val frames = File(context.cacheDir, "reverse-$key").apply { deleteRecursively(); mkdirs() }
@@ -76,12 +78,13 @@ object CutMedia {
         var size = 2 to 2
         withContext(Dispatchers.IO) {
             val r = retriever(context, clip)
+            val upright = UprightFrames(r)
             try {
                 for (i in 0 until count) {
                     coroutineContext.ensureActive()
                     val t = clip.endMs - 1 - i * step
                     val bmp = r.getFrameAtTime(t * 1000, MediaMetadataRetriever.OPTION_CLOSEST)
-                        ?: continue
+                        ?.let(upright::fix) ?: continue
                     if (i == 0) size = StillClip.size(bmp.width, bmp.height, LONG_SIDE)
                     File(frames, "%05d.jpg".format(i)).outputStream().use {
                         bmp.compress(Bitmap.CompressFormat.JPEG, 92, it)
@@ -92,6 +95,12 @@ object CutMedia {
             } finally {
                 r.release()
             }
+        }
+        val window = br.com.riseedit.core.media.ReverseMedia.window(clip.startMs, clip.endMs, step)
+        val wav = withContext(Dispatchers.IO) {
+            progress(0.6f, "Invertendo: áudio…")
+            runCatching { ReverseAudio.write(context, clip.uri, window, File(frames.parentFile, "reverse-$key.wav")) }
+                .getOrNull()
         }
         val files = frames.listFiles()?.sortedBy { it.name }.orEmpty()
         if (files.isEmpty()) throw MediaFault.AssetDecodeFailed()
@@ -115,8 +124,19 @@ object CutMedia {
                         MediaItem.Builder().setUri(Uri.fromFile(it)).setImageDurationMs(step).build()
                     ).setFrameRate(REVERSE_FPS).setEffects(fit).build()
                 }
-                val composition = Composition.Builder(EditedMediaItemSequence.withAudioAndVideoFrom(items))
-                    .experimentalSetForceAudioTrack(true).build()
+                // 0.23.0: reversed audio (same source window as the frames) as its own sequence;
+                // without an audio track in the source it stays a silent forced track.
+                val composition = if (wav != null) {
+                    Composition.Builder(
+                        EditedMediaItemSequence.withVideoFrom(items),
+                        EditedMediaItemSequence.withAudioFrom(
+                            listOf(EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(wav))).build())
+                        )
+                    ).build()
+                } else {
+                    Composition.Builder(EditedMediaItemSequence.withAudioAndVideoFrom(items))
+                        .experimentalSetForceAudioTrack(true).build()
+                }
                 progress(0.6f, "Invertendo: codificando…")
                 try {
                     engine.start(composition, partial.absolutePath)
@@ -129,7 +149,7 @@ object CutMedia {
                 check(partial.length() > 0 && partial.renameTo(out)) { "Clipe não invertido." }
             }
         } finally {
-            withContext(Dispatchers.IO) { frames.deleteRecursively() }
+            withContext(Dispatchers.IO) { frames.deleteRecursively(); wav?.delete() }
         }
         return Uri.fromFile(out)
     }

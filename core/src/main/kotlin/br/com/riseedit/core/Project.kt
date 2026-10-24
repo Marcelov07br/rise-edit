@@ -20,18 +20,24 @@ data class Stabilization(
     val maxZoom: Double = 1.10,
     val method: StabilizeMethod = StabilizeMethod.RIGID,
     /** Rolling-shutter/wobble correction amount (0..1); only used when [method] is WARP. */
-    val rollingShutter: Double = 0.6
+    val rollingShutter: Double = 0.6,
+    /**
+     * 0.23.0: "Força do Warp", independent from [strength] ("Intensidade" of the smoothing).
+     * Projects ≤0.22 had both sliders bound to [strength]; on load warpStrength inherits it.
+     */
+    val warpStrength: Double = 1.0
 ) {
     init {
         require(strength in 0.0..1.0)
         require(smoothSeconds in 0.1..2.0)
         require(maxZoom in 1.0..1.25)
         require(rollingShutter in 0.0..1.0)
+        require(warpStrength in 0.0..1.0)
     }
 
     /** Amount of per-line warp actually applied (0 when the method is RIGID). */
     val warpAmount: Double
-        get() = if (method == StabilizeMethod.WARP) rollingShutter else 0.0
+        get() = if (method == StabilizeMethod.WARP) rollingShutter * warpStrength else 0.0
 }
 
 data class Clip(

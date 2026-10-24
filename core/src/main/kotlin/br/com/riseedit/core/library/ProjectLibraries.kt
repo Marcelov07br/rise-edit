@@ -45,6 +45,16 @@ data class ProjectLibraries(
     fun needsConfirmToDelete(folderId: String, projectIds: Collection<String>) =
         count(folderId, projectIds) > 0
 
+    /**
+     * 0.23.0: library to open on launch. The remembered one if it still exists; otherwise
+     * "Padrão" if present, else the first library, else [DEFAULT_ID] (created on demand).
+     */
+    fun resolveSelected(remembered: String?): String =
+        remembered?.takeIf { id -> folders.any { it.id == id } }
+            ?: folders.firstOrNull { it.id == DEFAULT_ID }?.id
+            ?: folders.firstOrNull()?.id
+            ?: DEFAULT_ID
+
     fun canDelete(folderId: String) = folderId != DEFAULT_ID && folders.any { it.id == folderId }
 
     fun delete(folderId: String, projectIds: Collection<String>): ProjectLibraries {

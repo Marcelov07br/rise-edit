@@ -185,6 +185,7 @@ class ProjectStore(private val context: Context) {
                     ).put("zoom", c.stabilization.maxZoom)
                     .put("method", c.stabilization.method.name)
                     .put("rs", c.stabilization.rollingShutter)
+                    .put("warp", c.stabilization.warpStrength)
             )
     private fun readClip(c: JSONObject): Clip {
         val s = c.getJSONObject("stabilization")
@@ -211,7 +212,9 @@ class ProjectStore(private val context: Context) {
                 s.getDouble("zoom"),
                 // 0.20: optional method/rs — older projects stay rigid without warp.
                 StabilizeMethod.valueOf(s.optString("method", StabilizeMethod.RIGID.name)),
-                s.optDouble("rs", 0.6)
+                s.optDouble("rs", 0.6),
+                // 0.23.0: independent "Força do Warp"; older projects inherit the shared value.
+                s.optDouble("warp", s.getDouble("strength")).coerceIn(0.0, 1.0)
             ),
             volume = c.optDouble("volume", 1.0).toFloat(), fadeMs = c.optLong("fade"),
             speedPoints = rows(c.optJSONArray("speed")).map {

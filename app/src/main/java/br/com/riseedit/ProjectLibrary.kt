@@ -16,7 +16,13 @@ class ProjectLibrary(application: Application) : AndroidViewModel(application) {
     private val libStore = LibraryStore(application)
     private val libs = MutableStateFlow(ProjectLibraries())
     val libraries = libs.asStateFlow()
-    private val selectedState = MutableStateFlow(ProjectLibraries.DEFAULT_ID)
+    /** 0.23.0: selected library survives app restarts (same SharedPreferences mechanism as the store). */
+    private val homePrefs = application.getSharedPreferences("rise_home", android.content.Context.MODE_PRIVATE)
+    private val selectedState = MutableStateFlow(homePrefs.getString(KEY_LIBRARY, null) ?: ProjectLibraries.DEFAULT_ID)
+    private fun setSelected(id: String) {
+        selectedState.value = id
+        homePrefs.edit().putString(KEY_LIBRARY, id).apply()
+    }
     /** Biblioteca aberta na Home (0.22.1). */
     val selected = selectedState.asStateFlow()
     private val mutable = MutableStateFlow<List<Project>>(emptyList())
@@ -40,9 +46,8 @@ class ProjectLibrary(application: Application) : AndroidViewModel(application) {
                 }
             }.onSuccess { (list, l) ->
                 libs.value = l
-                if (l.folders.none { it.id == selectedState.value }) {
-                    selectedState.value = l.folders.firstOrNull()?.id ?: ProjectLibraries.DEFAULT_ID
-                }
+                val resolved = l.resolveSelected(selectedState.value)
+                if (resolved != selectedState.value) setSelected(resolved)
                 mutable.value = list
             }.onFailure {
                 error.value = "Não foi possível abrir a biblioteca: ${it.localizedMessage}"
@@ -80,16 +85,16 @@ class ProjectLibrary(application: Application) : AndroidViewModel(application) {
             libs.value = f(libs.value).normalized(mutable.value.map { it.id }).also(libStore::save)
         }.onFailure { error.value = "Falha ao salvar bibliotecas." }
     }
-    fun select(folderId: String) { selectedState.value = folderId }
+    fun select(folderId: String) = setSelected(folderId)
     fun createLibrary(name: String) {
         val id = UUID.randomUUID().toString()
         editLibs { it.create(name, id) }
-        selectedState.value = id
+        setSelected(id)
     }
     fun renameLibrary(id: String, name: String) = editLibs { it.rename(id, name) }
     fun deleteLibrary(id: String) {
         editLibs { it.delete(id, mutable.value.map { p -> p.id }) }
-        if (selectedState.value == id) selectedState.value = ProjectLibraries.DEFAULT_ID
+        if (selectedState.value == id) setSelected(libs.value.resolveSelected(null))
     }
     fun move(p: Project, folderId: String) = editLibs { it.move(p.id, folderId) }
     private fun update(p: Project) {
@@ -121,4 +126,6 @@ class ProjectLibrary(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    private companion object { const val KEY_LIBRARY = "selectedLibrary" }
 }

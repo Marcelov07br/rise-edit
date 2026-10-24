@@ -137,6 +137,10 @@ class TimelinePerfShots {
         val res = mutableListOf<String>()
         PerfBenchApp.run("ProjectStore.save (2000 clipes)", warmup = 3, runs = 9) { store.save(project) }.also { res += it.toString() }
         PerfBenchApp.run("ProjectStore.load (2000 clipes)", warmup = 3, runs = 9) { store.load(project.id) }.also { res += it.toString() }
+        val queue = br.com.riseedit.editor.SaveQueue({ store.save(it) }, debounceMs = 400)
+        PerfBenchApp.run("commit na main: SaveQueue.submit", warmup = 3, runs = 51) { queue.submit(project) }.also { res += it.toString() }
+        PerfBenchApp.run("flush (onStop) c/ pendente", warmup = 1, runs = 5) { queue.submit(project); queue.flush() }.also { res += it.toString() }
+        queue.close()
         val saved = File(dir, "projects/${project.id}.json")
         fixture.parentFile.mkdirs()
         saved.copyTo(fixture, overwrite = true)

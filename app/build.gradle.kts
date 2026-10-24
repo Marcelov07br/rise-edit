@@ -19,8 +19,8 @@ android {
         applicationId = "br.com.riseedit"
         minSdk = 27
         targetSdk = 35
-        versionCode = 39
-        versionName = "0.22.2"
+        versionCode = 40
+        versionName = "0.23.0"
         externalNativeBuild { cmake { arguments += listOf("-DANDROID_STL=c++_static") } }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

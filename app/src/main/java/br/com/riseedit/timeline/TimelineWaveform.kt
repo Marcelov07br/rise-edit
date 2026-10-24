@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -35,19 +36,31 @@ internal fun TimelineWaveform(audio: AudioClip) {
         }
     }
     fault?.let { Text(it, style = MaterialTheme.typography.labelSmall, maxLines = 2) }
-    Canvas(Modifier.fillMaxSize().padding(vertical = 7.dp)) {
-        samples?.forEachIndexed { i, value ->
-            val source = audio.sourceDurationMs * i.toFloat() / requireNotNull(samples).size
-            if (source >= audio.startMs && source <= audio.endMs) {
-                val x = (source - audio.startMs) / audio.durationMs * size.width
-                val height = max(1f, value * size.height * 0.45f)
-                drawLine(
-                    Color(0xFFBDBDBD),
-                    Offset(x, size.height / 2 - height),
-                    Offset(x, size.height / 2 + height),
-                    2f
-                )
-            }
+    var widthPx by remember { mutableStateOf(0f) }
+    val level = br.com.riseedit.core.audio.WavePeaks.level(widthPx)
+    // Peaks recomputed only when the samples, trim or zoom LEVEL change; draws reuse them.
+    val peaks = remember(samples, audio.sourceDurationMs, audio.startMs, audio.endMs, level) {
+        samples?.let {
+            br.com.riseedit.core.audio.WavePeaks.peaks(
+                it.toFloatArray(), audio.sourceDurationMs, audio.startMs, audio.endMs, level
+            )
+        }
+    }
+    Canvas(
+        Modifier.fillMaxSize().padding(vertical = 7.dp)
+            .onSizeChanged { widthPx = it.width.toFloat() }
+    ) {
+        val p = peaks ?: return@Canvas
+        val step = size.width / p.size
+        for (i in p.indices) {
+            val x = (i + 0.5f) * step
+            val height = max(1f, p[i] * size.height * 0.45f)
+            drawLine(
+                Color(0xFFBDBDBD),
+                Offset(x, size.height / 2 - height),
+                Offset(x, size.height / 2 + height),
+                2f
+            )
         }
     }
 }

@@ -61,6 +61,7 @@ class MainActivity : ComponentActivity() {
                 fun home() {
                     if (state.busy == null) {
                         editor.suspendPreview()
+                        editor.flushSave()
                         activeId = null
                         library.refresh()
                     }
@@ -161,6 +162,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onStop() {
         editor.pausePreview()
+        editor.flushSave()
         super.onStop()
     }
 }

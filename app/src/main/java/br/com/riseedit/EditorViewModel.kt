@@ -195,8 +195,12 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         it.first
     }
 
+    /** Activity onStop / leaving the editor: make sure the last edit is on disk. */
+    fun flushSave() = document.flush()
+
     override fun onCleared() {
         operations.cancel()
+        document.saves.close()
         preview.engine.release()
         super.onCleared()
     }

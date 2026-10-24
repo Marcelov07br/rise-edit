@@ -70,7 +70,7 @@ internal class CutMediaCommands(
         }
     }
 
-    /** Reverses the selected clip's trimmed range (video only; see [CutMedia.reverse]). */
+    /** Reverses the selected clip's trimmed range, video and audio (see [CutMedia.reverse]). */
     fun reverse() {
         val state = document.current
         val old = state.project.clips.getOrNull(state.selected) ?: return
@@ -81,7 +81,7 @@ internal class CutMediaCommands(
             val index = document.current.project.clips.indexOfFirst { it.id == old.id }
             if (index < 0) return@start
             if (document.edit(SeparateAudio.sync(document.current.project.replace(index, next), old.id))) {
-                document.message("Clipe invertido (só vídeo; o áudio fica em silêncio).")
+                document.message("Clipe invertido (vídeo e áudio).")
             }
         }
     }

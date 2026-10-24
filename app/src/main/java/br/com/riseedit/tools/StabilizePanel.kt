@@ -152,9 +152,10 @@ private fun StabilizeHeader(
             listOfNotNull(
                 PanelAction(
                     Icons.Rounded.PowerSettingsNew,
-                    if (s.enabled) "Desligar estabilização" else "Ligar estabilização",
+                    if (s.enabled) "Estabilização ligada — desligar" else "Estabilização desligada — ligar",
                     enabled && analyzed,
                     primary = true,
+                    checked = s.enabled,
                     onClick = { change(s.copy(enabled = !s.enabled)) }
                 ),
                 if (analyzed) {
@@ -290,9 +291,9 @@ private fun WarpTab(
                     Stabilization().rollingShutter.toFloat()
                 ) { change(s.copy(rollingShutter = it.toDouble())) },
                 Dial(
-                    "Força do Warp", s.strength.toFloat(), 0f..1f,
-                    Stabilization().strength.toFloat()
-                ) { change(s.copy(strength = it.toDouble())) }
+                    "Força do Warp", s.warpStrength.toFloat(), 0f..1f,
+                    Stabilization().warpStrength.toFloat()
+                ) { change(s.copy(warpStrength = it.toDouble())) }
             )
         )
     }

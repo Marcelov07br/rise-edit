@@ -66,6 +66,18 @@ class TimelinePerfTest {
             repeat(100) { cur = h.redo(cur)!! }
             cur
         }
+        run {
+            // Waveform: old draw walked/filtered every sample per frame; new draw reuses cached peaks.
+            val a = p.audio.maxBy { it.durationMs }
+            val wave = FloatArray(4096) { ((it * 7919) % 1000) / 1000f }
+            val width = 20_000f
+            fun oldDraw(): Float { var acc = 0f; for (i in wave.indices) { val src = a.sourceDurationMs * i.toFloat() / wave.size; if (src >= a.startMs && src <= a.endMs) acc += (src - a.startMs) / a.durationMs * width + wave[i] }; return acc }
+            val level = br.com.riseedit.core.audio.WavePeaks.level(width)
+            val cached = br.com.riseedit.core.audio.WavePeaks.peaks(wave, a.sourceDurationMs, a.startMs, a.endMs, level)
+            PerfBench.run("waveform draw (todas amostras, 4096)", runs = 51) { oldDraw() }
+            PerfBench.run("waveform picos: build por zoom", runs = 51) { br.com.riseedit.core.audio.WavePeaks.peaks(wave, a.sourceDurationMs, a.startMs, a.endMs, level) }
+            PerfBench.run("waveform draw (picos cacheados)", runs = 51) { var acc = 0f; for (i in cached.indices) acc += cached[i]; acc }
+        }
         PerfBench.run("toComposition()") { p.toComposition() }
         PerfBench.run("AudioSchedule 1 quadro") {
             val d = p.durationMs
