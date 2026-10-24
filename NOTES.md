@@ -276,6 +276,42 @@ Real frame time/jank on the Tab (Choreographer/Macrobenchmark), thumbnail decode
 - Testes: core 231, app 238 (0 falhas). Prints: screenshots/0.23.0/. Medições no box (JVM), não no tablet.
 - Não verificado em aparelho: reverse com áudio (decoders reais, AAC/Opus, sincronismo audível), detecção de rotação em ROMs que já giram o quadro, tempo real do flush no onStop, persistência da biblioteca.
 
+## 0.25.0 (versionCode 42, branch v0.25.0, local — sem push/release)
+
+Feedback 0.24.0: legendas demoravam; miniaturas de estilo em baixa resolução.
+
+1. **Velocidade das legendas** — causa principal: whisper.cpp compilava em -O0 no APK debug. Agora
+   `-O3 -DNDEBUG` + `armv8.2-a+dotprod+fp16` no arm64 (`WhisperNative.cpuSupported` exige asimddp/fphp).
+   VAD por energia (`core/SpeechChunks`: quadros 30 ms, limiar adaptativo, ponte 450 ms, padding 250 ms)
+   corta silêncio e cola trechos ≤ 28 s com timestamps remapeados. Legendas aparecem por trecho
+   (`partialSubtitles` via attach, sem undo; o final é UM passo de desfazer). Threads = núcleos grandes
+   (`CpuTopology.bigCores`, cpufreq ≥ 70% do topo, 2..8). Modelo "Rápido (Tiny q5)" baixado sob
+   demanda com SHA-256. Bench no box (x86, 8 threads, áudio 80 s com 46 s de fala):
+   base q5 debug inteiro 29,5 s → release+trechos 1ª legenda 0,48 s / total 1,08 s; tiny q5 0,31 / 0,61 s.
+2. **Animações** — `WordAnimation` (pop com mola ζ 0,72, karaokê, digitação, subir+fade, bounce, zoom
+   na palavra-chave) por palavra ou linha (`WordUnit`), ritmo `wordMs`; entrada/saída com ease-out
+   cúbico (nada linear). Mesmo renderer na prévia e exportação (`TextRenderer.drawWords`).
+3. **Estilos/fontes** — 16 looks (`core/TextLooks`): Clássica, Caixa por palavra, Contorno grosso,
+   Sombra, Gradiente, Podcast, Canal, Karaokê, Digitação, Elegante, Editorial, Neon, Palavra-chave,
+   Bounce, Minimal, Livro. Miniaturas renderizadas no tamanho real em px (densidade) em vez de 220 px
+   ampliados. "Meus estilos" em `filesDir/text-styles.json`. 12 fontes novas OFL (Manrope, DM Sans,
+   Outfit, Plus Jakarta Sans, Sora, Space Grotesk, Cormorant Garamond, DM Serif Display, Fraunces,
+   Libre Caslon Text, Lora, Instrument Serif) de google/fonts@e7db6ca (METADATA license "OFL"),
+   eixos não-wght fixados e subset Latin (pyftsubset 4.65); as antigas também em subset:
+   assets de fontes 2.299.948 B → 1.980.784 B mesmo com 12 a mais.
+4. **Redesign** — `TextStudio` (text/TextTabs.kt) com SegmentedTabs Texto/Estilo/Animação, ActionBar
+   só ícones (salvar estilo, info, reset vermelho separado), GraphicSurface, TileGrid em 2 colunas,
+   RiseDropdown. Usado pelo editor de texto; o painel de legendas abre o estúdio ("Estilo e animação").
+5. **Aplicar a todas** — legenda selecionada: estilo/cor/palavra falada/tamanho/posição vão para toda a
+   faixa (`captionGroup`, ou legendas sem grupo) por padrão; "Só esta" = exceção. Prévia ao vivo
+   (`previewItems(draftLookAll)`), commit em UM `document.edit` (`CaptionScope.apply`). Texto comum
+   segue individual.
+
+APK arm64: 65.540.282 B (0.24.0) → 63.121.352 B. Testes: core 264 (1 skip), app 178 (2 skip).
+Limitações: VAD por energia (não Silero); dotprod exige ARMv8.2 (fallback desativa whisper em CPUs
+antigas); histórico de undo gravado durante a transcrição pode conter legendas parciais; exceções
+"Só esta" são sobrescritas se depois aplicar a todas.
+
 ## 0.24.0 (versionCode 41, branch v0.24.0, local — sem push/release)
 Um commit por item (29feb17, 53485fa, 9cabefe, 3f2af95, d8a32c1) + versão/notas/prints.
 - **1. Formato** (`tools/FormatPanel.kt`, `core/FrameFormat.kt`, `composition/BackgroundFitEffect.kt`): abas Proporção / Enquadrar / Fundo, cartões de proporção (Original, 9:16, 1:1, 4:5, 16:9, 21:9, Livre 0.4–2.5), editor de enquadramento com janela arrastável/pinça/giro, TileGrid de Zoom/Rotação/Posição, fundo Preto/Cor/Desfoque (desfoque + escurecer) aplicado na composição (prévia e export). Projeto ganhou `background` (JSON "bg").
