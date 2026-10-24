@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.com.riseedit.EditorUiState
+import br.com.riseedit.RiseAccent
 import br.com.riseedit.RiseMuted
 import br.com.riseedit.RiseSurfaceHigh
 import br.com.riseedit.RiseWhite
@@ -151,6 +152,7 @@ private fun TextSection(draft: TextLayer, update: (TextLayer) -> Unit, fontMenuO
     fun set(style: TextStyle) = update(draft.copy(style = style))
     FontPicker(draft, update, fontMenuOpen)
     FormatRow(draft, update)
+    if (s.flow != br.com.riseedit.core.FlowKind.NONE || s.secondaryFont.isNotEmpty()) WordFontChips(draft, update)
     TileGrid(
         listOf(
             Tile("Tamanho", draft.size, 0.4f..3f, 1f, format = { "%.0f%%".format(it * 100) }) {
@@ -250,9 +252,73 @@ private val SAMPLE = TextLayer(
     words = listOf(CaptionWord(0, 700, "Sua"), CaptionWord(700, 2000, "legenda"))
 )
 
+private val FLOW_SAMPLE = TextLayer(
+    text = "amo essa vida demais",
+    endMs = 2000,
+    words = listOf(
+        CaptionWord(0, 500, "amo"), CaptionWord(500, 1000, "essa"),
+        CaptionWord(1000, 1500, "vida"), CaptionWord(1500, 2000, "demais")
+    )
+)
+
+/**
+ * 0.26.0: per-word font override. Each chip cycles Auto → Base → Destaque; Auto follows the
+ * preset rule (emotive / emphasis / thematic keywords + heuristics). Never copied by apply-to-all.
+ */
+@Composable
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+internal fun WordFontChips(draft: TextLayer, update: (TextLayer) -> Unit) {
+    val s = draft.style
+    val words = remember(draft.text) { Regex("\\S+").findAll(draft.text).map { it.value }.toList() }
+    val auto = br.com.riseedit.core.WordRoles.accents(s.flow, words, emptyMap())
+    GraphicSurface {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Fonte por palavra", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+            Text("toque: auto → base → destaque", fontSize = 11.sp, color = RiseMuted)
+        }
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            words.forEachIndexed { i, w ->
+                val override = draft.fontOverrides[i]
+                val accent = override ?: auto[i]
+                val face = if (accent && s.secondaryFont.isNotEmpty()) {
+                    TextFonts.typeface(s.secondaryFont, true, false, s.secondaryWeight)
+                } else {
+                    TextFonts.typeface(s.font, s.bold, s.italic, s.weight)
+                }
+                val tag = when (override) { null -> "auto"; true -> "destaque"; false -> "base" }
+                Column(
+                    Modifier.clip(RoundedCornerShape(10.dp))
+                        .background(if (accent) RiseAccent.copy(alpha = 0.22f) else Color(0x14FFFFFF))
+                        .border(1.dp, if (override != null) RiseAccent else Color(0x22FFFFFF), RoundedCornerShape(10.dp))
+                        .clickable {
+                            val next = when (override) { null -> !auto[i]; !auto[i] -> auto[i]; else -> null }
+                            val map = draft.fontOverrides.toMutableMap()
+                            if (next == null) map.remove(i) else map[i] = next
+                            update(draft.copy(fontOverrides = map))
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        w,
+                        fontSize = 15.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily(face),
+                        color = Color.White
+                    )
+                    Text(tag, fontSize = 10.sp, color = RiseMuted)
+                }
+            }
+        }
+    }
+}
+
 /** Sample at [localMs] with the look applied (word 2 is "spoken" for the highlight). */
 private fun sampleOf(look: TextLook, localMs: Long = 1200): Pair<TextLayer, IntRange?> {
-    val layer = look.applyTo(SAMPLE).copy(highlightColor = look.highlightColor)
+    val flow = look.style.flow != br.com.riseedit.core.FlowKind.NONE
+    val layer = look.applyTo(if (flow) FLOW_SAMPLE else SAMPLE).copy(highlightColor = look.highlightColor)
     return layer to CaptionWords.activeRange(layer, localMs)
 }
 
@@ -337,8 +403,14 @@ private enum class StylePart(val label: String) {
 
 @Composable
 private fun StyleSection(draft: TextLayer, update: (TextLayer) -> Unit, ui: EditorUiState, a: StudioActions) {
+    val (flows, classic) = TextLooks.all.partition { it.style.flow != br.com.riseedit.core.FlowKind.NONE }
+    Text("Estilos com fluxo", fontSize = 13.sp, color = RiseMuted)
+    AdaptiveGrid(flows) { look, m ->
+        val (layer, hl) = sampleOf(look, 1400)
+        LookTile(look.name, layer, hl, look.matches(draft), m, 1400) { update(look.applyTo(draft)) }
+    }
     Text("Estilos", fontSize = 13.sp, color = RiseMuted)
-    AdaptiveGrid(TextLooks.all) { look, m ->
+    AdaptiveGrid(classic) { look, m ->
         val (layer, hl) = sampleOf(look)
         LookTile(look.name, layer, hl, look.matches(draft), m) { update(look.applyTo(draft)) }
     }
@@ -457,19 +529,49 @@ private fun cardMs(a: WordAnimation) = when (a) {
 private fun AnimationSection(draft: TextLayer, update: (TextLayer) -> Unit) {
     val s = draft.style
     fun set(style: TextStyle) = update(draft.copy(style = style))
-    Text("Por palavra", fontSize = 13.sp, color = RiseMuted)
-    AdaptiveGrid(WordAnimation.entries.toList(), min = 150.dp) { anim, m ->
-        val sample = SAMPLE.copy(
-            text = "Bora editar hoje",
-            endMs = 2400,
-            words = listOf(CaptionWord(0, 600, "Bora"), CaptionWord(600, 1500, "editar"), CaptionWord(1500, 2400, "hoje")),
-            color = draft.color,
-            highlightColor = draft.highlightColor.takeIf { it != 0 } ?: CaptionWords.HIGHLIGHT,
-            style = s.copy(wordAnimation = anim, font = s.font, wordMs = 260)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        RiseDropdown(
+            "Fluxo",
+            br.com.riseedit.core.FlowKind.entries.toList(),
+            s.flow,
+            Modifier.weight(1f),
+            text = { it.label }
+        ) { set(s.copy(flow = it)) }
+        RiseDropdown(
+            "Caixa",
+            br.com.riseedit.core.CapsRule.entries.toList(),
+            s.caps,
+            Modifier.weight(1f),
+            text = { it.label }
+        ) { set(s.copy(caps = it)) }
+    }
+    if (s.flow != br.com.riseedit.core.FlowKind.NONE) {
+        TileGrid(
+            listOf(
+                Tile("Desfoque de movimento", s.blurScale, 0f..2f, 1f, { "%.0f%%".format(it * 100) }) {
+                    set(s.copy(blurScale = it))
+                },
+                Tile("Palavras por grupo", s.maxWords.toFloat(), 0f..8f, 0f, { if (it < 0.5f) "frase" else "%.0f".format(it) }) {
+                    set(s.copy(maxWords = it.toInt()))
+                }
+            )
         )
-        val ms = cardMs(anim)
-        LookTile(anim.label, sample, CaptionWords.activeRange(sample, ms), s.wordAnimation == anim, m, ms) {
-            set(s.copy(wordAnimation = anim))
+    }
+    if (s.flow == br.com.riseedit.core.FlowKind.NONE) {
+        Text("Por palavra", fontSize = 13.sp, color = RiseMuted)
+        AdaptiveGrid(WordAnimation.entries.toList(), min = 150.dp) { anim, m ->
+            val sample = SAMPLE.copy(
+                text = "Bora editar hoje",
+                endMs = 2400,
+                words = listOf(CaptionWord(0, 600, "Bora"), CaptionWord(600, 1500, "editar"), CaptionWord(1500, 2400, "hoje")),
+                color = draft.color,
+                highlightColor = draft.highlightColor.takeIf { it != 0 } ?: CaptionWords.HIGHLIGHT,
+                style = s.copy(wordAnimation = anim, font = s.font, wordMs = 260)
+            )
+            val ms = cardMs(anim)
+            LookTile(anim.label, sample, CaptionWords.activeRange(sample, ms), s.wordAnimation == anim, m, ms) {
+                set(s.copy(wordAnimation = anim))
+            }
         }
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {

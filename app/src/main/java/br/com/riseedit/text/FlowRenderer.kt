@@ -87,10 +87,13 @@ internal object FlowRenderer {
             if (current >= 0) add(current)
         }
         val fontPx = TextRenderer.FONT_FRACTION * frameHeight
+        val layouts = shownGroups.associateWith { g -> layout(groups[g].map { it to all[it] }, layer, frameWidth, fontPx) }
         val frames = shownGroups.associateWith { g ->
-            groups[g].map { i ->
-                val w = all[i]
-                FlowMotion.at(kind, w.time.first, groupEnd(g), localMs, i, w.accent, localMs in w.time, style.blurScale)
+            layouts.getValue(g).first.map { p ->
+                val w = p.word
+                // Slide side follows the landing spot (right half enters from the right) to avoid crossings.
+                val side = if (p.x + p.width / 2 > frameWidth / 2f) 1 else 0
+                FlowMotion.at(kind, w.time.first, groupEnd(g), localMs, side, w.accent, localMs in w.time, style.blurScale)
             }
         }
         val key = buildString {
@@ -106,7 +109,6 @@ internal object FlowRenderer {
             if (style.shadow > 0) style.shadowBlur + style.shadowDistance else 0f
         )
         val pad = ceil(fontPx * (effects + 0.5f) + 2)
-        val layouts = shownGroups.associateWith { g -> layout(groups[g].map { it to all[it] }, layer, frameWidth, fontPx) }
         // Fixed bitmap size over the whole caption (tallest group) so preview/export scaling is stable.
         val contentH = contentHeight(layer, all, groups, frameWidth, fontPx)
         val width = frameWidth.coerceAtLeast(1)
@@ -230,7 +232,7 @@ internal object FlowRenderer {
         if (s.glow > 0) {
             paint.style = Paint.Style.FILL
             paint.color = withAlpha(s.glowColor, f.alpha * s.glow)
-            paint.setShadowLayer(fontPx * 0.35f, 0f, 0f, withAlpha(s.glowColor, f.alpha))
+            paint.setShadowLayer(fontPx * 0.35f, 0f, 0f, withAlpha(s.glowColor, f.alpha * minOf(1f, s.glow * 3f)))
             canvas.drawText(p.word.text, x, baseline, paint)
         }
         if (s.shadow > 0 && blur < 2f) {
