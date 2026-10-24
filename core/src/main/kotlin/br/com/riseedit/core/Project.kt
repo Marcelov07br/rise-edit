@@ -236,7 +236,11 @@ data class TextLayer(
     val rotation: Float = 0f,
     val keyframes: List<TransformKeyframe> = emptyList(),
     val style: TextStyle = TextStyle(),
-    val tracks: br.com.riseedit.core.keys.TransformTracks? = null
+    val tracks: br.com.riseedit.core.keys.TransformTracks? = null,
+    /** 0.24.0: word timings (local ms) from automatic captions; empty = plain text. */
+    val words: List<CaptionWord> = emptyList(),
+    /** ARGB of the spoken word (0 = no highlight). */
+    val highlightColor: Int = 0
 ) {
     init {
         require(endMs > startMs && startMs >= 0)

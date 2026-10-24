@@ -75,6 +75,23 @@ Java_br_com_riseedit_subtitles_WhisperNative_transcribe(
         for (char &c : text) if (c == '\n' || c == '\t') c = ' ';
         out += text;
         out += '\n';
+        // 0.24.0: word timings. "w\tt0Ms\tt1Ms\ttoken" lines (special tokens skipped);
+        // Kotlin joins pieces into words (a leading space starts a new word).
+        const whisper_token eot = whisper_token_eot(ctx);
+        int tokens = whisper_full_n_tokens(ctx, i);
+        for (int j = 0; j < tokens; j++) {
+            whisper_token_data d = whisper_full_get_token_data(ctx, i, j);
+            if (d.id >= eot) continue;
+            std::string piece = whisper_full_get_token_text(ctx, i, j);
+            for (char &c : piece) if (c == '\n' || c == '\t') c = ' ';
+            out += "w\t";
+            out += std::to_string(d.t0 * 10);
+            out += '\t';
+            out += std::to_string(d.t1 * 10);
+            out += '\t';
+            out += piece;
+            out += '\n';
+        }
     }
     jbyteArray bytes = env->NewByteArray((jsize) out.size());
     env->SetByteArrayRegion(bytes, 0, (jsize) out.size(), reinterpret_cast<const jbyte *>(out.data()));

@@ -362,6 +362,11 @@ class ProjectStore(private val context: Context) {
                             t.rotation
                         ).put("keys", keys(t.keyframes)).put("style", StyleJson.text(t.style))
                         .put("tracks", TracksJson.encode(t.tracks))
+                        .put("hl", t.highlightColor)
+                        .put(
+                            "words",
+                            JSONArray(t.words.map { w -> JSONArray(listOf(w.startMs, w.endMs, w.text)) })
+                        )
                 }
             )
         )
@@ -544,7 +549,16 @@ class ProjectStore(private val context: Context) {
                         t.optJSONArray("keys")
                     ),
                     StyleJson.readText(t.optJSONObject("style"), t.getBoolean("animated"))
-                ).copy(tracks = TracksJson.decode(t.optJSONObject("tracks")))
+                ).copy(
+                    tracks = TracksJson.decode(t.optJSONObject("tracks")),
+                    highlightColor = t.optInt("hl", 0),
+                    words = t.optJSONArray("words")?.let { a ->
+                        (0 until a.length()).mapNotNull { i ->
+                            val w = a.optJSONArray(i) ?: return@mapNotNull null
+                            br.com.riseedit.core.CaptionWord(w.getLong(0), w.getLong(1), w.getString(2))
+                        }
+                    } ?: emptyList()
+                )
             },
             overlays = objects(j.optJSONArray("overlays")).map { o ->
                 VideoOverlay(

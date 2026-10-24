@@ -29,7 +29,14 @@ class StyledTextOverlay(private val layer: TextLayer) : BitmapOverlay() {
             local(presentationTimeUs),
             layer.endMs - layer.startMs
         )
-        return TextRenderer.render(layer, width, height, if (frame.alpha > 0) frame.reveal else 1f)
+        val local = local(presentationTimeUs)
+        return TextRenderer.render(
+            layer,
+            width,
+            height,
+            if (frame.alpha > 0) frame.reveal else 1f,
+            br.com.riseedit.core.CaptionWords.activeRange(layer, local)
+        )
     }
 
     override fun getOverlaySettings(presentationTimeUs: Long): OverlaySettings {

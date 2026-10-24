@@ -41,6 +41,29 @@ internal object SubtitleJobs {
         modelFile(context, it).exists()
     }
 
+    /** Marker written after the SHA-256 matched (models from before 0.24.0 are checked once). */
+    private fun verifiedMarker(file: File) = File(file.path + ".sha256-ok")
+
+    private suspend fun verify(model: WhisperModel, file: File) = withContext(Dispatchers.IO) {
+        if (verifiedMarker(file).exists()) return@withContext
+        mutable.value = SubtitleStatus(true, "Verificando ${model.label} (SHA-256)…", 0f)
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(1 shl 16)
+            while (true) {
+                val n = input.read(buffer)
+                if (n < 0) break
+                digest.update(buffer, 0, n)
+            }
+        }
+        val hex = digest.digest().joinToString("") { "%02x".format(it) }
+        if (hex != model.sha256) {
+            file.delete()
+            error("Modelo corrompido (SHA-256 não confere). Baixe de novo.")
+        }
+        verifiedMarker(file).writeText(hex)
+    }
+
     fun cancel() {
         WhisperNative.abort()
         job?.cancel()
@@ -49,6 +72,7 @@ internal object SubtitleJobs {
 
     fun delete(context: Context, model: WhisperModel) {
         modelFile(context, model).delete()
+        verifiedMarker(modelFile(context, model)).delete()
         mutable.value = SubtitleStatus(text = "Modelo ${model.label} removido.")
     }
 
@@ -66,6 +90,7 @@ internal object SubtitleJobs {
             try {
                 val file = modelFile(app, model)
                 if (!file.exists()) download(model, file)
+                verify(model, file)
                 if (!WhisperNative.available) {
                     error(
                         "Biblioteca Whisper indisponível neste aparelho."
@@ -141,7 +166,8 @@ internal object SubtitleJobs {
             if (code != 200) error("Download HTTP $code")
             break
         }
-        val total = connection.contentLengthLong.takeIf { it > 0 } ?: (model.approxMb * 1_000_000L)
+        val total = connection.contentLengthLong.takeIf { it > 0 } ?: model.bytes
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
         connection.inputStream.use { input ->
             part.outputStream().use { output ->
                 val buffer = ByteArray(1 shl 16)
@@ -150,6 +176,7 @@ internal object SubtitleJobs {
                     val n = input.read(buffer)
                     if (n < 0) break
                     output.write(buffer, 0, n)
+                    digest.update(buffer, 0, n)
                     read += n
                     mutable.value = SubtitleStatus(
                         true,
@@ -160,6 +187,12 @@ internal object SubtitleJobs {
             }
         }
         ensureActive()
+        val hex = digest.digest().joinToString("") { "%02x".format(it) }
+        if (hex != model.sha256) {
+            part.delete()
+            error("Download corrompido (SHA-256 não confere). Tente de novo.")
+        }
         if (!part.renameTo(target)) error("Não foi possível salvar o modelo.")
+        verifiedMarker(target).writeText(hex)
     }
 }

@@ -268,50 +268,31 @@ private fun measure(
     }
 }
 
-private val languages = listOf("pt", "auto", "en", "es")
-
-/** Whisper on-device captions as text layers; any model size (downloaded on demand). */
+/** Whisper on-device captions as text layers (0.24.0: design-system zone, word timings). */
 @Composable
 internal fun SubtitlesPanel(vm: EditorViewModel, state: EditorState) {
     val context = LocalContext.current
     val status by SubtitleJobs.status.collectAsStateWithLifecycle()
-    var model by remember { mutableStateOf(WhisperModel.BASE) }
-    var language by remember { mutableStateOf("pt") }
     var downloaded by remember(status.running) { mutableStateOf(SubtitleJobs.downloaded(context)) }
-    ChoiceRow(WhisperModel.entries.toList(), model, { model = it }) {
-        "${it.label} ${if (it in downloaded) "✓" else "· ${it.approxMb} MB"}"
+    val selected = (state.selection as? br.com.riseedit.core.Selection.Text)?.let { s ->
+        state.project.texts.firstOrNull { it.id == s.id }
     }
-    ChoiceRow(languages, language, { language = it }) {
-        if (it ==
-            "auto"
-        ) {
-            "Detectar"
-        } else {
-            it.uppercase()
-        }
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (status.running) {
-            OutlinedButton(onClick = SubtitleJobs::cancel) { Text("Cancelar") }
-        } else {
-            OutlinedButton(onClick = {
+    br.com.riseedit.subtitles.CaptionsContent(
+        br.com.riseedit.subtitles.CaptionsActions(
+            status = status,
+            downloaded = downloaded,
+            hasClips = state.project.clips.isNotEmpty(),
+            start = { model, language ->
                 SubtitleJobs.start(context, state.project, model, language, vm::addSubtitles)
-            }, enabled = state.project.clips.isNotEmpty()) {
-                Text(if (model in downloaded) "Gerar legendas" else "Baixar e gerar")
-            }
-            if (model in downloaded) {
-                OutlinedButton(onClick = {
-                    SubtitleJobs.delete(context, model)
-                    downloaded = SubtitleJobs.downloaded(context)
-                }) { Text("Apagar modelo") }
-            }
-        }
-    }
-    if (status.running) LinearProgressIndicator(progress = { status.progress })
-    if (status.text.isNotEmpty()) Text(status.text, style = MaterialTheme.typography.bodySmall)
-    Text(
-        "Roda no aparelho (whisper.cpp). Usa o áudio dos clipes principais; modelos maiores são mais precisos e mais lentos.",
-        style = MaterialTheme.typography.bodySmall
+            },
+            cancel = SubtitleJobs::cancel,
+            delete = {
+                SubtitleJobs.delete(context, it)
+                downloaded = SubtitleJobs.downloaded(context)
+            },
+            selected = selected,
+            editText = vm::text
+        )
     )
 }
 

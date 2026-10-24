@@ -35,7 +35,9 @@ object TextRenderer {
         val color: Int,
         val width: Int,
         val height: Int,
-        val chars: Int
+        val chars: Int,
+        val highlight: IntRange? = null,
+        val highlightColor: Int = 0
     )
 
     private val cache = object : LinkedHashMap<Key, Bitmap>(8, 0.75f, true) {
@@ -51,9 +53,17 @@ object TextRenderer {
     }
 
     /** Bitmap for [layer] on a [frameWidth]×[frameHeight] frame showing [reveal] of the chars. */
-    fun render(layer: TextLayer, frameWidth: Int, frameHeight: Int, reveal: Float = 1f): Bitmap {
+    fun render(
+        layer: TextLayer,
+        frameWidth: Int,
+        frameHeight: Int,
+        reveal: Float = 1f,
+        /** 0.24.0: char range of the spoken word, drawn in [TextLayer.highlightColor]. */
+        highlight: IntRange? = null
+    ): Bitmap {
         val chars = ceil(layer.text.length * reveal.coerceIn(0f, 1f)).toInt()
-        val key = Key(layer.text, layer.style, layer.color, frameWidth, frameHeight, chars)
+        val hl = highlight?.takeIf { layer.highlightColor != 0 && it.first >= 0 && it.last < layer.text.length }
+        val key = Key(layer.text, layer.style, layer.color, frameWidth, frameHeight, chars, hl, layer.highlightColor)
         synchronized(cache) { cache[key]?.let { return it } }
         val plan = plan(layer.text, layer.style, layer.color, frameWidth, frameHeight, chars)
         val bitmap = Bitmap.createBitmap(
@@ -61,7 +71,7 @@ object TextRenderer {
             plan.bitmapHeight,
             Bitmap.Config.ARGB_8888
         )
-        draw(Canvas(bitmap), plan, layer.style, layer.color)
+        draw(Canvas(bitmap), plan, layer.style, layer.color, hl, layer.highlightColor)
         synchronized(cache) { cache[key] = bitmap }
         return bitmap
     }
@@ -130,7 +140,14 @@ object TextRenderer {
         )
     }
 
-    private fun draw(canvas: Canvas, plan: Plan, style: TextStyle, color: Int) {
+    private fun draw(
+        canvas: Canvas,
+        plan: Plan,
+        style: TextStyle,
+        color: Int,
+        highlight: IntRange? = null,
+        highlightColor: Int = 0
+    ) {
         val paint = plan.paint
         val layout = plan.layout
         val fontPx = plan.fontPx
@@ -160,7 +177,25 @@ object TextRenderer {
         }
         paint.style = Paint.Style.FILL
         paint.color = color
-        layout.draw(canvas)
+        if (highlight == null) {
+            layout.draw(canvas)
+            return
+        }
+        // Fill pass only: the spoken word in the highlight color (stroke/glow keep their colors).
+        val text = layout.text
+        val spanned = SpannableString(text)
+        spanned.setSpan(
+            ForegroundColorSpan(highlightColor),
+            highlight.first,
+            (highlight.last + 1).coerceAtMost(text.length),
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        StaticLayout.Builder.obtain(spanned, 0, spanned.length, paint, layout.width)
+            .setAlignment(layout.alignment)
+            .setLineSpacing(layout.spacingAdd, layout.spacingMultiplier)
+            .setIncludePad(true)
+            .build()
+            .draw(canvas)
     }
 
     private fun drawBackground(canvas: Canvas, plan: Plan, style: TextStyle) {
