@@ -11,16 +11,32 @@ object TextFonts {
         val label: String,
         val regular: String?,
         val bold: String? = null,
-        val variable: Boolean = false
+        val variable: Boolean = false,
+        val category: Category = Category.SANS
     )
 
+    enum class Category(val label: String) { SANS("Sans"), SERIF("Serifa"), DISPLAY("Display") }
+
+    /** Latin subsets (pyftsubset) of google/fonts @ e7db6ca, all SIL OFL 1.1. */
     val all = listOf(
         Font("default", "Padrão", null),
         Font("inter", "Inter", "fonts/Inter.ttf", variable = true),
+        Font("manrope", "Manrope", "fonts/Manrope.ttf", variable = true),
+        Font("dmsans", "DM Sans", "fonts/DMSans.ttf", variable = true),
+        Font("outfit", "Outfit", "fonts/Outfit.ttf", variable = true),
+        Font("jakarta", "Plus Jakarta Sans", "fonts/PlusJakartaSans.ttf", variable = true),
+        Font("sora", "Sora", "fonts/Sora.ttf", variable = true),
+        Font("spacegrotesk", "Space Grotesk", "fonts/SpaceGrotesk.ttf", variable = true),
         Font("montserrat", "Montserrat", "fonts/Montserrat.ttf", variable = true),
-        Font("bebas", "Bebas Neue", "fonts/BebasNeue.ttf"),
-        Font("playfair", "Playfair", "fonts/PlayfairDisplay.ttf", variable = true),
-        Font("poppins", "Poppins", "fonts/Poppins-Regular.ttf", "fonts/Poppins-Bold.ttf")
+        Font("poppins", "Poppins", "fonts/Poppins-Regular.ttf", "fonts/Poppins-Bold.ttf"),
+        Font("playfair", "Playfair", "fonts/PlayfairDisplay.ttf", variable = true, category = Category.SERIF),
+        Font("cormorant", "Cormorant", "fonts/CormorantGaramond.ttf", variable = true, category = Category.SERIF),
+        Font("dmserif", "DM Serif Display", "fonts/DMSerifDisplay.ttf", category = Category.SERIF),
+        Font("fraunces", "Fraunces", "fonts/Fraunces.ttf", variable = true, category = Category.SERIF),
+        Font("caslon", "Libre Caslon", "fonts/LibreCaslonText.ttf", variable = true, category = Category.SERIF),
+        Font("lora", "Lora", "fonts/Lora.ttf", variable = true, category = Category.SERIF),
+        Font("instrument", "Instrument Serif", "fonts/InstrumentSerif.ttf", category = Category.SERIF),
+        Font("bebas", "Bebas Neue", "fonts/BebasNeue.ttf", category = Category.DISPLAY)
     )
 
     @Volatile private var assets: AssetManager? = null
