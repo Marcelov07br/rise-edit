@@ -56,6 +56,7 @@ object TextRenderer {
     fun measure(layer: TextLayer, frameAspect: Float): Pair<Float, Float> {
         val height = 720
         val width = (height * frameAspect).toInt().coerceAtLeast(1)
+        if (layer.style.flow != br.com.riseedit.core.FlowKind.NONE) return FlowRenderer.measure(layer, width, height)
         val plan = plan(layer.text, layer.style, layer.color, width, height, layer.text.length)
         return plan.bitmapWidth.toFloat() / width to plan.bitmapHeight.toFloat() / height
     }
@@ -71,6 +72,9 @@ object TextRenderer {
         /** 0.25.0: ms since the layer starts (word animations, word box). */
         localMs: Long = 0
     ): Bitmap {
+        if (layer.style.flow != br.com.riseedit.core.FlowKind.NONE) {
+            return FlowRenderer.render(layer, frameWidth, frameHeight, localMs)
+        }
         val chars = ceil(layer.text.length * reveal.coerceIn(0f, 1f)).toInt()
         val hl = highlight?.takeIf { layer.highlightColor != 0 && it.first >= 0 && it.last < layer.text.length }
         val style = layer.style

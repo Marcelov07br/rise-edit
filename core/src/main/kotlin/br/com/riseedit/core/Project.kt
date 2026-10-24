@@ -244,7 +244,9 @@ data class TextLayer(
     /** ARGB of the spoken word (0 = no highlight). */
     val highlightColor: Int = 0,
     /** 0.25.0: captions generated together share a group (look edits apply to the group). */
-    val captionGroup: String? = null
+    val captionGroup: String? = null,
+    /** 0.26.0: manual per-word accent (secondary font/emphasis) by token index; absent = automatic. */
+    val fontOverrides: Map<Int, Boolean> = emptyMap()
 ) {
     init {
         require(endMs > startMs && startMs >= 0)

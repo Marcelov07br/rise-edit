@@ -29,6 +29,8 @@ object TextLooks {
     private const val CYAN = 0xFF00C7BE.toInt()
     private val base = TextStyle(animationIn = TextAnimation.FADE, animationOut = TextAnimation.FADE, animationMs = 240)
 
+    private val flowBase = TextStyle(animationIn = TextAnimation.NONE, animationOut = TextAnimation.NONE)
+
     val all: List<TextLook> = listOf(
         TextLook("Clássica", WHITE, YELLOW, base.copy(font = "inter", strokeWidth = 0.1f)),
         TextLook(
@@ -88,6 +90,36 @@ object TextLooks {
         TextLook(
             "Livro", WHITE, 0xFFF5D08A.toInt(),
             base.copy(font = "caslon", shadow = 0.6f, shadowBlur = 0.3f)
+        ),
+        // 0.26.0 flow presets (own layout + motion; hard cut / crossfade instead of fade in/out).
+        TextLook(
+            "Cluster", WHITE, CYAN,
+            flowBase.copy(
+                font = "montserrat", weight = 900, secondaryFont = "caveat", secondaryWeight = 700,
+                caps = CapsRule.LOWER, letterSpacing = -0.04f, flow = FlowKind.CLUSTER, maxWords = 5,
+                shadow = 0.4f, shadowBlur = 0.17f, shadowDistance = 0.07f
+            )
+        ),
+        TextLook(
+            "Hiper-escala", WHITE, 0xFFFFD700.toInt(),
+            flowBase.copy(
+                font = "montserrat", weight = 800, flow = FlowKind.HYPER, maxWords = 3,
+                shadow = 0.5f, shadowBlur = 0.09f, shadowDistance = 0.05f
+            )
+        ),
+        TextLook(
+            "Serifa cinema", WHITE, 0,
+            flowBase.copy(
+                font = "poppinsmedium", bold = false, secondaryFont = "playfair", secondaryWeight = 700,
+                letterSpacing = 0.03f, flow = FlowKind.CINEMA, maxWords = 5, glow = 0.15f
+            )
+        ),
+        TextLook(
+            "Velocidade", WHITE, 0xFFF4D03F.toInt(),
+            flowBase.copy(
+                font = "oswald", weight = 700, caps = CapsRule.EMPHASIS_UPPER, flow = FlowKind.SPEED, maxWords = 3,
+                shadow = 0.3f, shadowBlur = 0.07f, shadowDistance = 0.035f
+            )
         )
     )
 }

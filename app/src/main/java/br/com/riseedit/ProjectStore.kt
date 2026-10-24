@@ -364,6 +364,7 @@ class ProjectStore(private val context: Context) {
                         .put("tracks", TracksJson.encode(t.tracks))
                         .put("hl", t.highlightColor)
                         .put("cg", t.captionGroup ?: JSONObject.NULL)
+                        .put("fo", JSONObject().apply { t.fontOverrides.forEach { (k, v) -> put(k.toString(), v) } })
                         .put(
                             "words",
                             JSONArray(t.words.map { w -> JSONArray(listOf(w.startMs, w.endMs, w.text)) })
@@ -555,6 +556,9 @@ class ProjectStore(private val context: Context) {
                     tracks = TracksJson.decode(t.optJSONObject("tracks")),
                     highlightColor = t.optInt("hl", 0),
                     captionGroup = t.optString("cg", "").takeIf { it.isNotEmpty() && it != "null" },
+                    fontOverrides = t.optJSONObject("fo")?.let { o ->
+                        o.keys().asSequence().mapNotNull { k -> k.toIntOrNull()?.let { it to o.getBoolean(k) } }.toMap()
+                    } ?: emptyMap(),
                     words = t.optJSONArray("words")?.let { a ->
                         (0 until a.length()).mapNotNull { i ->
                             val w = a.optJSONArray(i) ?: return@mapNotNull null

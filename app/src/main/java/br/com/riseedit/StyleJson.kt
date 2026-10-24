@@ -24,6 +24,8 @@ internal object StyleJson {
         .put("in", s.animationIn.name).put("out", s.animationOut.name).put("animMs", s.animationMs)
         .put("word", s.wordAnimation.name).put("unit", s.wordUnit.name).put("wordMs", s.wordMs)
         .put("grad", s.gradientColor).put("wordBox", s.wordBox)
+        .put("flow", s.flow.name).put("font2", s.secondaryFont).put("wght", s.weight).put("wght2", s.secondaryWeight)
+        .put("caps", s.caps.name).put("maxWords", s.maxWords).put("blurScale", s.blurScale.toDouble())
 
     fun readText(j: JSONObject?, animated: Boolean): TextStyle {
         if (j == null) return TextStyle.legacy(animated)
@@ -55,7 +57,14 @@ internal object StyleJson {
             wordUnit = enumOr(j.optString("unit"), d.wordUnit),
             wordMs = j.optLong("wordMs", d.wordMs).coerceIn(40, 2000),
             gradientColor = j.optInt("grad", d.gradientColor),
-            wordBox = j.optBoolean("wordBox", d.wordBox)
+            wordBox = j.optBoolean("wordBox", d.wordBox),
+            flow = enumOr(j.optString("flow"), d.flow),
+            secondaryFont = j.optString("font2", d.secondaryFont),
+            weight = j.optInt("wght", d.weight),
+            secondaryWeight = j.optInt("wght2", d.secondaryWeight),
+            caps = enumOr(j.optString("caps"), d.caps),
+            maxWords = j.optInt("maxWords", d.maxWords).coerceIn(0, 12),
+            blurScale = f("blurScale", d.blurScale).coerceIn(0f, 2f)
         )
     }
 

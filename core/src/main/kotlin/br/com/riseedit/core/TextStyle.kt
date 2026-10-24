@@ -62,7 +62,19 @@ data class TextStyle(
     /** Bottom color of a vertical fill gradient (0 = solid [TextLayer.color]). */
     val gradientColor: Int = 0,
     /** Rounded box behind the spoken word (highlight color) — "caixa por palavra". */
-    val wordBox: Boolean = false
+    val wordBox: Boolean = false,
+    /** 0.26.0: free word layout + preset motion (cluster, hyper-scale, cinema, speed). */
+    val flow: FlowKind = FlowKind.NONE,
+    /** Font of emotive/emphasis/thematic words ("" = same font). */
+    val secondaryFont: String = "",
+    /** wght of the base / secondary font (0 = bold → 700, else 400). */
+    val weight: Int = 0,
+    val secondaryWeight: Int = 0,
+    val caps: CapsRule = CapsRule.NONE,
+    /** Words per cluster/line group (0 = whole caption). */
+    val maxWords: Int = 0,
+    /** Directional/gaussian blur strength multiplier (0 = off, 1 = preset amount). */
+    val blurScale: Float = 1f
 ) {
     init {
         require(opacity in 0f..1f && glow in 0f..1f && background in 0f..1f && shadow in 0f..1f)
