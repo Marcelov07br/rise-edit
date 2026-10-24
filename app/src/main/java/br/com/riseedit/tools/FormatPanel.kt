@@ -108,7 +108,11 @@ internal fun FormatPanel(vm: EditorViewModel, state: EditorState) {
             transform = vm::transformSelected,
             background = vm::background,
             sourceMs = vm.previewSourceMs,
-            sourceRatio = ratio
+            sourceRatio = ratio,
+            reframe = { vm.autoReframe(ratio) },
+            reframeProgress = state.progress.takeIf {
+                state.busy == br.com.riseedit.editor.ReframeCoordinator.BUSY
+            }
         )
     )
 }
@@ -179,7 +183,7 @@ internal fun FormatContent(
         )
         when (tab) {
             FormatTab.RATIO -> RatioTab(p.aspectRatio, enabled, vm.ratio)
-            FormatTab.FRAME -> FrameTab(clip, key, p.aspectRatio, vm, enabled, infoOpenInitially)
+            FormatTab.FRAME -> FrameTab(state, clip, key, p.aspectRatio, vm, enabled, infoOpenInitially)
             FormatTab.BACKGROUND -> BackgroundTab(
                 p.background,
                 clip.orientation.scaleMode,
@@ -287,6 +291,7 @@ private fun RatioCard(
 
 @Composable
 private fun FrameTab(
+    state: EditorState,
     clip: Clip,
     key: TransformKeyframe,
     projectRatio: Float,
@@ -316,11 +321,23 @@ private fun FrameTab(
                 PanelIconButton(Icons.Rounded.Info, "Sobre o enquadramento") { info = !info }
             }
         }
+        vm.reframe?.let { reframe ->
+            val busy = vm.reframeProgress
+            Button(
+                onClick = reframe,
+                enabled = state.busy == null && vm.sourceRatio > (projectRatio.takeIf { it > 0f } ?: vm.sourceRatio) + 0.01f,
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+            ) {
+                androidx.compose.material3.Icon(Icons.Rounded.AutoAwesome, null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (busy != null) "Analisando… ${(busy * 100).toInt()}%" else "Reenquadrar automaticamente")
+            }
+        }
         AnimatedVisibility(info) {
             GraphicSurface {
                 Text(
                     "Com keyframes, cada ajuste vira um ponto na posição da agulha. " +
-                        "O reenquadramento automático cria esses pontos a partir de rostos e objetos.",
+                        "O reenquadramento automático cria esses pontos seguindo os rostos (ML Kit, no aparelho, sem rede).",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -338,18 +355,6 @@ private fun FrameTab(
             ),
             enabled
         )
-        vm.reframe?.let { reframe ->
-            val busy = vm.reframeProgress
-            Button(
-                onClick = reframe,
-                enabled = enabled && busy == null && vm.sourceRatio > (projectRatio.takeIf { it > 0f } ?: vm.sourceRatio) + 0.01f,
-                modifier = Modifier.fillMaxWidth().height(52.dp)
-            ) {
-                androidx.compose.material3.Icon(Icons.Rounded.AutoAwesome, null)
-                Spacer(Modifier.width(8.dp))
-                Text(if (busy != null) "Analisando… ${(busy * 100).toInt()}%" else "Reenquadrar automaticamente")
-            }
-        }
     }
 }
 

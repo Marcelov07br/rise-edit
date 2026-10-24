@@ -100,6 +100,8 @@ dependencies {
     implementation("androidx.media3:media3-transformer:1.9.0")
     implementation("androidx.media3:media3-effect:1.9.0")
     implementation("org.opencv:opencv:4.10.0")
+    // 0.24.0 reframe: bundled on-device face model (developers.google.com/ml-kit, 16.1.7).
+    implementation("com.google.mlkit:face-detection:16.1.7")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

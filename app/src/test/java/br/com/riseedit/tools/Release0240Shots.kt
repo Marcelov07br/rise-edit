@@ -104,6 +104,18 @@ abstract class Release0240Base(private val dex: Boolean) {
     @Test fun formatProporcao() = format(Shots0240.state(), FormatTab.RATIO)
     @Test fun formatProporcaoLivre() = format(Shots0240.state(ratio = 1.85f), FormatTab.RATIO)
     @Test fun formatEnquadrar() = format(Shots0240.state(), FormatTab.FRAME, info = true)
+    @Test fun reframeBotao() = p.snapshot {
+        Shots0240.Frame(dex) { FormatContent(Shots0240.state(keyed = true), FormatActions(reframe = {}), FormatTab.FRAME) }
+    }
+    @Test fun reframeAnalisando() = p.snapshot {
+        Shots0240.Frame(dex) {
+            FormatContent(
+                Shots0240.state(keyed = true).copy(busy = br.com.riseedit.editor.ReframeCoordinator.BUSY, progress = 0.42f),
+                FormatActions(reframe = {}, reframeProgress = 0.42f),
+                FormatTab.FRAME
+            )
+        }
+    }
     @Test fun formatFundoDesfoque() = format(Shots0240.state(fit = true, bg = Shots0240.blur), FormatTab.BACKGROUND)
     @Test fun formatFundoCor() = format(Shots0240.state(fit = true, bg = Shots0240.color), FormatTab.BACKGROUND)
     @Test fun formatFundoMenu() = format(Shots0240.state(fit = true, bg = Shots0240.blur), FormatTab.BACKGROUND, open = true)
