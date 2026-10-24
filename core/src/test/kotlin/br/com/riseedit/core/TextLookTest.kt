@@ -10,9 +10,9 @@ class TextLookTest {
     @Test fun fadeRampsInAndOutAndIsHiddenOutsideTheLayer() {
         assertEquals(0f, TextMotion.at(style, -1, 3000).alpha, 0f)
         assertEquals(0f, TextMotion.at(style, 0, 3000).alpha, 1e-4f)
-        assertEquals(0.5f, TextMotion.at(style, 200, 3000).alpha, 1e-4f)
+        assertEquals(0.875f, TextMotion.at(style, 200, 3000).alpha, 1e-4f)
         assertEquals(1f, TextMotion.at(style, 1500, 3000).alpha, 0f)
-        assertEquals(0.5f, TextMotion.at(style, 2800, 3000).alpha, 1e-4f)
+        assertEquals(0.875f, /* 0.25.0 ease-out cubic */ TextMotion.at(style, 2800, 3000).alpha, 1e-4f)
         assertEquals(0f, TextMotion.at(style, 3000, 3000).alpha, 0f)
     }
 

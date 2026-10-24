@@ -201,8 +201,11 @@ private fun BoxScope.TextStandIn(item: PreviewItem.Text, t: TransformKeyframe) {
         val frameW = (w / (fw * moved.scale)).toInt().coerceAtLeast(1)
         val frameH = (h / (fh * moved.scale)).toInt().coerceAtLeast(1)
         val hl = br.com.riseedit.core.CaptionWords.activeRange(item.layer, item.keyTimeMs)
-        val bitmap = remember(item.layer, frameW, frameH, motion.reveal, hl) {
-            TextRenderer.render(item.layer, frameW, frameH, motion.reveal, hl).asImageBitmap()
+        val animatedWords = item.layer.style.wordAnimation != br.com.riseedit.core.WordAnimation.NONE ||
+            item.layer.style.wordBox
+        val wordTime = if (animatedWords) item.keyTimeMs else 0L
+        val bitmap = remember(item.layer, frameW, frameH, motion.reveal, hl, wordTime) {
+            TextRenderer.render(item.layer, frameW, frameH, motion.reveal, hl, wordTime).asImageBitmap()
         }
         Image(
             bitmap,

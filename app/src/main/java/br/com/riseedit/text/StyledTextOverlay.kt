@@ -35,7 +35,8 @@ class StyledTextOverlay(private val layer: TextLayer) : BitmapOverlay() {
             width,
             height,
             if (frame.alpha > 0) frame.reveal else 1f,
-            br.com.riseedit.core.CaptionWords.activeRange(layer, local)
+            br.com.riseedit.core.CaptionWords.activeRange(layer, local),
+            local
         )
     }
 

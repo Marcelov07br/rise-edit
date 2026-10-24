@@ -22,6 +22,8 @@ internal object StyleJson {
             s.shadowBlur.toDouble()
         ).put("shadowDistance", s.shadowDistance.toDouble())
         .put("in", s.animationIn.name).put("out", s.animationOut.name).put("animMs", s.animationMs)
+        .put("word", s.wordAnimation.name).put("unit", s.wordUnit.name).put("wordMs", s.wordMs)
+        .put("grad", s.gradientColor).put("wordBox", s.wordBox)
 
     fun readText(j: JSONObject?, animated: Boolean): TextStyle {
         if (j == null) return TextStyle.legacy(animated)
@@ -48,7 +50,12 @@ internal object StyleJson {
             shadowDistance = f("shadowDistance", d.shadowDistance),
             animationIn = enumOr(j.optString("in"), d.animationIn),
             animationOut = enumOr(j.optString("out"), d.animationOut),
-            animationMs = j.optLong("animMs", d.animationMs)
+            animationMs = j.optLong("animMs", d.animationMs),
+            wordAnimation = enumOr(j.optString("word"), d.wordAnimation),
+            wordUnit = enumOr(j.optString("unit"), d.wordUnit),
+            wordMs = j.optLong("wordMs", d.wordMs).coerceIn(40, 2000),
+            gradientColor = j.optInt("grad", d.gradientColor),
+            wordBox = j.optBoolean("wordBox", d.wordBox)
         )
     }
 
